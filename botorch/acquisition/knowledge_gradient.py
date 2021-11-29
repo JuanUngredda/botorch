@@ -159,6 +159,7 @@ class qKnowledgeGradient(MCAcquisitionFunction, OneShotAcquisitionFunction):
                 true KG value of `X_actual[b]`, and `X_fantasies[b, : ]` must be
                 maximized at fixed `X_actual[b]`.
         """
+
         X_actual, X_fantasies = _split_fantasy_points(X=X, n_f=self.num_fantasies)
 
         # We only concatenate X_pending into the X part after splitting
@@ -493,10 +494,12 @@ def _get_value_function(
         base_value_function = valfunc_cls(**common_kwargs, **kwargs)
     else:
         if isinstance(objective, MCAcquisitionObjective):
+
             base_value_function = qSimpleRegret(
                 model=model, sampler=sampler, objective=objective
             )
         else:
+
             base_value_function = PosteriorMean(model=model, objective=objective)
 
     if project is None:

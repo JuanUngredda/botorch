@@ -52,6 +52,182 @@ from botorch.utils.transforms import (
     t_batch_mode_transform,
 )
 from torch import Tensor
+from botorch.utils.sampling import draw_sobol_samples
+import sys
+
+class ContinuousKnowledgeGradient(MCAcquisitionFunction):
+    r"""Knowledge Gradient using Monte-Carlo integration.
+
+    This computes the Knowledge Gradient using randomly generated Zj ~ N(0,1) to
+    find \max_{x'}{ \mu^n(x') + \hat{\sigma^n{x', x}}Z_{j} }. Then, the outer
+    expectation is solved by taking the Monte Carlo average.
+    """
+
+    def __init__(self,
+                 model: Model,
+                 num_fantasies: Optional[int] = 64,
+                 bounds: Tensor=None,
+                 seed: Optional[MCSampler] = 1,
+                 sampler: Optional[MCSampler] = None,
+                 objective: Optional[AcquisitionObjective] = None,
+                 inner_sampler: Optional[MCSampler] = None,
+                 X_pending: Optional[Tensor] = None,
+                 current_value: Optional[Tensor] = None,
+                 **kwargs: Any,
+                 ) -> None:
+        r"""q-Knowledge Gradient (one-shot optimization).
+
+        Args:
+            model: A fitted model. Must support fantasizing.
+            num_fantasies: The number of fantasy points to use. More fantasy
+                points result in a better approximation, at the expense of
+                memory and wall time. Unused if `sampler` is specified.
+            bounds: A `2 x d` tensor of lower and upper bounds for each column of
+                the solutions to the inner problem.
+            sampler: The sampler used to sample fantasy observations. Optional
+                if `num_fantasies` is specified.
+            objective: The objective under which the samples are evaluated. If
+                `None` or a ScalarizedObjective, then the analytic posterior mean
+                is used, otherwise the objective is MC-evaluated (using
+                inner_sampler).
+            inner_sampler: The sampler used for inner sampling. Ignored if the
+                objective is `None` or a ScalarizedObjective.
+            X_pending: A `m x d`-dim Tensor of `m` design points that have
+                points that have been submitted for function evaluation
+                but have not yet been evaluated.
+            current_value: The current value, i.e. the expected best objective
+                given the observed points `D`. If omitted, forward will not
+                return the actual KG value, but the expected best objective
+                given the data set `D u X`.
+        """
+        if sampler is None:
+            if num_fantasies is None:
+                raise ValueError(
+                    "Must specify `num_fantasies` if no `sampler` is provided."
+                )
+
+        elif num_fantasies is not None:
+            if sampler.sample_shape != torch.Size([num_fantasies]):
+                raise ValueError(
+                    f"The sampler shape must match num_fantasies={num_fantasies}."
+                )
+        else:
+            num_fantasies = sampler.sample_shape[0]
+        super(MCAcquisitionFunction, self).__init__(model=model)
+        # if not explicitly specified, we use the posterior mean for linear objs
+        if isinstance(objective, MCAcquisitionObjective) and inner_sampler is None:
+            inner_sampler = SobolQMCNormalSampler(
+                num_samples=128, resample=False, collapse_batch_dims=True
+            )
+        if objective is None and model.num_outputs != 1:
+            raise UnsupportedError(
+                "Must specify an objective when using a multi-output model."
+            )
+        self.bounds = bounds
+        self.seed = seed
+        self.sampler = sampler
+        self.objective = objective
+        self.set_X_pending(X_pending)
+        self.inner_sampler = inner_sampler
+        self.num_fantasies = num_fantasies
+        self.current_value = current_value
+        self.num_restarts = kwargs.get("num_restarts", 20)
+        self.raw_samples = kwargs.get("raw_samples", 1024)
+
+    @concatenate_pending_points
+    @t_batch_mode_transform()
+    def forward(self, X: Tensor) -> Tensor:
+        r"""Evaluate qKnowledgeGradient on the candidate set `X_actual` by
+        solving the inner optimization problem.
+
+        Args:
+            X: A `b x q x d` Tensor with `b` t-batches of `q` design points
+                each. Unlike `forward()`.
+            bounds: A `2 x d` tensor of lower and upper bounds for each column of
+                the solutions to the inner problem.
+            kwargs: Additional keyword arguments. This includes the options for
+                optimization of the inner problem, i.e. `num_restarts`, `raw_samples`,
+                an `options` dictionary to be passed on to the optimization helpers, and
+                a `scipy_options` dictionary to be passed to `scipy.minimize`.
+
+        Returns:
+            A Tensor of shape `b`. For t-batch b, the q-KG value of the design
+                `X[b]` is averaged across the fantasy models.
+                NOTE: If `current_value` is not provided, then this is not the
+                true KG value of `X[b]`.
+        """
+
+        if 'gen_candidates_scipy' not in sys.modules:
+            from botorch.generation.gen import gen_candidates_scipy
+            from botorch.optim.initializers import gen_value_function_initial_conditions
+
+        assert X.shape[1] == 1, "only q = 1 is handled"
+
+        expected_xnew_value = torch.zeros(X.shape[0])
+        for xnew_idx, xnew in enumerate(X):
+            fantasy_opt_val = torch.zeros((1, self.num_fantasies))
+
+            sampler = SobolQMCNormalSampler(num_samples=1,
+                                            resample=True,
+                                            collapse_batch_dims=True,
+                                            seed=self.seed)
+
+            for fantasy_idx in range(self.num_fantasies):
+                # construct the fantasy model of shape `num_fantasies x b`
+                # base samples should be fixed for joint optimization over X
+
+
+                fantasy_model = self.model.fantasize(X=xnew,
+                                                     sampler=sampler,
+                                                     observation_noise=True)
+
+                # get the value function
+                with torch.enable_grad():
+                    value_function = _get_value_function(
+                        model=fantasy_model,
+                        objective=self.objective,
+                        sampler=self.inner_sampler,
+                        project=getattr(self, "project", None)
+                    )
+
+                # optimize the inner problem
+                # make sure to enable gradients for inner_optimisation.
+
+                    initial_conditions = gen_value_function_initial_conditions(
+                        acq_function=value_function,
+                        bounds=self.bounds,
+                        num_restarts=self.num_restarts,
+                        raw_samples=self.raw_samples,
+                        current_model=self.model)
+
+                    x_values, values = gen_candidates_scipy(
+                        initial_conditions=initial_conditions,
+                        acquisition_function=value_function,
+                        lower_bounds=self.bounds[0],
+                        upper_bounds=self.bounds[1])
+
+                    with settings.propagate_grads(True):
+                        values = value_function(X=x_values)  # num_fantasies x b
+
+                    values, _ = torch.max(values, dim=0)
+                    fantasy_opt_val[:, fantasy_idx] = values
+
+            expected_xnew_value[xnew_idx] = torch.mean(fantasy_opt_val, dim=-1)
+
+        if self.current_value is not None:
+            xnew_acquisition_value = expected_xnew_value - self.current_value
+        else:
+            xnew_acquisition_value = expected_xnew_value
+        return xnew_acquisition_value
+
+    # def _generate_initial_samples(self, value_function, raw_samples, num_restarts):
+    #     raw_samples = draw_sobol_samples(bounds=self.bounds, n=raw_samples, q=1)
+    #     raw_samples_value = value_function(raw_samples)
+    #     best_samples_idx = torch.argsort(raw_samples_value, descending=True)
+    #     initial_conditions = raw_samples[best_samples_idx[:num_restarts]]
+    #
+    #     initial_conditions = initial_conditions.unsqueeze(1)  # num_restarts x 1 x 1 x d
+    #     return initial_conditions
 
 
 class qKnowledgeGradient(MCAcquisitionFunction, OneShotAcquisitionFunction):
@@ -240,7 +416,7 @@ class qKnowledgeGradient(MCAcquisitionFunction, OneShotAcquisitionFunction):
             current_model=self.model,
             options={**kwargs.get("options", {}), **kwargs.get("scipy_options", {})},
         )
-
+        
         _, values = gen_candidates_scipy(
             initial_conditions=initial_conditions,
             acquisition_function=value_function,
@@ -494,12 +670,11 @@ def _get_value_function(
         base_value_function = valfunc_cls(**common_kwargs, **kwargs)
     else:
         if isinstance(objective, MCAcquisitionObjective):
-
             base_value_function = qSimpleRegret(
                 model=model, sampler=sampler, objective=objective
             )
-        else:
 
+        else:
             base_value_function = PosteriorMean(model=model, objective=objective)
 
     if project is None:

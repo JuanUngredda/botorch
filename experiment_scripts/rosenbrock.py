@@ -1,5 +1,6 @@
 import torch
 from botorch.acquisition import qKnowledgeGradient
+from botorch.acquisition import ContinuousKnowledgeGradient
 from botorch.acquisition.analytic import DiscreteKnowledgeGradient
 from botorch.fit import fit_gpytorch_model
 from botorch.models import SingleTaskGP
@@ -10,6 +11,7 @@ from botorch.utils.sampling import manual_seed
 from botorch.utils.transforms import unnormalize
 from gpytorch.mlls import ExactMarginalLogLikelihood
 import matplotlib.pyplot as plt
+import time
 
 fun = Rosenbrock(dim=2, negate=True)
 fun.bounds[0, :].fill_(-5)
@@ -29,38 +31,44 @@ torch.manual_seed(1)
 train_X = bounds[:, 0] + (bounds[:, 1] - bounds[:, 0]) * torch.rand(30, 2)
 train_Y = standardize(eval_objective(train_X))
 
-def one_shot_knowledge_gradient(model, num_fantasies=100):
-    """
-    # Defining the qKnowledgeGradient acquisition function (One-Shot KG)
-    """
-
-    kg = qKnowledgeGradient(model, num_fantasies=num_fantasies)
-    return kg
-
-def discrete_knowledge_gradient(model, bounds, num_discrete_points):
-    """
-    Computes discrete KG
-    """
-    kg = DiscreteKnowledgeGradient(model=model,
-                                   bounds=bounds,
-                                   num_discrete_points=num_discrete_points,
-                                   discretisation=None)
-    return kg
-
 # Fit GP model
 model = SingleTaskGP(train_X, train_Y)
 mll = ExactMarginalLogLikelihood(model.likelihood, model)
 fit_gpytorch_model(mll)
 
+
+# acquisition function and optimisation parameters
+NUM_RESTARTS = 10
+RAW_SAMPLES = 512
+NUM_FANTASIES_CONTINUOUS_KG = 10
+NUM_FANTASIES_ONE_SHOT = 125
+NUM_DISCRETE_X = 100
+
 # Initialize acquisition functions.
-one_shot_kg = one_shot_knowledge_gradient(model=model, num_fantasies=125)
-discrete_kg = discrete_knowledge_gradient(model=model, bounds=fun.bounds, num_discrete_points=100)
+one_shot_kg = qKnowledgeGradient(model, num_fantasies=NUM_FANTASIES_ONE_SHOT)
+discrete_kg = DiscreteKnowledgeGradient(model=model,
+                                   bounds=fun.bounds,
+                                   num_discrete_points=NUM_DISCRETE_X,
+                                   discretisation=None)
+continous_kg = ContinuousKnowledgeGradient(model,
+                                           bounds=fun.bounds,
+                                           num_fantasies=NUM_FANTASIES_CONTINUOUS_KG,
+                                           num_restarts=1,
+                                           raw_samples=20)
 
 #Optimise acquisition functions
-NUM_RESTARTS = 15
-RAW_SAMPLES = 250
-
 with manual_seed(12):
+    start = time.time()
+    continuous_kg_xstar, _ = optimize_acqf(
+        acq_function=continous_kg,
+        bounds=bounds.T,
+        q=1,
+        num_restarts=3,
+        raw_samples=50)
+    stop = time.time()
+    print("continuous kg done: ", stop-start, "secs")
+
+    start = time.time()
     discrete_kg_xstar, _ = optimize_acqf(
         acq_function=discrete_kg,
         bounds=bounds.T,
@@ -68,7 +76,10 @@ with manual_seed(12):
         num_restarts=NUM_RESTARTS,
         raw_samples=RAW_SAMPLES,
     )
+    stop = time.time()
+    print("discrete kg done", stop-start, "secs")
 
+    start = time.time()
     one_shot_kg_xstar, _ = optimize_acqf(
         acq_function=one_shot_kg,
         bounds=bounds.T,
@@ -76,7 +87,8 @@ with manual_seed(12):
         num_restarts=NUM_RESTARTS,
         raw_samples=RAW_SAMPLES,
     )
-
+    stop = time.time()
+    print("one-shot kg done", stop-start, "secs")
 
 # Plotting acquisition functions
 plot_x = bounds[:, 0] + (bounds[:, 1] - bounds[:, 0]) * torch.rand(5000, 1, 2)
@@ -88,10 +100,13 @@ plt.scatter(plot_x[:, :, 0], plot_x[:, :, 1], c=discrete_kg_vals)
 plt.scatter(train_X.numpy()[:, 0], train_X.numpy()[:, 1], color="red", label="sampled points")
 plt.scatter(discrete_kg_xstar.numpy()[:, 0],
             discrete_kg_xstar.numpy()[:, 1],
-            color="black", label="dkg $x^{*}$")
+            color="black", label="discrete kg $x^{*}$")
 plt.scatter(one_shot_kg_xstar.numpy()[:, 0],
             one_shot_kg_xstar.numpy()[:, 1],
             color="black", marker="x", label="oneshot_kg $x^{*}$")
+plt.scatter(continuous_kg_xstar.numpy()[:, 0],
+            continuous_kg_xstar.numpy()[:, 1],
+            color="black", marker="s", label="continuous_kg $x^{*}$")
 plt.legend()
 plt.colorbar()
 plt.show()

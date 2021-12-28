@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from abc import ABC
 from copy import deepcopy
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 from botorch.acquisition.acquisition import AcquisitionFunction
@@ -91,7 +91,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         num_discrete_points: Optional[int] = None,
         discretisation: Optional[Tensor] = None
     ) -> None:
-        """
+        r"""
         Discrete Knowledge Gradient
         Args:
             model: A fitted model.
@@ -121,7 +121,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
     def forward(self, X: Tensor) -> Tensor:
-        """
+        r"""
 
         Args:
             X: A `m x 1 x d` Tensor with `m` acquisition function evaluations of
@@ -177,7 +177,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
     @staticmethod
     def kgcb(a: Tensor, b: Tensor) -> Tensor:
-        """
+        r"""
         Calculates the linear epigraph, i.e. the boundary of the set of points
         in 2D lying above a collection of straight lines y=a+bx.
         Parameters
@@ -191,6 +191,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         KGCB
             average height of the epigraph
         """
+        
         a = a.squeeze()
         b = b.squeeze()
         assert len(a) > 0, "must provide slopes"

@@ -25,6 +25,7 @@ from botorch.acquisition.cost_aware import (
 from botorch.acquisition.fixed_feature import FixedFeatureAcquisitionFunction
 from botorch.acquisition.input_constructors import get_acqf_input_constructor
 from botorch.acquisition.knowledge_gradient import (
+    ContinuousKnowledgeGradient,
     qKnowledgeGradient,
     qMultiFidelityKnowledgeGradient,
 )
@@ -70,6 +71,7 @@ __all__ = [
     "UpperConfidenceBound",
     "qExpectedImprovement",
     "qKnowledgeGradient",
+    "ContinuousKnowledgeGradient",
     "MaxValueBase",
     "qMultiFidelityKnowledgeGradient",
     "qMaxValueEntropy",

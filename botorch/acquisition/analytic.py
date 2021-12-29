@@ -89,7 +89,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         model: Model,
         bounds: Tensor,
         num_discrete_points: Optional[int] = None,
-        discretisation: Optional[Tensor] = None
+        discretisation: Optional[Tensor] = None,
     ) -> None:
         r"""
         Discrete Knowledge Gradient
@@ -136,38 +136,48 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         ), "Currently DiscreteKnowledgeGradient can't perform batched evaluations. Set q=1"
 
         # Augment the discretisation with the designs.
-        concatenated_xnew_discretisation = torch.cat([X, self.X_discretisation], dim=0).squeeze() # (m + num_X_disc, d)
+        concatenated_xnew_discretisation = torch.cat(
+            [X, self.X_discretisation], dim=0
+        ).squeeze()  # (m + num_X_disc, d)
 
         # Compute posterior mean, variance, and covariance.
         full_posterior = self.model.posterior(
             concatenated_xnew_discretisation, observation_noise=False
         )
         noise_variance = self.model.likelihood.noise_covar.noise
-        full_posterior_mean = full_posterior.mean # (m + num_X_disc , 1)
+        full_posterior_mean = full_posterior.mean  # (m + num_X_disc , 1)
 
         # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
-        discretisation_mean = full_posterior_mean[len(X):].squeeze() # (num_X_disc, )
-        full_posterior_covariance = full_posterior.mvn.covariance_matrix # (m + num_X_disc , m + num_X_disc )
-        sub_posterior_covariance = full_posterior_covariance[: len(X), len(X):] # (m , num_X_disc)
-        full_posterior_variance = full_posterior.variance # (m + num_X_disc, )
+        discretisation_mean = full_posterior_mean[len(X) :].squeeze()  # (num_X_disc, )
+        full_posterior_covariance = (
+            full_posterior.mvn.covariance_matrix
+        )  # (m + num_X_disc , m + num_X_disc )
+        sub_posterior_covariance = full_posterior_covariance[
+            : len(X), len(X) :
+        ]  # (m , num_X_disc)
+        full_posterior_variance = full_posterior.variance  # (m + num_X_disc, )
 
         # initialise empty kgvals torch.tensor
-        kgvals = torch.zeros(X.shape[0])
+        kgvals = torch.zeros(X.shape[0], dtype=torch.double)
         for idx, _ in enumerate(X):
 
             # Obtain posterior mean of xnew from Xnew and augment discretisation mean with xnew_mean
             xnew_mean = full_posterior_mean[idx]
-            candidates_posterior_mean = torch.cat([xnew_mean, discretisation_mean], dim=0)
+            candidates_posterior_mean = torch.cat(
+                [xnew_mean, discretisation_mean], dim=0
+            )
 
             # Make sure that variance is positive, select 1D covariance tensor [xnew, X_discretisation].
-            newx_var = full_posterior_variance[idx].clamp_min(1e-9) # make sure variance is positive.
-            cov_xnew_X_disc = sub_posterior_covariance[idx] # (1, num_X_disc)
-            cov_xnew_X_disc = torch.cat([newx_var, cov_xnew_X_disc], dim=0) # (1, num_X_disc + 1)
+            newx_var = full_posterior_variance[idx].clamp_min(
+                1e-9
+            )  # make sure variance is positive.
+            cov_xnew_X_disc = sub_posterior_covariance[idx]  # (1, num_X_disc)
+            cov_xnew_X_disc = torch.cat(
+                [newx_var, cov_xnew_X_disc], dim=0
+            )  # (1, num_X_disc + 1)
 
             # Compute posterior standard deviation of predictive posterior mean \mu^{n+1}(x)
-            candidates_sigt = (
-                cov_xnew_X_disc / (newx_var + noise_variance).sqrt()
-            )
+            candidates_sigt = cov_xnew_X_disc / (newx_var + noise_variance).sqrt()
 
             # Given some means and standard deviations compute KG :)
             kgvals[idx] = self.kgcb(a=candidates_posterior_mean, b=candidates_sigt)
@@ -190,7 +200,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         KGCB
             average height of the epigraph
         """
-        
+
         a = a.squeeze()
         b = b.squeeze()
         assert len(a) > 0, "must provide slopes"

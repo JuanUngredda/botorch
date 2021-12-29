@@ -26,6 +26,7 @@ and [Wu2016parallelkg]_.
 
 from __future__ import annotations
 
+import sys
 from copy import deepcopy
 from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 
@@ -46,14 +47,14 @@ from botorch.acquisition.objective import (
 from botorch.exceptions.errors import UnsupportedError
 from botorch.models.model import Model
 from botorch.sampling.samplers import MCSampler, SobolQMCNormalSampler
+from botorch.utils.sampling import draw_sobol_samples
 from botorch.utils.transforms import (
     concatenate_pending_points,
     match_batch_shape,
     t_batch_mode_transform,
 )
 from torch import Tensor
-from botorch.utils.sampling import draw_sobol_samples
-import sys
+
 
 class ContinuousKnowledgeGradient(MCAcquisitionFunction):
     r"""Knowledge Gradient using Monte-Carlo integration.
@@ -63,18 +64,19 @@ class ContinuousKnowledgeGradient(MCAcquisitionFunction):
     expectation is solved by taking the Monte Carlo average.
     """
 
-    def __init__(self,
-                 model: Model,
-                 num_fantasies: Optional[int] = 64,
-                 bounds: Tensor=None,
-                 seed: Optional[MCSampler] = 1,
-                 sampler: Optional[MCSampler] = None,
-                 objective: Optional[AcquisitionObjective] = None,
-                 inner_sampler: Optional[MCSampler] = None,
-                 X_pending: Optional[Tensor] = None,
-                 current_value: Optional[Tensor] = None,
-                 **kwargs: Any,
-                 ) -> None:
+    def __init__(
+        self,
+        model: Model,
+        num_fantasies: Optional[int] = 64,
+        bounds: Tensor = None,
+        seed: Optional[MCSampler] = 1,
+        sampler: Optional[MCSampler] = None,
+        objective: Optional[AcquisitionObjective] = None,
+        inner_sampler: Optional[MCSampler] = None,
+        X_pending: Optional[Tensor] = None,
+        current_value: Optional[Tensor] = None,
+        **kwargs: Any,
+    ) -> None:
         r"""q-Knowledge Gradient (one-shot optimization).
 
         Args:
@@ -157,31 +159,29 @@ class ContinuousKnowledgeGradient(MCAcquisitionFunction):
                 true KG value of `X[b]`.
         """
 
-        if 'gen_candidates_scipy' not in sys.modules:
+        if "gen_candidates_scipy" not in sys.modules:
             from botorch.generation.gen import gen_candidates_scipy
             from botorch.optim.initializers import gen_value_function_initial_conditions
 
         assert (
-                X.shape[1] == 1
+            X.shape[1] == 1
         ), "Currently ContinuousKnowledgeGradient can't perform batched evaluations. Set q=1"
 
         expected_xnew_value = torch.zeros(X.shape[0])
         for xnew_idx, xnew in enumerate(X):
             fantasy_opt_val = torch.zeros((1, self.num_fantasies))
 
-            sampler = SobolQMCNormalSampler(num_samples=1,
-                                            resample=True,
-                                            collapse_batch_dims=True,
-                                            seed=self.seed)
+            sampler = SobolQMCNormalSampler(
+                num_samples=1, resample=True, collapse_batch_dims=True, seed=self.seed
+            )
 
             for fantasy_idx in range(self.num_fantasies):
                 # construct the fantasy model of shape `num_fantasies x b`
                 # base samples should be fixed for joint optimization over X
 
-
-                fantasy_model = self.model.fantasize(X=xnew,
-                                                     sampler=sampler,
-                                                     observation_noise=True)
+                fantasy_model = self.model.fantasize(
+                    X=xnew, sampler=sampler, observation_noise=True
+                )
 
                 # get the value function
                 with torch.enable_grad():
@@ -189,24 +189,26 @@ class ContinuousKnowledgeGradient(MCAcquisitionFunction):
                         model=fantasy_model,
                         objective=self.objective,
                         sampler=self.inner_sampler,
-                        project=getattr(self, "project", None)
+                        project=getattr(self, "project", None),
                     )
 
-                # optimize the inner problem
-                # make sure to enable gradients for inner_optimisation.
+                    # optimize the inner problem
+                    # make sure to enable gradients for inner_optimisation.
 
                     initial_conditions = gen_value_function_initial_conditions(
                         acq_function=value_function,
                         bounds=self.bounds,
                         num_restarts=self.num_restarts,
                         raw_samples=self.raw_samples,
-                        current_model=self.model)
+                        current_model=self.model,
+                    )
 
                     x_values, values = gen_candidates_scipy(
                         initial_conditions=initial_conditions,
                         acquisition_function=value_function,
                         lower_bounds=self.bounds[0],
-                        upper_bounds=self.bounds[1])
+                        upper_bounds=self.bounds[1],
+                    )
 
                     with settings.propagate_grads(True):
                         values = value_function(X=x_values)  # num_fantasies x b
@@ -418,7 +420,7 @@ class qKnowledgeGradient(MCAcquisitionFunction, OneShotAcquisitionFunction):
             current_model=self.model,
             options={**kwargs.get("options", {}), **kwargs.get("scipy_options", {})},
         )
-        
+
         _, values = gen_candidates_scipy(
             initial_conditions=initial_conditions,
             acquisition_function=value_function,

@@ -17,6 +17,7 @@ from botorch.acquisition.analytic import (
     PosteriorMean,
     ProbabilityOfImprovement,
     UpperConfidenceBound,
+    DiscreteKnowledgeGradient,
 )
 from botorch.acquisition.cost_aware import (
     GenericCostAwareUtility,
@@ -71,6 +72,7 @@ __all__ = [
     "UpperConfidenceBound",
     "qExpectedImprovement",
     "qKnowledgeGradient",
+    "DiscreteKnowledgeGradient",
     "ContinuousKnowledgeGradient",
     "MaxValueBase",
     "qMultiFidelityKnowledgeGradient",

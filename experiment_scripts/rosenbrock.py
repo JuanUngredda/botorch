@@ -66,6 +66,13 @@ continous_kg = ContinuousKnowledgeGradient(
 with manual_seed(12):
 
     start = time.time()
+    continuous_kg_xstar, _ = optimize_acqf(
+        acq_function=continous_kg, bounds=bounds.T, q=1, num_restarts=3, raw_samples=50
+    )
+    stop = time.time()
+    print("continuous kg done: ", stop - start, "secs")
+
+    start = time.time()
     discrete_kg_xstar, _ = optimize_acqf(
         acq_function=discrete_kg,
         bounds=bounds.T,
@@ -75,13 +82,6 @@ with manual_seed(12):
     )
     stop = time.time()
     print("discrete kg done", stop - start, "secs")
-
-    start = time.time()
-    continuous_kg_xstar, _ = optimize_acqf(
-        acq_function=continous_kg, bounds=bounds.T, q=1, num_restarts=3, raw_samples=50
-    )
-    stop = time.time()
-    print("continuous kg done: ", stop - start, "secs")
 
     start = time.time()
     one_shot_kg_xstar, _ = optimize_acqf(

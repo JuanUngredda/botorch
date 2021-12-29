@@ -8,9 +8,9 @@ from contextlib import ExitStack
 from unittest import mock
 
 import torch
-from botorch.acquisition.analytic import DiscreteKnowledgeGradient
 from botorch.acquisition.analytic import PosteriorMean, ScalarizedPosteriorMean
 from botorch.acquisition.cost_aware import GenericCostAwareUtility
+from botorch.acquisition.knowledge_gradient import ContinuousKnowledgeGradient
 from botorch.acquisition.monte_carlo import qExpectedImprovement, qSimpleRegret
 from botorch.acquisition.objective import GenericMCObjective, ScalarizedObjective
 from botorch.acquisition.utils import project_to_sample_points
@@ -32,21 +32,24 @@ class TestDicreteKnowledgeGradient(BotorchTestCase):
     def test_evaluate_kg(self):
         # a thorough test using real model and dtype double
         d = 2
-        NUM_DISCRETE_X = 100
+        NUM_FANTASIES = 3
+        NUM_RESTARTS_INNER_OPTIMISER = 1
+        NUM_RAW_SAMPLES_INNER_OPTIMISER = 20
         dtype = torch.double
         bounds = torch.tensor([[0], [1]], device=self.device, dtype=dtype).repeat(1, d)
         train_X = torch.rand(3, d, device=self.device, dtype=dtype)
         train_Y = torch.rand(3, 1, device=self.device, dtype=dtype)
         model = SingleTaskGP(train_X, train_Y)
-        dKG = DiscreteKnowledgeGradient(
-            model=model,
+        continous_kg = ContinuousKnowledgeGradient(
+            model,
             bounds=bounds,
-            num_discrete_points=NUM_DISCRETE_X,
-            discretisation=None,
+            num_fantasies=NUM_FANTASIES,
+            num_restarts=NUM_RESTARTS_INNER_OPTIMISER,
+            raw_samples=NUM_RAW_SAMPLES_INNER_OPTIMISER,
         )
         X = torch.rand(4, 1, d, device=self.device, dtype=dtype)
         options = {"num_inner_restarts": 2, "raw_inner_samples": 3}
-        val = dKG(X)
+        val = continous_kg(X)
 
         # verify output shape
         self.assertEqual(val.size(), torch.Size([4]))

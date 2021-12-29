@@ -161,7 +161,9 @@ class ContinuousKnowledgeGradient(MCAcquisitionFunction):
             from botorch.generation.gen import gen_candidates_scipy
             from botorch.optim.initializers import gen_value_function_initial_conditions
 
-        assert X.shape[1] == 1, "only q = 1 is handled"
+        assert (
+                X.shape[1] == 1
+        ), "Currently ContinuousKnowledgeGradient can't perform batched evaluations. Set q=1"
 
         expected_xnew_value = torch.zeros(X.shape[0])
         for xnew_idx, xnew in enumerate(X):

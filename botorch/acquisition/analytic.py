@@ -96,7 +96,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         Args:
             model: A fitted model.
             bounds: A `2 x d` tensor of lower and upper bounds for each column
-            num_discrete_points: (int) The number of discrete points to use. More discrete
+            num_discrete_points: (int) The number of discrete points to use for input (X) space. More discrete
                 points result in a better approximation, at the expense of
                 memory and wall time.
             discretisation: A `k x d`-dim Tensor of `k` design points that will approximate the
@@ -109,15 +109,14 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
                     "Must specify `num_discrete_points` for random discretisation if no `discretisation` is provided."
                 )
 
-            discretisation = draw_sobol_samples(
+            X_discretisation = draw_sobol_samples(
                 bounds=bounds, n=num_discrete_points, q=1
             )
 
         super().__init__(model=model)
 
-        self.num_input_dimensions = len(bounds)
-        self.num_points = num_discrete_points
-        self.discretisation = discretisation
+        self.num_input_dimensions = bounds.shape[1]
+        self.X_discretisation = X_discretisation
 
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
     def forward(self, X: Tensor) -> Tensor:
@@ -134,40 +133,40 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         assert (
             X.shape[1] == 1
-        ), "Currently DiscreteKnowledgeGradient does can't perform batched evaluations. Set q=1"
+        ), "Currently DiscreteKnowledgeGradient can't perform batched evaluations. Set q=1"
 
         # Augment the discretisation with the designs.
-        concatenated_xnew_discretisation = torch.cat([X, self.discretisation]).squeeze()
+        concatenated_xnew_discretisation = torch.cat([X, self.X_discretisation], dim=0).squeeze() # (m + num_X_disc, d)
 
         # Compute posterior mean, variance, and covariance.
         full_posterior = self.model.posterior(
             concatenated_xnew_discretisation, observation_noise=False
         )
         noise_variance = self.model.likelihood.noise_covar.noise
-        full_posterior_mean = full_posterior.mean
+        full_posterior_mean = full_posterior.mean # (m + num_X_disc , 1)
 
         # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
-        discretisation_mean = full_posterior_mean[len(X):].squeeze()
-        full_posterior_covariance = full_posterior.mvn.covariance_matrix
-        sub_posterior_covariance = full_posterior_covariance[: len(X), len(X):]
-        full_posterior_variance = full_posterior.variance
+        discretisation_mean = full_posterior_mean[len(X):].squeeze() # (num_X_disc, )
+        full_posterior_covariance = full_posterior.mvn.covariance_matrix # (m + num_X_disc , m + num_X_disc )
+        sub_posterior_covariance = full_posterior_covariance[: len(X), len(X):] # (m , num_X_disc)
+        full_posterior_variance = full_posterior.variance # (m + num_X_disc, )
 
         # initialise empty kgvals torch.tensor
         kgvals = torch.zeros(X.shape[0])
         for idx, _ in enumerate(X):
 
-            # Compute posterior mean of xnew and augment discretisation mean with newc_mean
-            newx_mean = full_posterior_mean[idx]
-            candidates_posterior_mean = torch.cat([newx_mean, discretisation_mean])
+            # Obtain posterior mean of xnew from Xnew and augment discretisation mean with xnew_mean
+            xnew_mean = full_posterior_mean[idx]
+            candidates_posterior_mean = torch.cat([xnew_mean, discretisation_mean], dim=0)
 
             # Make sure that variance is positive, select 1D covariance tensor [xnew, X_discretisation].
-            newx_var = full_posterior_variance[idx].clamp_min(1e-9)
-            cov_xnew_discretisation = sub_posterior_covariance[idx]
-            cov_xnew_discretisation = torch.cat([newx_var, cov_xnew_discretisation])
+            newx_var = full_posterior_variance[idx].clamp_min(1e-9) # make sure variance is positive.
+            cov_xnew_X_disc = sub_posterior_covariance[idx] # (1, num_X_disc)
+            cov_xnew_X_disc = torch.cat([newx_var, cov_xnew_X_disc], dim=0) # (1, num_X_disc + 1)
 
             # Compute posterior standard deviation of predictive posterior mean \mu^{n+1}(x)
             candidates_sigt = (
-                cov_xnew_discretisation / (newx_var + noise_variance).sqrt()
+                cov_xnew_X_disc / (newx_var + noise_variance).sqrt()
             )
 
             # Given some means and standard deviations compute KG :)

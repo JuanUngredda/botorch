@@ -36,7 +36,6 @@ model = SingleTaskGP(train_X, train_Y)
 mll = ExactMarginalLogLikelihood(model.likelihood, model)
 fit_gpytorch_model(mll)
 
-
 # acquisition function and optimisation parameters
 NUM_RESTARTS = 10
 RAW_SAMPLES = 512
@@ -58,16 +57,7 @@ continous_kg = ContinuousKnowledgeGradient(model,
 
 #Optimise acquisition functions
 with manual_seed(12):
-    start = time.time()
-    continuous_kg_xstar, _ = optimize_acqf(
-        acq_function=continous_kg,
-        bounds=bounds.T,
-        q=1,
-        num_restarts=3,
-        raw_samples=50)
-    stop = time.time()
-    print("continuous kg done: ", stop-start, "secs")
-
+    
     start = time.time()
     discrete_kg_xstar, _ = optimize_acqf(
         acq_function=discrete_kg,
@@ -79,6 +69,17 @@ with manual_seed(12):
     stop = time.time()
     print("discrete kg done", stop-start, "secs")
 
+
+    start = time.time()
+    continuous_kg_xstar, _ = optimize_acqf(
+        acq_function=continous_kg,
+        bounds=bounds.T,
+        q=1,
+        num_restarts=3,
+        raw_samples=50)
+    stop = time.time()
+    print("continuous kg done: ", stop-start, "secs")
+    
     start = time.time()
     one_shot_kg_xstar, _ = optimize_acqf(
         acq_function=one_shot_kg,
@@ -91,12 +92,12 @@ with manual_seed(12):
     print("one-shot kg done", stop-start, "secs")
 
 # Plotting acquisition functions
-plot_x = bounds[:, 0] + (bounds[:, 1] - bounds[:, 0]) * torch.rand(5000, 1, 2)
+x_plot = bounds[:, 0] + (bounds[:, 1] - bounds[:, 0]) * torch.rand(5000, 1, 2)
 
-discrete_kg_vals = discrete_kg(plot_x)
+discrete_kg_vals = discrete_kg(x_plot)
 discrete_kg_vals = discrete_kg_vals.detach().squeeze().numpy()
 
-plt.scatter(plot_x[:, :, 0], plot_x[:, :, 1], c=discrete_kg_vals)
+plt.scatter(x_plot[:, :, 0], x_plot[:, :, 1], c=discrete_kg_vals)
 plt.scatter(train_X.numpy()[:, 0], train_X.numpy()[:, 1], color="red", label="sampled points")
 plt.scatter(discrete_kg_xstar.numpy()[:, 0],
             discrete_kg_xstar.numpy()[:, 1],

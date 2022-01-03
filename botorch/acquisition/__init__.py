@@ -26,6 +26,7 @@ from botorch.acquisition.cost_aware import (
 from botorch.acquisition.fixed_feature import FixedFeatureAcquisitionFunction
 from botorch.acquisition.input_constructors import get_acqf_input_constructor
 from botorch.acquisition.knowledge_gradient import (
+    HybridKnowledgeGradient,
     ContinuousKnowledgeGradient,
     qKnowledgeGradient,
     qMultiFidelityKnowledgeGradient,
@@ -71,6 +72,7 @@ __all__ = [
     "ProximalAcquisitionFunction",
     "UpperConfidenceBound",
     "qExpectedImprovement",
+    "HybridKnowledgeGradient",
     "qKnowledgeGradient",
     "DiscreteKnowledgeGradient",
     "ContinuousKnowledgeGradient",

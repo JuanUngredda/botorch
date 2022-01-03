@@ -54,6 +54,309 @@ from botorch.utils.transforms import (
     t_batch_mode_transform,
 )
 from torch import Tensor
+from torch.distributions import Normal
+
+
+class HybridKnowledgeGradient(MCAcquisitionFunction):
+    r"""Hybrid Knowledge Gradient using Monte-Carlo integration as described in
+    Pearce M., Klaise J.,and Groves M. 2020. "Practical Bayesian Optimization
+    of Objectives with Conditioning Variables". arXiv:2002.09996
+
+    This acquisition function first computes high value design vectors using the
+    predictive posterior GP mean for different Normal quantiles. Then discrete
+    knowledge gradient is computed using the high value design vectors as a
+    discretisation.
+    """
+
+    def __init__(
+        self,
+        model: Model,
+        num_fantasies: Optional[int] = 5,
+        bounds: Tensor = None,
+        inner_sampler: Optional[MCSampler] = None,
+        objective: Optional[AcquisitionObjective] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Hybrid Knowledge Gradient
+
+        Args:
+            model: A fitted model. Must support fantasizing.
+            num_fantasies: The number of normal quantiles to use. More quantiles
+            result in a better approximation, at the expense of memory and wall time.
+            bounds: A `2 x d` tensor of lower and upper bounds for each column of
+                the solutions to the inner problem.
+            inner_sampler: The sampler used for inner sampling.
+            objective: The objective under which the samples are evaluated. If
+                `None` or a ScalarizedObjective, then the analytic posterior mean
+                is used, otherwise the objective is MC-evaluated (using
+                inner_sampler).
+            **kwargs:
+        """
+
+        if num_fantasies is None:
+            raise ValueError("Must specify `num_fantasies`")
+
+        super(MCAcquisitionFunction, self).__init__(model=model)
+
+        self.bounds = bounds
+        self.num_fantasies = num_fantasies
+        self.inner_sampler = inner_sampler
+        self.objective = objective
+        self.num_restarts = kwargs.get("num_restarts", 20)
+        self.raw_samples = kwargs.get("raw_samples", 1024)
+        self.kwargs = kwargs
+
+    @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
+    def forward(self, X: Tensor) -> Tensor:
+        r"""
+
+        Args:
+            X: A `m x 1 x d` Tensor with `m` acquisition function evaluations of
+            `d` dimensions. Currently DiscreteKnowledgeGradient does can't perform
+            batched evaluations.
+
+        Returns:
+            kgvals: A 'm' Tensor with 'm' KG values.
+        """
+
+        """ compute hybrid KG """
+
+        # generate equal quantile spaced z_vals
+        z_vals = self.construct_z_vals(self.num_fantasies)
+
+        kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+        for xnew_idx, xnew in enumerate(X):
+            # Compute X discretisation using the different generated quantiles.
+            x_star, _ = self.compute_mc_kg(xnew, z_vals)
+
+            # Compute value of discrete Knowledge Gradient using the generated discretisation
+            kgvals[xnew_idx] = self.compute_discrete_kg(
+                xnew=xnew, optimal_discretisation=x_star
+            )
+
+        return kgvals
+
+    def compute_discrete_kg(
+        self, xnew: Tensor, optimal_discretisation: Tensor
+    ) -> Tensor:
+        """
+
+        Args:
+        xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
+            `d` dimensions.
+            optimal_discretisation: num_fantasies x d Tensor. Optimal X values for each z in Zvals.
+
+        """
+        # Augment the discretisation with the designs.
+        concatenated_xnew_discretisation = torch.cat(
+            [xnew, optimal_discretisation], dim=0
+        ).squeeze()  # (m + num_X_disc, d)
+
+        # Compute posterior mean, variance, and covariance.
+        full_posterior = self.model.posterior(
+            concatenated_xnew_discretisation, observation_noise=False
+        )
+        noise_variance = self.model.likelihood.noise_covar.noise
+        full_posterior_mean = full_posterior.mean  # (1 + num_X_disc , 1)
+
+        # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
+        discretisation_mean = full_posterior_mean[
+            len(xnew) :
+        ].squeeze()  # (num_X_disc, )
+        full_posterior_covariance = (
+            full_posterior.mvn.covariance_matrix
+        )  # (1 + num_X_disc , 1 + num_X_disc )
+        posterior_cov_xnew_opt_disc = full_posterior_covariance[
+            : len(xnew), :
+        ].squeeze()  # ( 1 + num_X_disc,)
+        full_posterior_variance = (
+            full_posterior.variance.squeeze()
+        )  # (1 + num_X_disc, )
+        full_predictive_covariance = (
+            posterior_cov_xnew_opt_disc
+            / (full_posterior_variance + noise_variance).sqrt()
+        )
+        # initialise empty kgvals torch.tensor
+        kgval = self.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
+
+        return kgval
+
+    def compute_mc_kg(self, xnew: Tensor, Zvals: Tensor) -> tuple[Tensor, Tensor]:
+        """
+
+        Args:
+            xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
+            `d` dimensions.
+            Zvals: 1 x num_fantasies Tensor with num_fantasies Normal quantiles.
+
+        Returns:
+            xstar_inner_optimisation: num_fantasies x d Tensor. Optimal X values for each z in Zvals.
+            xnew_acquisition_value: 1 x 1 Tensor, Monte Carlo KG value of xnew
+        """
+
+        # There's a recurssion problem importing packages by one_shot kg. Hacky way of importing these packages.
+        # TODO: find a better way to fix this
+        if "gen_candidates_scipy" not in sys.modules:
+            from botorch.generation.gen import gen_candidates_scipy
+            from botorch.optim.initializers import gen_value_function_initial_conditions
+
+        expected_xnew_value = torch.zeros(
+            xnew.shape[0], dtype=torch.double
+        )  # (m x 1 x d)
+        # Loop over xnew points
+        fantasy_opt_val = torch.zeros((1, self.num_fantasies))  # 1 x num_fantasies
+        xstar_inner_optimisation = torch.zeros((self.num_fantasies, xnew.shape[1]))
+
+        # This setting makes sure that I can rewrite the base samples and use the quantiles.
+        # Therefore, resample=False, collapse_batch_dims=True.
+        sampler = SobolQMCNormalSampler(
+            num_samples=1, resample=False, collapse_batch_dims=True
+        )
+
+        # loop over number of GP fantasised mean realisations
+        for fantasy_idx in range(self.num_fantasies):
+            # construct one realisation of the fantasy model by adding xnew. We rewrite the internal variable
+            # base samples, such that the samples are taken from the quantile.
+            zval = Zvals[fantasy_idx].view(1, 1, 1)
+            sampler.base_samples = zval
+
+            fantasy_model = self.model.fantasize(
+                X=xnew, sampler=sampler, observation_noise=True
+            )
+
+            # get the value function and make sure gradients are enabled.
+            with torch.enable_grad():
+                value_function = _get_value_function(
+                    model=fantasy_model,
+                    objective=self.objective,
+                    sampler=self.inner_sampler,
+                    project=getattr(self, "project", None),
+                )
+
+                # optimize the inner problem
+                initial_conditions = gen_value_function_initial_conditions(
+                    acq_function=value_function,
+                    bounds=self.bounds,
+                    num_restarts=self.num_restarts,
+                    raw_samples=self.raw_samples,
+                    current_model=self.model,
+                    options={
+                        **self.kwargs.get("options", {}),
+                        **self.kwargs.get("scipy_options", {}),
+                    },
+                )
+
+                x_value, value = gen_candidates_scipy(
+                    initial_conditions=initial_conditions,
+                    acquisition_function=value_function,
+                    lower_bounds=self.bounds[0],
+                    upper_bounds=self.bounds[1],
+                    options=self.kwargs.get("scipy_options"),
+                )
+
+                # make sure to propagate kg gradients.
+                with settings.propagate_grads(True):
+                    values = value_function(X=x_value)
+
+                fantasy_opt_val[:, fantasy_idx] = values
+                xstar_inner_optimisation[fantasy_idx, :] = x_value.squeeze()
+            # expectation computation
+        xnew_acquisition_value = torch.mean(fantasy_opt_val, dim=-1)
+
+        return xstar_inner_optimisation, xnew_acquisition_value
+
+    @staticmethod
+    def kgcb(a: Tensor, b: Tensor) -> Tensor:
+        r"""
+        Calculates the linear epigraph, i.e. the boundary of the set of points
+        in 2D lying above a collection of straight lines y=a+bx.
+        Parameters
+        ----------
+        a
+            Vector of intercepts describing a set of straight lines
+        b
+            Vector of slopes describing a set of straight lines
+        Returns
+        -------
+        KGCB
+            average height of the epigraph
+        """
+
+        a = a.squeeze()
+        b = b.squeeze()
+        assert len(a) > 0, "must provide slopes"
+        assert len(a) == len(b), f"#intercepts != #slopes, {len(a)}, {len(b)}"
+
+        maxa = torch.max(a)
+
+        if torch.all(torch.abs(b) < 0.000000001):
+            return torch.Tensor([0])  # , np.zeros(a.shape), np.zeros(b.shape)
+
+        # Order by ascending b and descending a. There should be an easier way to do this
+        # but it seems that pytorch sorts everything as a 1D Tensor
+
+        ab_tensor = torch.vstack([-a, b]).T
+        ab_tensor_sort_a = ab_tensor[ab_tensor[:, 0].sort()[1]]
+        ab_tensor_sort_b = ab_tensor_sort_a[ab_tensor_sort_a[:, 1].sort()[1]]
+        a = -ab_tensor_sort_b[:, 0]
+        b = ab_tensor_sort_b[:, 1]
+
+        # exclude duplicated b (or super duper similar b)
+        threshold = (b[-1] - b[0]) * 0.00001
+        diff_b = b[1:] - b[:-1]
+        keep = diff_b > threshold
+        keep = torch.cat([torch.Tensor([True]), keep])
+        keep[torch.argmax(a)] = True
+        keep = keep.bool()  # making sure 0 1's are transformed to booleans
+
+        a = a[keep]
+        b = b[keep]
+
+        # initialize
+        idz = [0]
+        i_last = 0
+        x = [-torch.inf]
+
+        n_lines = len(a)
+        # main loop TODO describe logic
+        # TODO not pruning properly, e.g. a=[0,1,2], b=[-1,0,1]
+        # returns x=[-inf, -1, -1, inf], shouldn't affect kgcb
+        while i_last < n_lines - 1:
+            i_mask = torch.arange(i_last + 1, n_lines)
+            x_mask = -(a[i_last] - a[i_mask]) / (b[i_last] - b[i_mask])
+
+            best_pos = torch.argmin(x_mask)
+            idz.append(i_mask[best_pos])
+            x.append(x_mask[best_pos])
+
+            i_last = idz[-1]
+
+        x.append(torch.inf)
+
+        x = torch.Tensor(x)
+        idz = torch.LongTensor(idz)
+        # found the epigraph, now compute the expectation
+        a = a[idz]
+        b = b[idz]
+
+        normal = Normal(torch.zeros_like(x), torch.ones_like(x))
+
+        pdf = torch.exp(normal.log_prob(x))
+        cdf = normal.cdf(x)
+
+        kg = torch.sum(a * (cdf[1:] - cdf[:-1]) + b * (pdf[:-1] - pdf[1:]))
+        kg -= maxa
+        return kg
+
+    @staticmethod
+    def construct_z_vals(nz: int, device: Optional[torch.device] = None) -> Tensor:
+        """make nz equally quantile-spaced z values"""
+
+        quantiles_z = (torch.arange(nz) + 0.5) * (1 / nz)
+        normal = torch.distributions.Normal(0, 1)
+        z_vals = normal.icdf(quantiles_z)
+        return z_vals.to(device=device)
 
 
 class ContinuousKnowledgeGradient(MCAcquisitionFunction):
@@ -104,8 +407,12 @@ class ContinuousKnowledgeGradient(MCAcquisitionFunction):
 
         super(MCAcquisitionFunction, self).__init__(model=model)
 
+        # This generates the fantasised samples according to a random seed.
+        self.sampler = SobolQMCNormalSampler(
+            num_samples=1, resample=True, collapse_batch_dims=False, seed=seed
+        )
+
         self.bounds = bounds
-        self.seed = seed
         self.num_fantasies = num_fantasies
         self.current_value = current_value
         self.inner_sampler = inner_sampler
@@ -133,26 +440,17 @@ class ContinuousKnowledgeGradient(MCAcquisitionFunction):
             from botorch.generation.gen import gen_candidates_scipy
             from botorch.optim.initializers import gen_value_function_initial_conditions
 
-        assert (
-            X.shape[1] == 1
-        ), "Currently ContinuousKnowledgeGradient can't perform batched evaluations. Set q=1"
-
         expected_xnew_value = torch.zeros(X.shape[0], dtype=torch.double)  # (m x 1 x d)
         # Loop over xnew points
         for xnew_idx, xnew in enumerate(X):
             fantasy_opt_val = torch.zeros((1, self.num_fantasies))  # 1 x num_fantasies
 
-            # This generates the fantasised samples according to the same random seed. This allows
-            # to use non stochastic gradient solvers.
-            sampler = SobolQMCNormalSampler(
-                num_samples=1, resample=True, collapse_batch_dims=True, seed=self.seed
-            )
             # loop over number of GP fantasised mean realisations
             for fantasy_idx in range(self.num_fantasies):
                 # construct one realisation of the fantasy model by adding xnew
 
                 fantasy_model = self.model.fantasize(
-                    X=xnew, sampler=sampler, observation_noise=True
+                    X=xnew, sampler=self.sampler, observation_noise=True
                 )
 
                 # get the value function and make sure gradients are enabled.

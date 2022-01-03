@@ -2,11 +2,16 @@ import time
 
 import matplotlib.pyplot as plt
 import torch
-from botorch.acquisition import ContinuousKnowledgeGradient
-from botorch.acquisition import qKnowledgeGradient
-from botorch.acquisition.analytic import DiscreteKnowledgeGradient
+from botorch.acquisition import (
+    qKnowledgeGradient,
+    HybridKnowledgeGradient,
+    DiscreteKnowledgeGradient,
+    ContinuousKnowledgeGradient,
+)
 from botorch.fit import fit_gpytorch_model
+from botorch.generation import get_best_candidates, gen_candidates_torch
 from botorch.models import SingleTaskGP
+from botorch.optim import gen_batch_initial_conditions
 from botorch.optim import optimize_acqf
 from botorch.test_functions import Rosenbrock
 from botorch.utils import standardize
@@ -40,20 +45,22 @@ mll = ExactMarginalLogLikelihood(model.likelihood, model)
 fit_gpytorch_model(mll)
 
 # acquisition function and optimisation parameters
-NUM_RESTARTS = 10
-RAW_SAMPLES = 512
-NUM_FANTASIES_CONTINUOUS_KG = 10
-NUM_FANTASIES_ONE_SHOT = 125
-NUM_DISCRETE_X = 100
+NUM_RESTARTS = 5
+RAW_SAMPLES = 50
 
 # Initialize acquisition functions.
+NUM_FANTASIES_ONE_SHOT = 125
 one_shot_kg = qKnowledgeGradient(model, num_fantasies=NUM_FANTASIES_ONE_SHOT)
+
+NUM_DISCRETE_X = 100
 discrete_kg = DiscreteKnowledgeGradient(
     model=model,
     bounds=fun.bounds,
     num_discrete_points=NUM_DISCRETE_X,
     discretisation=None,
 )
+
+NUM_FANTASIES_CONTINUOUS_KG = 5
 continous_kg = ContinuousKnowledgeGradient(
     model,
     bounds=fun.bounds,
@@ -62,15 +69,58 @@ continous_kg = ContinuousKnowledgeGradient(
     raw_samples=20,
 )
 
+
+NUM_FANTASIES_HYBRID_KG = 5
+hybrid_kg = HybridKnowledgeGradient(
+    model=model,
+    bounds=fun.bounds,
+    num_fantasies=NUM_FANTASIES_HYBRID_KG,
+    num_restarts=1,
+    raw_samples=20,
+)
+
 # Optimise acquisition functions
 with manual_seed(12):
 
+    # Hybrid KG optimisation with Adam's optimiser
     start = time.time()
-    continuous_kg_xstar, _ = optimize_acqf(
-        acq_function=continous_kg, bounds=bounds.T, q=1, num_restarts=3, raw_samples=50
+    hybrid_kg_xstar, _ = optimize_acqf(
+        acq_function=hybrid_kg,
+        bounds=bounds.T,
+        q=1,
+        num_restarts=NUM_RESTARTS,
+        raw_samples=RAW_SAMPLES,
     )
     stop = time.time()
-    print("continuous kg done: ", stop - start, "secs")
+    print("hybrid kg done: ", stop - start, "secs")
+
+    # Hybrid KG optimisation with deterministic optimiser
+    start = time.time()
+    initial_conditions = gen_batch_initial_conditions(
+        acq_function=continous_kg,
+        bounds=bounds.T,
+        q=1,
+        num_restarts=NUM_RESTARTS,
+        raw_samples=RAW_SAMPLES,
+    )
+    batch_candidates, batch_acq_values = gen_candidates_torch(
+        initial_conditions=initial_conditions,
+        acquisition_function=continous_kg,
+        lower_bounds=bounds.T[0],
+        upper_bounds=bounds.T[1],
+        optimizer=torch.optim.Adam,
+        verbose=True,
+        options={"maxiter": 100},
+    )
+    continuous_kg_xstar = get_best_candidates(
+        batch_candidates=batch_candidates, batch_values=batch_acq_values
+    ).detach()
+
+    # continuous_kg_xstar, _ = optimize_acqf(
+    #     acq_function=continous_kg, bounds=bounds.T, q=1, num_restarts=5, raw_samples=50
+    # )
+    stop = time.time()
+    # print("continuous kg done: ", stop - start, "secs")
 
     start = time.time()
     discrete_kg_xstar, _ = optimize_acqf(
@@ -104,6 +154,15 @@ plt.scatter(x_plot[:, :, 0], x_plot[:, :, 1], c=discrete_kg_vals)
 plt.scatter(
     train_X.numpy()[:, 0], train_X.numpy()[:, 1], color="red", label="sampled points"
 )
+
+plt.scatter(
+    hybrid_kg_xstar.numpy()[:, 0],
+    hybrid_kg_xstar.numpy()[:, 1],
+    color="black",
+    label="hybrid kg $x^{*}$",
+    marker="^",
+)
+
 plt.scatter(
     discrete_kg_xstar.numpy()[:, 0],
     discrete_kg_xstar.numpy()[:, 1],

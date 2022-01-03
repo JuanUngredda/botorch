@@ -131,10 +131,6 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
             kgvals: A 'm' Tensor with 'm' KG values.
         """
 
-        assert (
-            X.shape[1] == 1
-        ), "Currently DiscreteKnowledgeGradient can't perform batched evaluations. Set q=1"
-
         # Augment the discretisation with the designs.
         concatenated_xnew_discretisation = torch.cat(
             [X, self.X_discretisation], dim=0

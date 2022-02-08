@@ -6,7 +6,7 @@ from botorch.acquisition import (
     qKnowledgeGradient,
     HybridKnowledgeGradient,
     DiscreteKnowledgeGradient,
-    ContinuousKnowledgeGradient,
+    MCKnowledgeGradient,
 )
 from botorch.fit import fit_gpytorch_model
 from botorch.generation import get_best_candidates, gen_candidates_torch
@@ -46,7 +46,7 @@ fit_gpytorch_model(mll)
 
 # acquisition function and optimisation parameters
 NUM_RESTARTS = 5
-RAW_SAMPLES = 50
+RAW_SAMPLES = 80
 
 # Initialize acquisition functions.
 NUM_FANTASIES_ONE_SHOT = 125
@@ -57,18 +57,17 @@ discrete_kg = DiscreteKnowledgeGradient(
     model=model,
     bounds=fun.bounds,
     num_discrete_points=NUM_DISCRETE_X,
-    discretisation=None,
+    X_discretisation=None,
 )
 
 NUM_FANTASIES_CONTINUOUS_KG = 5
-continous_kg = ContinuousKnowledgeGradient(
+continuous_kg = MCKnowledgeGradient(
     model,
     bounds=fun.bounds,
     num_fantasies=NUM_FANTASIES_CONTINUOUS_KG,
     num_restarts=1,
     raw_samples=20,
 )
-
 
 NUM_FANTASIES_HYBRID_KG = 5
 hybrid_kg = HybridKnowledgeGradient(
@@ -81,7 +80,6 @@ hybrid_kg = HybridKnowledgeGradient(
 
 # Optimise acquisition functions
 with manual_seed(12):
-
     # Hybrid KG optimisation with Adam's optimiser
     start = time.time()
     hybrid_kg_xstar, _ = optimize_acqf(
@@ -93,34 +91,6 @@ with manual_seed(12):
     )
     stop = time.time()
     print("hybrid kg done: ", stop - start, "secs")
-
-    # Hybrid KG optimisation with deterministic optimiser
-    start = time.time()
-    initial_conditions = gen_batch_initial_conditions(
-        acq_function=continous_kg,
-        bounds=bounds.T,
-        q=1,
-        num_restarts=NUM_RESTARTS,
-        raw_samples=RAW_SAMPLES,
-    )
-    batch_candidates, batch_acq_values = gen_candidates_torch(
-        initial_conditions=initial_conditions,
-        acquisition_function=continous_kg,
-        lower_bounds=bounds.T[0],
-        upper_bounds=bounds.T[1],
-        optimizer=torch.optim.Adam,
-        verbose=True,
-        options={"maxiter": 100},
-    )
-    continuous_kg_xstar = get_best_candidates(
-        batch_candidates=batch_candidates, batch_values=batch_acq_values
-    ).detach()
-
-    # continuous_kg_xstar, _ = optimize_acqf(
-    #     acq_function=continous_kg, bounds=bounds.T, q=1, num_restarts=5, raw_samples=50
-    # )
-    stop = time.time()
-    # print("continuous kg done: ", stop - start, "secs")
 
     start = time.time()
     discrete_kg_xstar, _ = optimize_acqf(
@@ -143,6 +113,31 @@ with manual_seed(12):
     )
     stop = time.time()
     print("one-shot kg done", stop - start, "secs")
+
+    # Hybrid KG optimisation with deterministic optimiser
+    start = time.time()
+    initial_conditions = gen_batch_initial_conditions(
+        acq_function=continuous_kg,
+        bounds=bounds.T,
+        q=1,
+        num_restarts=NUM_RESTARTS,
+        raw_samples=RAW_SAMPLES,
+    )
+    batch_candidates, batch_acq_values = gen_candidates_torch(
+        initial_conditions=initial_conditions,
+        acquisition_function=continuous_kg,
+        lower_bounds=bounds.T[0],
+        upper_bounds=bounds.T[1],
+        optimizer=torch.optim.Adam,
+        verbose=True,
+        options={"maxiter": 100},
+    )
+    continuous_kg_xstar = get_best_candidates(
+        batch_candidates=batch_candidates, batch_values=batch_acq_values
+    ).detach()
+
+    stop = time.time()
+    print("continuous kg done: ", stop - start, "secs")
 
 # Plotting acquisition functions
 x_plot = bounds[:, 0] + (bounds[:, 1] - bounds[:, 0]) * torch.rand(5000, 1, 2)

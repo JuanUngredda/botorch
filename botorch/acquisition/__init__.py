@@ -27,7 +27,7 @@ from botorch.acquisition.fixed_feature import FixedFeatureAcquisitionFunction
 from botorch.acquisition.input_constructors import get_acqf_input_constructor
 from botorch.acquisition.knowledge_gradient import (
     HybridKnowledgeGradient,
-    ContinuousKnowledgeGradient,
+    MCKnowledgeGradient,
     qKnowledgeGradient,
     qMultiFidelityKnowledgeGradient,
 )

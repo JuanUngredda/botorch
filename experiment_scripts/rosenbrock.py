@@ -24,9 +24,7 @@ fun.bounds[0, :].fill_(-5)
 fun.bounds[1, :].fill_(10)
 
 # Defining box optimisation bounds
-bounds = torch.stack([torch.zeros(2), torch.ones(2)])
-bounds[:, 0].fill_(-5)
-bounds[:, 1].fill_(10)
+bounds = torch.stack([-5 * torch.ones(2), 10 * torch.ones(2)])
 
 
 def eval_objective(x):
@@ -82,7 +80,7 @@ hybrid_kg = HybridKnowledgeGradient(
 with manual_seed(12):
     # Hybrid KG optimisation with Adam's optimiser
     start = time.time()
-    hybrid_kg_xstar, _ = optimize_acqf(
+    xstar_hybrid_kg, _ = optimize_acqf(
         acq_function=hybrid_kg,
         bounds=bounds.T,
         q=1,
@@ -93,7 +91,7 @@ with manual_seed(12):
     print("hybrid kg done: ", stop - start, "secs")
 
     start = time.time()
-    discrete_kg_xstar, _ = optimize_acqf(
+    xstar_discrete_kg, _ = optimize_acqf(
         acq_function=discrete_kg,
         bounds=bounds.T,
         q=1,
@@ -104,7 +102,7 @@ with manual_seed(12):
     print("discrete kg done", stop - start, "secs")
 
     start = time.time()
-    one_shot_kg_xstar, _ = optimize_acqf(
+    xstar_one_shot_kg, _ = optimize_acqf(
         acq_function=one_shot_kg,
         bounds=bounds.T,
         q=1,
@@ -132,7 +130,7 @@ with manual_seed(12):
         verbose=True,
         options={"maxiter": 100},
     )
-    continuous_kg_xstar = get_best_candidates(
+    xstar_continuous_kg = get_best_candidates(
         batch_candidates=batch_candidates, batch_values=batch_acq_values
     ).detach()
 
@@ -151,29 +149,29 @@ plt.scatter(
 )
 
 plt.scatter(
-    hybrid_kg_xstar.numpy()[:, 0],
-    hybrid_kg_xstar.numpy()[:, 1],
+    xstar_hybrid_kg.numpy()[:, 0],
+    xstar_hybrid_kg.numpy()[:, 1],
     color="black",
     label="hybrid kg $x^{*}$",
     marker="^",
 )
 
 plt.scatter(
-    discrete_kg_xstar.numpy()[:, 0],
-    discrete_kg_xstar.numpy()[:, 1],
+    xstar_discrete_kg.numpy()[:, 0],
+    xstar_discrete_kg.numpy()[:, 1],
     color="black",
     label="discrete kg $x^{*}$",
 )
 plt.scatter(
-    one_shot_kg_xstar.numpy()[:, 0],
-    one_shot_kg_xstar.numpy()[:, 1],
+    xstar_one_shot_kg.numpy()[:, 0],
+    xstar_one_shot_kg.numpy()[:, 1],
     color="black",
     marker="x",
     label="oneshot_kg $x^{*}$",
 )
 plt.scatter(
-    continuous_kg_xstar.numpy()[:, 0],
-    continuous_kg_xstar.numpy()[:, 1],
+    xstar_continuous_kg.numpy()[:, 0],
+    xstar_continuous_kg.numpy()[:, 1],
     color="black",
     marker="s",
     label="continuous_kg $x^{*}$",

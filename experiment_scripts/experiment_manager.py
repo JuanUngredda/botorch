@@ -10,7 +10,7 @@ import torch
 from experiment_scripts.config import CONFIG_DICT
 from optimizers.optimizer import Optimizer
 from optimizers.utils import KG_wrapper
-from problems.synthetic_test_functions import test_1
+from problems.experiments2d import test_1
 
 logger = logging.getLogger(__name__)
 

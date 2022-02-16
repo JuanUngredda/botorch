@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 import pickle as pkl
@@ -7,6 +6,7 @@ import sys
 from itertools import product
 
 import torch
+
 from experiment_scripts.config import CONFIG_DICT
 from optimizers.optimizer import Optimizer
 from optimizers.utils import KG_wrapper
@@ -37,14 +37,14 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def run_experiment(
-    experiment_name: str,
-    experiment_tag: int,
-    problem: str,
-    method: str,
-    savefile: str,
-    base_seed: int,
-    n_init=4,
-    n_max=50,
+        experiment_name: str,
+        experiment_tag: int,
+        problem: str,
+        method: str,
+        savefile: str,
+        base_seed: int,
+        n_init=4,
+        n_max=50,
 ):
     """
     ARGS:
@@ -182,16 +182,15 @@ def main(exp_names, seed):
             problem=EXPERIMENTS[idx][0],
             method=EXPERIMENTS[idx][1],
             savefile=script_dir
-            + "/results/"
-            + EXPERIMENTS[idx][0]
-            + "/"
-            + EXPERIMENTS[idx][1],
+                     + "/results/"
+                     + EXPERIMENTS[idx][0]
+                     + "/"
+                     + EXPERIMENTS[idx][1],
             base_seed=seed,
         )
 
 
 if __name__ == "__main__":
-
     main(sys.argv[1:])
 
     # parser = argparse.ArgumentParser(description="Run KG experiment")

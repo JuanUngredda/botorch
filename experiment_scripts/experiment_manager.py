@@ -74,8 +74,9 @@ def run_experiment(
                     }
 
     testfun = testfun_dict[problem](base_seed=base_seed)
-
+    dim = len(testfun.lb.squeeze())
     bounds = torch.vstack([testfun.lb, testfun.ub])  # Bounds tensor (2, d)
+    bounds_normalized = torch.vstack([torch.zeros(dim), torch.ones(dim)])
 
     CONFIG_NUMBER_FANTASIES = CONFIG_DICT[experiment_name]["num_fantasies"][
         experiment_tag
@@ -103,7 +104,7 @@ def run_experiment(
 
     acquisition_function = KG_wrapper(
         method=method,
-        bounds=bounds,
+        bounds=bounds_normalized,
         num_fantasies=CONFIG_NUMBER_FANTASIES,
         num_discrete_points=CONFIG_NUMBER_DISCRETE_POINTS,
         num_restarts=CONFIG_NUMBER_RESTARTS_INNER_OPT,
@@ -159,22 +160,16 @@ def run_experiment(
     if os.path.isdir(savefile) == False:
         os.makedirs(savefile)
 
-    with open(savefile + "/" + str(args.seed) + ".pkl", "wb") as f:
+    with open(savefile + "/" + str(base_seed) + ".pkl", "wb") as f:
         pkl.dump(output, f)
 
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description="Run KG experiment")
-    parser.add_argument("--seed", type=int, help="base seed", default=0)
-    args = parser.parse_args()
-
+def main(exp_names, seed):
     # make table of experiment settings
-    EXPERIMENT_NAME = "rosenbrock_experiments"
+    EXPERIMENT_NAME = exp_names
     PROBLEMS = CONFIG_DICT[EXPERIMENT_NAME]["problems"]
     ALGOS = CONFIG_DICT[EXPERIMENT_NAME]["method"]
     EXPERIMENTS = list(product(*[PROBLEMS, ALGOS]))
-    logger.info(f"Running experiment: {args.seed} of {len(EXPERIMENTS)}")
+    logger.info(f"Running experiment: {seed} of {len(EXPERIMENTS)}")
 
     # run that badboy
     for idx, _ in enumerate(EXPERIMENTS):
@@ -188,5 +183,16 @@ if __name__ == "__main__":
                      + EXPERIMENTS[idx][0]
                      + "/"
                      + EXPERIMENTS[idx][1],
-            base_seed=args.seed,
+            base_seed=seed,
         )
+
+if __name__ == "__main__":
+
+    main(sys.argv[1:])
+
+    # parser = argparse.ArgumentParser(description="Run KG experiment")
+    # parser.add_argument("--seed", type=int, help="base seed", default=0)
+    # parser.add_argument("--exp_name", type=str, help="Experiment name in config file")
+    # args = parser.parse_args()
+
+

@@ -350,3 +350,9 @@ class eggholder:
         ) + -x1 * torch.sin(torch.sqrt(abs(x1 - (x2 + 47))))
 
         return -fval
+
+
+# funcs = [branin()]
+#
+# for f in funcs:
+#     f.plot()

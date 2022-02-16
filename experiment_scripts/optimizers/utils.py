@@ -2,14 +2,13 @@ import time
 from typing import Optional
 
 import torch
-from torch import Tensor
-
 from botorch.acquisition import (
     qKnowledgeGradient,
     HybridKnowledgeGradient,
     DiscreteKnowledgeGradient,
     MCKnowledgeGradient,
 )
+from torch import Tensor
 
 
 #################################################################
@@ -20,10 +19,10 @@ from botorch.acquisition import (
 
 
 def lhc(
-        n: int,
-        dim: Optional[int] = None,
-        lb: Optional[Tensor] = None,
-        ub: Optional[Tensor] = None,
+    n: int,
+    dim: Optional[int] = None,
+    lb: Optional[Tensor] = None,
+    ub: Optional[Tensor] = None,
 ) -> Tensor:
     """
     Parameters
@@ -77,12 +76,12 @@ def timeit(method):
 
 
 def KG_wrapper(
-        method: str,
-        bounds: Optional[Tensor] = None,
-        num_fantasies: Optional[int] = None,
-        num_discrete_points: Optional[int] = None,
-        num_restarts: Optional[int] = None,
-        raw_samples: Optional[int] = None,
+    method: str,
+    bounds: Optional[Tensor] = None,
+    num_fantasies: Optional[int] = None,
+    num_discrete_points: Optional[int] = None,
+    num_restarts: Optional[int] = None,
+    raw_samples: Optional[int] = None,
 ):
     def acquisition_function(model: method):
         if method == "DISCKG":

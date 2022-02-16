@@ -49,6 +49,7 @@ class function2d:
     def __call__(self, X):
         return self.f(X)
 
+
 class rosenbrock(function2d):
     """
     Cosines function
@@ -116,7 +117,7 @@ class dropwave(function2d):
     def f(self, X):
         X = X.squeeze()
         fval = -(1 + torch.cos(12 * torch.sqrt(X[0] ** 2 + X[1] ** 2))) / (
-                0.5 * (X[0] ** 2 + X[1] ** 2) + 2
+            0.5 * (X[0] ** 2 + X[1] ** 2) + 2
         )
         return -fval
 
@@ -144,10 +145,10 @@ class cosines(function2d):
         u = 1.6 * X[0] - 0.5
         v = 1.6 * X[1] - 0.5
         fval = 1 - (
-                u ** 2
-                + v ** 2
-                - 0.3 * torch.cos(3 * torch.pi * u)
-                - 0.3 * torch.cos(3 * torch.pi * v)
+            u ** 2
+            + v ** 2
+            - 0.3 * torch.cos(3 * torch.pi * u)
+            - 0.3 * torch.cos(3 * torch.pi * v)
         )
         return -fval
 
@@ -203,9 +204,9 @@ class branin(function2d):
         x1 = X[0]
         x2 = X[1]
         fval = (
-                self.a * (x2 - self.b * x1 ** 2 + self.c * x1 - self.r) ** 2
-                + self.s * (1 - self.t) * torch.cos(x1)
-                + self.s
+            self.a * (x2 - self.b * x1 ** 2 + self.c * x1 - self.r) ** 2
+            + self.s * (1 - self.t) * torch.cos(x1)
+            + self.s
         )
 
         return -fval

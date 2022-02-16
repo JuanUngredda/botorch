@@ -7,20 +7,21 @@ import sys
 from itertools import product
 
 import torch
-
 from experiment_scripts.config import CONFIG_DICT
 from optimizers.optimizer import Optimizer
 from optimizers.utils import KG_wrapper
-from problems.experiments2d import (eggholder,
-                                    powers,
-                                    branin,
-                                    cosines,
-                                    mccormick,
-                                    goldstein,
-                                    sixhumpcamel,
-                                    dropwave,
-                                    rosenbrock,
-                                    beale)
+from problems.experiments2d import (
+    eggholder,
+    powers,
+    branin,
+    cosines,
+    mccormick,
+    goldstein,
+    sixhumpcamel,
+    dropwave,
+    rosenbrock,
+    beale,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,14 +37,14 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def run_experiment(
-        experiment_name: str,
-        experiment_tag: int,
-        problem: str,
-        method: str,
-        savefile: str,
-        base_seed: int,
-        n_init=4,
-        n_max=50,
+    experiment_name: str,
+    experiment_tag: int,
+    problem: str,
+    method: str,
+    savefile: str,
+    base_seed: int,
+    n_init=4,
+    n_max=50,
 ):
     """
     ARGS:
@@ -61,17 +62,18 @@ def run_experiment(
         print(k, ":\t", v)
 
     # instantiate the test problem
-    testfun_dict = {"Egg-holder": eggholder,
-                    "Sum of Powers": powers,
-                    "Branin": branin,
-                    "Cosines": cosines,
-                    "Mccormick": mccormick,
-                    "Goldstein": goldstein,
-                    "Six-hump camel": sixhumpcamel,
-                    "dropwave": dropwave,
-                    "Rosenbrock": rosenbrock,
-                    "beale": beale
-                    }
+    testfun_dict = {
+        "Egg-holder": eggholder,
+        "Sum of Powers": powers,
+        "Branin": branin,
+        "Cosines": cosines,
+        "Mccormick": mccormick,
+        "Goldstein": goldstein,
+        "Six-hump camel": sixhumpcamel,
+        "dropwave": dropwave,
+        "Rosenbrock": rosenbrock,
+        "beale": beale,
+    }
 
     testfun = testfun_dict[problem](base_seed=base_seed)
     dim = len(testfun.lb.squeeze())
@@ -163,6 +165,7 @@ def run_experiment(
     with open(savefile + "/" + str(base_seed) + ".pkl", "wb") as f:
         pkl.dump(output, f)
 
+
 def main(exp_names, seed):
     # make table of experiment settings
     EXPERIMENT_NAME = exp_names
@@ -179,12 +182,13 @@ def main(exp_names, seed):
             problem=EXPERIMENTS[idx][0],
             method=EXPERIMENTS[idx][1],
             savefile=script_dir
-                     + "/results/"
-                     + EXPERIMENTS[idx][0]
-                     + "/"
-                     + EXPERIMENTS[idx][1],
+            + "/results/"
+            + EXPERIMENTS[idx][0]
+            + "/"
+            + EXPERIMENTS[idx][1],
             base_seed=seed,
         )
+
 
 if __name__ == "__main__":
 
@@ -194,5 +198,3 @@ if __name__ == "__main__":
     # parser.add_argument("--seed", type=int, help="base seed", default=0)
     # parser.add_argument("--exp_name", type=str, help="Experiment name in config file")
     # args = parser.parse_args()
-
-

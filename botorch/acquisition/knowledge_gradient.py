@@ -189,13 +189,13 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                 initial_conditions = gen_value_function_initial_conditions(
                     acq_function=value_function,
                     bounds=self.bounds,
+                    current_model=self.model,
                     num_restarts=self.num_restarts,
                     raw_samples=self.raw_samples,
-                    current_model=self.model,
-                    options={
-                        **self.kwargs.get("options", {}),
-                        **self.kwargs.get("scipy_options", {}),
-                    },
+                    options = {
+                              **self.kwargs.get("options", {}),
+                              **self.kwargs.get("scipy_options", {}),
+                          },
                 )
 
                 x_value, value = gen_candidates_scipy(
@@ -205,14 +205,20 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                     upper_bounds=self.bounds[1],
                     options=self.kwargs.get("scipy_options"),
                 )
+                x_value = x_value # num initial conditions x 1 x d
+                value = value.squeeze() # num_initial conditions
+
+                # find top x in case there are several initial conditions
+                x_top = x_value[torch.argmax(value)] # 1 x 1 x d
 
                 # make sure to propagate kg gradients.
                 with settings.propagate_grads(True):
-                    values = value_function(X=x_value)
+                    x_top_val = value_function(X=x_top)
 
-                fantasy_opt_val[:, fantasy_idx] = values
-                xstar_inner_optimisation[fantasy_idx, :] = x_value.squeeze()
+                fantasy_opt_val[:, fantasy_idx] = x_top_val
+                xstar_inner_optimisation[fantasy_idx, :] = x_top.squeeze()
             # expectation computation
+
         kg_estimated_value = torch.mean(fantasy_opt_val, dim=-1)
 
         return xstar_inner_optimisation, kg_estimated_value

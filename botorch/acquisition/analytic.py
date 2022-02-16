@@ -148,7 +148,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         full_posterior = self.model.posterior(
             concatenated_xnew_discretisation, observation_noise=False
         )
-        noise_variance = self.model.likelihood.noise_covar.noise
+        noise_variance = torch.unique(self.model.likelihood.noise_covar.noise)
         full_posterior_mean = full_posterior.mean  # (1 + num_X_disc , 1)
 
         # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
@@ -161,6 +161,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         full_posterior_variance = (
             full_posterior.variance.squeeze()
         )  # (1 + num_X_disc, )
+
         full_predictive_covariance = (
             posterior_cov_xnew_opt_disc
             / (full_posterior_variance + noise_variance).sqrt()

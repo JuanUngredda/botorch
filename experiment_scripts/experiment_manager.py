@@ -7,7 +7,7 @@ from itertools import product
 
 import torch
 
-from experiment_scripts.config import CONFIG_DICT
+from config import CONFIG_DICT
 from optimizers.optimizer import Optimizer
 from optimizers.utils import KG_wrapper
 from problems.experiments2d import (

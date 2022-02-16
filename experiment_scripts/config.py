@@ -1,9 +1,24 @@
+# Available synthetic Problems:
+
+# 2D problems:
+
+# "Egg-holder"
+# "Sum of Powers"
+# "Branin"
+# "Cosines"
+# "Mccormick"
+# "Goldstein"
+# "Six-hump camel"
+# "dropwave"
+# "Rosenbrock"
+# "beale"
+
 CONFIG_DICT = {
-    "TEST1_experiments": {
-        "problems": ["TEST1"],
+    "rosenbrock_experiments": {
+        "problems": ["Rosenbrock"],
         "method": ["DISCKG", "MCKG", "HYBRIDKG", "ONESHOTKG"],
-        "num_discrete_points": [100, None, None, None],
-        "num_fantasies": [None, 3, 3, 3],
+        "num_discrete_points": [1000, None, None, None],
+        "num_fantasies": [None, 5, 5, 5],
         "num_restarts_inner_optimizer": [5] * 4,
         "raw_samples_inner_optimizer": [80] * 4,
         "acquisition_optimizer": ["L-BFGS-B", "Adam", "L-BFGS-B", "L-BFGS-B"],

@@ -7,10 +7,20 @@ import sys
 from itertools import product
 
 import torch
+
 from experiment_scripts.config import CONFIG_DICT
 from optimizers.optimizer import Optimizer
 from optimizers.utils import KG_wrapper
-from problems.experiments2d import test_1
+from problems.experiments2d import (eggholder,
+                                    powers,
+                                    branin,
+                                    cosines,
+                                    mccormick,
+                                    goldstein,
+                                    sixhumpcamel,
+                                    dropwave,
+                                    rosenbrock,
+                                    beale)
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +36,14 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def run_experiment(
-    experiment_name: str,
-    experiment_tag: int,
-    problem: str,
-    method: str,
-    savefile: str,
-    base_seed: int,
-    n_init=4,
-    n_max=50,
+        experiment_name: str,
+        experiment_tag: int,
+        problem: str,
+        method: str,
+        savefile: str,
+        base_seed: int,
+        n_init=4,
+        n_max=50,
 ):
     """
     ARGS:
@@ -51,7 +61,18 @@ def run_experiment(
         print(k, ":\t", v)
 
     # instantiate the test problem
-    testfun_dict = {"TEST1": test_1}
+    testfun_dict = {"Egg-holder": eggholder,
+                    "Sum of Powers": powers,
+                    "Branin": branin,
+                    "Cosines": cosines,
+                    "Mccormick": mccormick,
+                    "Goldstein": goldstein,
+                    "Six-hump camel": sixhumpcamel,
+                    "dropwave": dropwave,
+                    "Rosenbrock": rosenbrock,
+                    "beale": beale
+                    }
+
     testfun = testfun_dict[problem](base_seed=base_seed)
 
     bounds = torch.vstack([testfun.lb, testfun.ub])  # Bounds tensor (2, d)
@@ -149,7 +170,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # make table of experiment settings
-    EXPERIMENT_NAME = "TEST1_experiments"
+    EXPERIMENT_NAME = "rosenbrock_experiments"
     PROBLEMS = CONFIG_DICT[EXPERIMENT_NAME]["problems"]
     ALGOS = CONFIG_DICT[EXPERIMENT_NAME]["method"]
     EXPERIMENTS = list(product(*[PROBLEMS, ALGOS]))
@@ -163,9 +184,9 @@ if __name__ == "__main__":
             problem=EXPERIMENTS[idx][0],
             method=EXPERIMENTS[idx][1],
             savefile=script_dir
-            + "/results/"
-            + EXPERIMENTS[idx][0]
-            + "/"
-            + EXPERIMENTS[idx][1],
+                     + "/results/"
+                     + EXPERIMENTS[idx][0]
+                     + "/"
+                     + EXPERIMENTS[idx][1],
             base_seed=args.seed,
         )

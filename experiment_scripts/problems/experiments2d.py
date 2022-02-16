@@ -46,6 +46,8 @@ class function2d:
         plt.title(self.problem)
         plt.show()
 
+    def __call__(self, X):
+        return self.f(X)
 
 class rosenbrock(function2d):
     """
@@ -55,7 +57,7 @@ class rosenbrock(function2d):
     :param sd: standard deviation, to generate noisy evaluations of the function.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.input_dim = 2
         self.lb = torch.Tensor([-0.5, -1.5])
         self.ub = torch.Tensor([3, 2])
@@ -78,7 +80,7 @@ class beale(function2d):
     :param sd: standard deviation, to generate noisy evaluations of the function.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.input_dim = 2
         self.lb = torch.Tensor([-1, -1])
         self.ub = torch.Tensor([1, 1])
@@ -102,7 +104,7 @@ class dropwave(function2d):
     :param sd: standard deviation, to generate noisy evaluations of the function.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.input_dim = 2
         self.lb = torch.Tensor([-1, -1])
         self.ub = torch.Tensor([1, 1])
@@ -114,7 +116,7 @@ class dropwave(function2d):
     def f(self, X):
         X = X.squeeze()
         fval = -(1 + torch.cos(12 * torch.sqrt(X[0] ** 2 + X[1] ** 2))) / (
-            0.5 * (X[0] ** 2 + X[1] ** 2) + 2
+                0.5 * (X[0] ** 2 + X[1] ** 2) + 2
         )
         return -fval
 
@@ -127,7 +129,7 @@ class cosines(function2d):
     :param sd: standard deviation, to generate noisy evaluations of the function.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.input_dim = 2
         self.lb = torch.Tensor([0, 0])
         self.ub = torch.Tensor([1, 1])
@@ -142,10 +144,10 @@ class cosines(function2d):
         u = 1.6 * X[0] - 0.5
         v = 1.6 * X[1] - 0.5
         fval = 1 - (
-            u ** 2
-            + v ** 2
-            - 0.3 * torch.cos(3 * torch.pi * u)
-            - 0.3 * torch.cos(3 * torch.pi * v)
+                u ** 2
+                + v ** 2
+                - 0.3 * torch.cos(3 * torch.pi * u)
+                - 0.3 * torch.cos(3 * torch.pi * v)
         )
         return -fval
 
@@ -158,7 +160,7 @@ class branin(function2d):
     :param sd: standard deviation, to generate noisy evaluations of the function.
     """
 
-    def __init__(self, a=None, b=None, c=None, r=None, s=None, t=None):
+    def __init__(self, a=None, b=None, c=None, r=None, s=None, t=None, **kwargs):
         self.input_dim = 2
 
         self.lb = torch.Tensor([-5, 1])
@@ -201,9 +203,9 @@ class branin(function2d):
         x1 = X[0]
         x2 = X[1]
         fval = (
-            self.a * (x2 - self.b * x1 ** 2 + self.c * x1 - self.r) ** 2
-            + self.s * (1 - self.t) * torch.cos(x1)
-            + self.s
+                self.a * (x2 - self.b * x1 ** 2 + self.c * x1 - self.r) ** 2
+                + self.s * (1 - self.t) * torch.cos(x1)
+                + self.s
         )
 
         return -fval
@@ -217,7 +219,7 @@ class goldstein(function2d):
     :param sd: standard deviation, to generate noisy evaluations of the function.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.input_dim = 2
 
         self.lb = torch.Tensor([-2, -2])
@@ -251,7 +253,7 @@ class sixhumpcamel(function2d):
     :param sd: standard deviation, to generate noisy evaluations of the function.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.input_dim = 2
         self.lb = torch.Tensor([-2, -1])
         self.ub = torch.Tensor([2, 1])
@@ -280,15 +282,11 @@ class mccormick(function2d):
     :param sd: standard deviation, to generate noisy evaluations of the function.
     """
 
-    def __init__(self, bounds=None, sd=None):
+    def __init__(self, **kwargs):
         self.input_dim = 2
         self.lb = torch.Tensor([-1.5, -3])
         self.ub = torch.Tensor([4, 4])
         self.bounds = torch.vstack([self.lb, self.ub])
-        if bounds is None:
-            self.bounds = [(-1.5, 4), (-3, 4)]
-        else:
-            self.bounds = bounds
         self.min = torch.Tensor([[-0.54719, -1.54719]])
         self.fmin = -1.9133
         self.problem = "Mccormick"
@@ -313,7 +311,7 @@ class powers(function2d):
     :param sd: standard deviation, to generate noisy evaluations of the function.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.input_dim = 2
         self.lb = torch.Tensor([-1, -1])
         self.ub = torch.Tensor([1, 1])
@@ -332,18 +330,15 @@ class powers(function2d):
 
 
 class eggholder:
-    def __init__(self, bounds=None, sd=None):
+    def __init__(self, **kwargs):
         self.input_dim = 2
-        if bounds is None:
-            self.bounds = [(-512, 512), (-512, 512)]
-        else:
-            self.bounds = bounds
-        self.min = [(512, 404.2319)]
+        self.lb = torch.Tensor([-512, -512])
+        self.ub = torch.Tensor([512, 512])
+        self.bounds = torch.vstack([self.lb, self.ub])
+
+        self.min = torch.Tensor([[512, 404.2319]])
         self.fmin = -959.6407
-        if sd == None:
-            self.sd = 0
-        else:
-            self.sd = sd
+
         self.problem = "Egg-holder"
 
     def f(self, X):

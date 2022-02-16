@@ -120,7 +120,7 @@ def run_experiment(
         lb=testfun.lb,
         ub=testfun.ub,
         n_init=10,  # n_init,
-        n_max=11,  # n_max,
+        n_max=50,  # n_max,
         kernel_str="Matern",
         save_folder=savefile,
         base_seed=base_seed,

@@ -3,10 +3,6 @@ import os
 import subprocess as sp
 import sys
 import numpy as np
-# set directory path
-script_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(script_dir[:-11] + '/experiment_scripts')
-
 
 # This is a bare script that receives args, prints something, wastes some time,function_caller_test_func_2_TS
 # and saves something. Use this as a blank template to run experiments.

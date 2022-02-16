@@ -41,20 +41,22 @@ class BaseBOOptimizer(BaseOptimizer):
         if optional is None:
             self.optional = {
                 "OPTIMIZER": "Default",
+                "NOISE_OBJECTIVE": None,
                 "RAW_SAMPLES": 80,
                 "NUM_RESTARTS": 5,
             }
         else:
-            if (optional["RAW_SAMPLES"] is None) or ("RAW_SAMPLES" in optional.keys()):
+            if optional["RAW_SAMPLES"] is None:
                 optional["RAW_SAMPLES"] = 80
 
-            if (optional["NUM_RESTARTS"] is None) or (
-                "NUM_RESTARTS" in optional.keys()
-            ):
+            if optional["NUM_RESTARTS"] is None:
                 optional["NUM_RESTARTS"] = 5
 
-            if (optional["OPTIMIZER"] is None) or ("OPTIMIZER" in optional.keys()):
+            if optional["OPTIMIZER"] is None:
                 optional["OPTIMIZER"] = "Default"
+
+            if optional["NOISE_OBJECTIVE"] is False:
+                optional["NOISE_OBJECTIVE"] = False
 
             self.optional = optional
 

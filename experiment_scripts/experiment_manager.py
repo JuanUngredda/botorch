@@ -125,6 +125,7 @@ def run_experiment(
         save_folder=savefile,
         base_seed=base_seed,
         optional={
+            "NOISE_OBJECTIVE": False,
             "OPTIMIZER": CONFIG_ACQ_OPTIMIZER,
             "RAW_SAMPLES": CONFIG_NUMBER_RAW_SAMPLES_ACQ_OPT,
             "NUM_RESTARTS": CONFIG_NUMBER_RESTARTS_ACQ_OPT,

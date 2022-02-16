@@ -5,7 +5,7 @@ from typing import Optional
 import torch
 from botorch.acquisition import PosteriorMean
 from botorch.fit import fit_gpytorch_model
-from botorch.models import SingleTaskGP
+from botorch.models import (FixedNoiseGP, SingleTaskGP)
 from botorch.optim import optimize_acqf
 from botorch.optim.initializers import gen_batch_initial_conditions
 from botorch.utils import standardize
@@ -29,9 +29,9 @@ class Optimizer(BaseBOOptimizer):
         n_init: int = 20,
         kernel_str: str = None,
         nz: int = 5,
-        optional: Optional[dict[str, int]] = None,
         base_seed: Optional[int] = 0,
         save_folder: Optional[str] = None,
+        optional: Optional[dict[str, int]] = None,
     ):
 
         super().__init__(
@@ -72,11 +72,21 @@ class Optimizer(BaseBOOptimizer):
         X_train_normalized = normalize(X=X_train, bounds=bounds)
         Y_train_standarized = standardize(Y_train)
 
-        self.model = SingleTaskGP(
-            train_X=X_train_normalized,
-            train_Y=Y_train_standarized,
-            covar_module=self.covar_module,
-        )
+        if self.optional["NOISE_OBJECTIVE"]:
+            self.model = SingleTaskGP(
+                train_X=X_train_normalized,
+                train_Y=Y_train_standarized,
+                covar_module=self.covar_module,
+            )
+        else:
+            NOISE_LEVEL = 1e-4
+            self.model = FixedNoiseGP(
+                train_X=X_train_normalized,
+                train_Y=Y_train_standarized,
+                covar_module=self.covar_module,
+                train_Yvar= torch.tensor(NOISE_LEVEL).expand_as(Y_train_standarized)
+            )
+
         mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)
         fit_gpytorch_model(mll)
 
@@ -137,8 +147,9 @@ class Optimizer(BaseBOOptimizer):
 
     def save(self):
         # save the output
+        ynoise = torch.unique(self.model.likelihood.noise_covar.noise)
         gp_likelihood_noise = torch.Tensor(
-            [self.model.likelihood.noise_covar.noise.item()]
+            [ynoise]
         )
         gp_lengthscales = self.model.covar_module.base_kernel.lengthscale.detach()
         self.gp_likelihood_noise = torch.cat(

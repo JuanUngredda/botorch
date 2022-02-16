@@ -79,7 +79,7 @@ class Optimizer(BaseBOOptimizer):
                 covar_module=self.covar_module,
             )
         else:
-            NOISE_LEVEL = 1e-4
+            NOISE_LEVEL = 1e-3
             self.model = FixedNoiseGP(
                 train_X=X_train_normalized,
                 train_Y=Y_train_standarized,

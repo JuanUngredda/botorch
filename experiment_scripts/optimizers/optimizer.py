@@ -79,12 +79,14 @@ class Optimizer(BaseBOOptimizer):
                 covar_module=self.covar_module,
             )
         else:
-            NOISE_LEVEL = 1e-3
+            NOISE_VAR = torch.Tensor([1e-3])
+            NOISE_SD = torch.sqrt(NOISE_VAR)
+            Y_train_standarized_noisy = Y_train_standarized + NOISE_SD * torch.randn_like(Y_train_standarized)
             self.model = FixedNoiseGP(
                 train_X=X_train_normalized,
-                train_Y=Y_train_standarized,
+                train_Y=Y_train_standarized_noisy,
                 covar_module=self.covar_module,
-                train_Yvar= torch.tensor(NOISE_LEVEL).expand_as(Y_train_standarized)
+                train_Yvar= NOISE_VAR.expand_as(Y_train_standarized_noisy)
             )
 
         mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)

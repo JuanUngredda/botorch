@@ -6,22 +6,11 @@ import sys
 from itertools import product
 
 import torch
-
+from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock
 from config import CONFIG_DICT
 from optimizers.optimizer import Optimizer
 from optimizers.utils import KG_wrapper
-from problems.experiments2d import (
-    eggholder,
-    powers,
-    branin,
-    cosines,
-    mccormick,
-    goldstein,
-    sixhumpcamel,
-    dropwave,
-    rosenbrock,
-    beale,
-)
+
 
 logger = logging.getLogger(__name__)
 
@@ -35,16 +24,18 @@ HOSTNAME = sp.check_output(["hostname"], shell=True).decode()[:-1]
 # set directory to save files
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
+dtype = torch.double
+
 
 def run_experiment(
-        experiment_name: str,
-        experiment_tag: int,
-        problem: str,
-        method: str,
-        savefile: str,
-        base_seed: int,
-        n_init=4,
-        n_max=50,
+    experiment_name: str,
+    experiment_tag: int,
+    problem: str,
+    method: str,
+    savefile: str,
+    base_seed: int,
+    n_init=4,
+    n_max=50,
 ):
     """
     ARGS:
@@ -63,21 +54,17 @@ def run_experiment(
 
     # instantiate the test problem
     testfun_dict = {
-        "Egg-holder": eggholder,
-        "Sum of Powers": powers,
-        "Branin": branin,
-        "Cosines": cosines,
-        "Mccormick": mccormick,
-        "Goldstein": goldstein,
-        "Six-hump camel": sixhumpcamel,
-        "dropwave": dropwave,
-        "Rosenbrock": rosenbrock,
-        "beale": beale,
+        "EggHolder": EggHolder,
+        "Branin": Branin,
+        "SixHumpCamel": SixHumpCamel,
+        "Rosenbrock": Rosenbrock,
     }
 
-    testfun = testfun_dict[problem](base_seed=base_seed)
-    dim = len(testfun.lb.squeeze())
-    bounds = torch.vstack([testfun.lb, testfun.ub])  # Bounds tensor (2, d)
+    testfun = testfun_dict[problem](negate=True).to(dtype=dtype)
+    dim = testfun.dim
+    bounds = testfun.bounds  # Bounds tensor (2, d)
+    lb, ub = bounds
+    testfun.problem = problem
     bounds_normalized = torch.vstack([torch.zeros(dim), torch.ones(dim)])
 
     CONFIG_NUMBER_FANTASIES = CONFIG_DICT[experiment_name]["num_fantasies"][
@@ -117,8 +104,8 @@ def run_experiment(
     optimizer = Optimizer(
         testfun=testfun,
         acquisitionfun=acquisition_function,
-        lb=testfun.lb,
-        ub=testfun.ub,
+        lb=lb,
+        ub=ub,
         n_init=10,  # n_init,
         n_max=50,  # n_max,
         kernel_str="Matern",
@@ -183,10 +170,10 @@ def main(exp_names, seed):
             problem=EXPERIMENTS[idx][0],
             method=EXPERIMENTS[idx][1],
             savefile=script_dir
-                     + "/results/"
-                     + EXPERIMENTS[idx][0]
-                     + "/"
-                     + EXPERIMENTS[idx][1],
+            + "/results/"
+            + EXPERIMENTS[idx][0]
+            + "/"
+            + EXPERIMENTS[idx][1],
             base_seed=seed,
         )
 

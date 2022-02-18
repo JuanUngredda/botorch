@@ -5,7 +5,7 @@ from typing import Optional
 import torch
 from botorch.acquisition import PosteriorMean
 from botorch.fit import fit_gpytorch_model
-from botorch.models import (FixedNoiseGP, SingleTaskGP)
+from botorch.models import FixedNoiseGP, SingleTaskGP
 from botorch.optim import optimize_acqf
 from botorch.optim.initializers import gen_batch_initial_conditions
 from botorch.utils import standardize
@@ -48,7 +48,7 @@ class Optimizer(BaseBOOptimizer):
         self.base_seed = base_seed
         self.nz = nz
         self.save_folder = save_folder
-
+        self.bounds = testfun.bounds
         if kernel_str == "RBF":
             self.covar_module = ScaleKernel(
                 RBFKernel(ard_num_dims=self.dim),
@@ -62,14 +62,12 @@ class Optimizer(BaseBOOptimizer):
 
     @timeit
     def evaluate_objective(self, x: Tensor, **kwargs) -> Tensor:
-        bounds = torch.vstack([self.lb, self.ub])
-        x = unnormalize(X=x, bounds=bounds)
+        x = unnormalize(X=x, bounds=self.bounds)
         y = torch.Tensor([self.f(x)])
         return y
 
     def _update_model(self, X_train: Tensor, Y_train: Tensor):
-        bounds = torch.vstack([self.lb, self.ub])
-        X_train_normalized = normalize(X=X_train, bounds=bounds)
+        X_train_normalized = normalize(X=X_train, bounds=self.bounds)
         Y_train_standarized = standardize(Y_train)
 
         if self.optional["NOISE_OBJECTIVE"]:
@@ -79,14 +77,13 @@ class Optimizer(BaseBOOptimizer):
                 covar_module=self.covar_module,
             )
         else:
-            NOISE_VAR = torch.Tensor([1e-3])
-            NOISE_SD = torch.sqrt(NOISE_VAR)
-            Y_train_standarized_noisy = Y_train_standarized + NOISE_SD * torch.randn_like(Y_train_standarized)
+            NOISE_VAR = torch.Tensor([1e-4])
+
             self.model = FixedNoiseGP(
                 train_X=X_train_normalized,
-                train_Y=Y_train_standarized_noisy,
+                train_Y=Y_train_standarized,
                 covar_module=self.covar_module,
-                train_Yvar= NOISE_VAR.expand_as(Y_train_standarized_noisy)
+                train_Yvar=NOISE_VAR.expand_as(Y_train_standarized),
             )
 
         mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)
@@ -105,7 +102,6 @@ class Optimizer(BaseBOOptimizer):
         "Include data to find best posterior mean"
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
-        bounds_unnormalized = torch.vstack([self.lb, self.ub])
 
         # generate initialisation points
         batch_initial_conditions = gen_batch_initial_conditions(
@@ -117,7 +113,7 @@ class Optimizer(BaseBOOptimizer):
         )
 
         # making sure that the posterior mean is at least higher when compared to the sampled solutions.
-        x_train_normalized = normalize(X=self.x_train, bounds=bounds_unnormalized)
+        x_train_normalized = normalize(X=self.x_train, bounds=self.bounds)
         x_train_posterior_mean = PosteriorMean(model).forward(
             x_train_normalized[:, None, :]
         )
@@ -150,9 +146,7 @@ class Optimizer(BaseBOOptimizer):
     def save(self):
         # save the output
         ynoise = torch.unique(self.model.likelihood.noise_covar.noise)
-        gp_likelihood_noise = torch.Tensor(
-            [ynoise]
-        )
+        gp_likelihood_noise = torch.Tensor([ynoise])
         gp_lengthscales = self.model.covar_module.base_kernel.lengthscale.detach()
         self.gp_likelihood_noise = torch.cat(
             [self.gp_likelihood_noise, gp_likelihood_noise]

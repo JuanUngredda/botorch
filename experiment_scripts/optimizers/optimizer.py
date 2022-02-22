@@ -35,10 +35,10 @@ class Optimizer(BaseBOOptimizer):
     ):
 
         super().__init__(
-            testfun,
-            acquisitionfun,
-            lb,
-            ub,
+            testfun=testfun,
+            acquisitionfun=acquisitionfun,
+            lb=lb,
+            ub=ub,
             n_max=n_max,
             n_init=n_init,
             optional=optional,
@@ -63,7 +63,7 @@ class Optimizer(BaseBOOptimizer):
     @timeit
     def evaluate_objective(self, x: Tensor, **kwargs) -> Tensor:
         x = unnormalize(X=x, bounds=self.bounds)
-        y = torch.Tensor([self.f(x)])
+        y = self.f(x)
         return y
 
     def _update_model(self, X_train: Tensor, Y_train: Tensor):

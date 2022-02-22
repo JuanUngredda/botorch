@@ -14,8 +14,8 @@
 # "beale"
 
 CONFIG_DICT = {
-    "branin_experiments": {
-        "problems": ["Branin"],
+    "C2DTLZ2_experiments": {
+        "problems": ["C2DTLZ2"],
         "method": ["DISCKG", "MCKG", "HYBRIDKG", "ONESHOTKG"],
         "num_discrete_points": [1000, None, None, None],
         "num_fantasies": [5, 5, 5, 5],

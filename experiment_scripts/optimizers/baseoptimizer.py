@@ -38,7 +38,6 @@ class BaseOptimizer(ABC):
     def __init__(
         self,
         fun,
-        constraints,
         lb: Tensor,
         ub: Tensor,
         n_max: int,
@@ -65,7 +64,6 @@ class BaseOptimizer(ABC):
         self.n_init = n_init
         self.n_max = n_max
         self.f = fun
-        self.c = constraints
         self.lb = lb.squeeze(-1)
         self.ub = ub.squeeze(-1)
         self.dim = len(lb.squeeze())
@@ -84,9 +82,9 @@ class BaseOptimizer(ABC):
         logger.info(f"Starting optim, n_init: {self.n_init}")
 
         # initial random dataset
-        self.x_train = lhc(self.n_init, lb=self.lb, ub=self.ub)
-        self.y_train = self.f(self.x_train)
-        self.c_train = -self.c.evaluate_slack(self.x_train)
+        self.x_train = lhc(n=self.n_init, dim=self.dim)
+        self.y_train = torch.vstack([self.evaluate_objective(x_i) for x_i in self.x_train])
+        self.c_train = torch.vstack([self.evaluate_constraints(x_i) for x_i in self.x_train])
 
         # test initial
         self.test()
@@ -97,7 +95,8 @@ class BaseOptimizer(ABC):
 
             # collect next points
             x_new = self.get_next_point()
-            y_new, c_new = self.evaluate_objective(x_new)
+            y_new = self.evaluate_objective(x_new)
+            c_new = self.evaluate_constraints(x_new)
 
             # update stored data
             self.x_train = torch.vstack([self.x_train, x_new.reshape(1, -1)])
@@ -115,6 +114,12 @@ class BaseOptimizer(ABC):
         """
         evaluate objective function f(x)
         """
+
+    def evaluate_constraints(self, x: Tensor, **kwargs) -> Tensor:
+        """
+        evaluate constraint function c(x)
+        """
+
 
     @abstractmethod
     def get_next_point(self):

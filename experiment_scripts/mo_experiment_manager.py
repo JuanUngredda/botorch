@@ -7,8 +7,8 @@ from itertools import product
 
 import torch
 from botorch.test_functions.multi_objective import C2DTLZ2
-from config import CONFIG_DICT
-from optimizers.optimizer import Optimizer
+from mo_config import CONFIG_DICT
+from optimizers.mo_optimizer import Optimizer
 from optimizers.utils import KG_wrapper
 
 
@@ -61,7 +61,7 @@ def run_experiment(
         experiment_tag
     ]
     # TODO: Change objective function parametrisation to not be hard-coded
-    d = 12
+    d = 3
     M = 2
 
     testfun = testfun_dict[problem](dim=d, num_objectives=M, negate=True).to(dtype=dtype)
@@ -112,8 +112,8 @@ def run_experiment(
         acquisitionfun=acquisition_function,
         lb=lb,
         ub=ub,
-        n_init=10,  # n_init,
-        n_max=50,  # n_max,
+        n_init=100,  # n_init,
+        n_max=101,  # n_max,
         kernel_str="Matern",
         save_folder=savefile,
         base_seed=base_seed,

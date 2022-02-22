@@ -42,11 +42,11 @@ def run(args):
     hostname = sp.check_output(["hostname"], shell=True).decode()[:-1]
 
     # IMPORT AND RUN MODULES
-    import experiment_manager
+    import mo_experiment_manager
 
-    experiment_names = ["branin_experiments"]
+    experiment_names = ["C2DTLZ2_experiments"]
     for exp_name in experiment_names:
-        experiment_manager.main(exp_names=exp_name, seed=args.k)
+        mo_experiment_manager.main(exp_names=exp_name, seed=args.k)
 
     # experiment_manager(args.k)
 

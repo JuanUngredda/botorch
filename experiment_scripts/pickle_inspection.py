@@ -8,7 +8,7 @@ from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock
 
 methods = ["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
 
-
+performance_comparison = {}
 for i, m in enumerate(methods):
     pkl_file = open(
         "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/Branin/"
@@ -22,6 +22,7 @@ for i, m in enumerate(methods):
     X = mydict2["x"]
     Y = mydict2["y"]
     f = Branin(negate=True)
+    op_value = f.optimal_value
     opt_val = torch.Tensor([[i[0], i[1]] for i in f._optimizers])
     bounds = f.bounds  # Bounds tensor (2, d)
     X_plot = torch.rand(10000, 2) * (bounds[1] - bounds[0]) + bounds[0]
@@ -46,6 +47,14 @@ for i, m in enumerate(methods):
     plt.legend()
     plt.show()
 
+    performance_comparison[m] = mydict2["OC"][:, 1]
+
+plt.title("performance comparison")
+for i, m in enumerate(methods):
+    plt.plot(op_value-performance_comparison[m], label=m)
+plt.legend()
+plt.yscale("log")
+plt.show()
 # pkl_file = open(
 #     "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/Branin/HYBRIDKG/0.pkl",
 #     "rb",

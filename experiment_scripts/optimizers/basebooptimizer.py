@@ -3,11 +3,11 @@ import sys
 from typing import Optional
 
 import torch
+from torch import Tensor
+
 from botorch.generation import gen_candidates_torch
 from botorch.optim import gen_batch_initial_conditions
 from botorch.optim import optimize_acqf
-from torch import Tensor
-
 from .baseoptimizer import BaseOptimizer
 from .utils import timeit
 
@@ -64,7 +64,9 @@ class BaseBOOptimizer(BaseOptimizer):
     def _sgd_optimize_aqc_fun(self, acq_fun: callable, **kwargs) -> Tensor:
         """Use multi-start Adam SGD over multiple seeds"""
 
-        bounds_normalized = torch.hstack([torch.zeros((self.dim, 1)), torch.ones(( self.dim, 1))])
+        bounds_normalized = torch.vstack(
+            [torch.zeros((1, self.dim)), torch.ones((1, self.dim))]
+        )
         # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
         if self.optional["OPTIMIZER"] == "Adam":
             initial_conditions = gen_batch_initial_conditions(

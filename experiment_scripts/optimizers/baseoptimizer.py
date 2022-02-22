@@ -64,6 +64,7 @@ class BaseOptimizer(ABC):
         self.n_init = n_init
         self.n_max = n_max
         self.f = fun
+        self.bounds = fun.bounds
         self.lb = lb.squeeze(-1)
         self.ub = ub.squeeze(-1)
         self.dim = len(lb.squeeze())
@@ -82,10 +83,10 @@ class BaseOptimizer(ABC):
         logger.info(f"Starting optim, n_init: {self.n_init}")
 
         # initial random dataset
-        self.x_train = lhc(self.n_init, lb=self.lb, ub=self.ub)
-        self.y_train = torch.Tensor([self.f(x_i) for x_i in self.x_train]).reshape(
-            (self.x_train.shape[0], 1)
-        )
+        self.x_train = lhc(self.n_init, dim=self.dim)
+        self.y_train = torch.Tensor(
+            [self.evaluate_objective(x_i) for x_i in self.x_train]
+        ).reshape((self.x_train.shape[0], 1))
 
         # test initial
         self.test()

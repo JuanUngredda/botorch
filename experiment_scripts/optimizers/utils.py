@@ -38,8 +38,8 @@ def lhc(
 
     if dim is not None:
         assert (lb is None) and (ub is None), "give dim OR bounds"
-        lb = torch.zeros(dim)
-        ub = torch.ones(dim)
+        lb = torch.zeros(dim, dtype=torch.double)
+        ub = torch.ones(dim, dtype=torch.double)
 
     else:
         assert (lb is not None) and (ub is not None), "give dim OR bounds"
@@ -48,7 +48,7 @@ def lhc(
         dim = len(lb)
         assert len(lb) == len(ub), f"bounds are not same shape:{len(lb)}!={len(ub)}"
 
-    x = torch.zeros((n, dim))
+    x = torch.zeros((n, dim), dtype=torch.double)
     if n > 0:
         for d in range(dim):
             x[:, d] = (torch.randperm(n) + torch.rand(n)) * (1 / n)
@@ -68,8 +68,7 @@ def timeit(method):
                 kw["log_time"][name].append((te - ts))
             else:
                 kw["log_time"][name] = [te - ts]
-        else:
-            print("%r  %2.2f ms" % (method.__name__, (te - ts)))
+
         return result
 
     return timed

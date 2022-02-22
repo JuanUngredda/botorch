@@ -7,10 +7,10 @@ from itertools import product
 
 import torch
 from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock
+from botorch.utils.transforms import unnormalize
 from config import CONFIG_DICT
 from optimizers.optimizer import Optimizer
 from optimizers.utils import KG_wrapper
-
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ def run_experiment(
         "gp_lengthscales": optimizer.gp_lengthscales,
         "method_times": optimizer.method_time,
         "OC": optimizer.performance,
-        "x": optimizer.x_train,
+        "x": unnormalize(optimizer.x_train, bounds=bounds),
         "y": optimizer.y_train,
         "cwd": os.getcwd(),
         "savefile": savefile,

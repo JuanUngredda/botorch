@@ -3,6 +3,10 @@ import pickle as pkl
 from typing import Optional
 
 import torch
+from gpytorch.kernels import RBFKernel, ScaleKernel
+from gpytorch.mlls import ExactMarginalLogLikelihood
+from torch import Tensor
+
 from botorch.acquisition import PosteriorMean
 from botorch.fit import fit_gpytorch_model
 from botorch.models import FixedNoiseGP, SingleTaskGP
@@ -10,10 +14,6 @@ from botorch.optim import optimize_acqf
 from botorch.optim.initializers import gen_batch_initial_conditions
 from botorch.utils import standardize
 from botorch.utils.transforms import unnormalize, normalize
-from gpytorch.kernels import RBFKernel, ScaleKernel
-from gpytorch.mlls import ExactMarginalLogLikelihood
-from torch import Tensor
-
 from .basebooptimizer import BaseBOOptimizer
 from .utils import timeit
 
@@ -48,7 +48,6 @@ class Optimizer(BaseBOOptimizer):
         self.base_seed = base_seed
         self.nz = nz
         self.save_folder = save_folder
-        self.bounds = testfun.bounds
         if kernel_str == "RBF":
             self.covar_module = ScaleKernel(
                 RBFKernel(ard_num_dims=self.dim),
@@ -67,12 +66,11 @@ class Optimizer(BaseBOOptimizer):
         return y
 
     def _update_model(self, X_train: Tensor, Y_train: Tensor):
-        X_train_normalized = normalize(X=X_train, bounds=self.bounds)
         Y_train_standarized = standardize(Y_train)
 
         if self.optional["NOISE_OBJECTIVE"]:
             self.model = SingleTaskGP(
-                train_X=X_train_normalized,
+                train_X=X_train,
                 train_Y=Y_train_standarized,
                 covar_module=self.covar_module,
             )
@@ -80,7 +78,7 @@ class Optimizer(BaseBOOptimizer):
             NOISE_VAR = torch.Tensor([1e-4])
 
             self.model = FixedNoiseGP(
-                train_X=X_train_normalized,
+                train_X=X_train,
                 train_Y=Y_train_standarized,
                 covar_module=self.covar_module,
                 train_Yvar=NOISE_VAR.expand_as(Y_train_standarized),
@@ -101,7 +99,9 @@ class Optimizer(BaseBOOptimizer):
         assert self.y_train is not None
         "Include data to find best posterior mean"
 
-        bounds_normalized = torch.hstack([torch.zeros((self.dim, 1)), torch.ones(( self.dim, 1))])
+        bounds_normalized = torch.vstack(
+            [torch.zeros((1, self.dim)), torch.ones((1, self.dim))]
+        )
 
         # generate initialisation points
         batch_initial_conditions = gen_batch_initial_conditions(
@@ -133,6 +133,7 @@ class Optimizer(BaseBOOptimizer):
             num_restarts=self.optional["NUM_RESTARTS"],
             raw_samples=self.optional["RAW_SAMPLES"],
         )
+
         return argmax_pmean
 
     def get_next_point(self):
@@ -158,7 +159,7 @@ class Optimizer(BaseBOOptimizer):
             "problem": self.f.problem,
             "method_times": self.method_time,
             "OC": self.performance,
-            "x": self.x_train,
+            "x": unnormalize(self.x_train, self.bounds),
             "y": self.y_train,
             "kernel": self.kernel_name,
             "gp_lik_noise": self.gp_likelihood_noise,

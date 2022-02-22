@@ -36,7 +36,7 @@ class BaseBOOptimizer(BaseOptimizer):
         """
 
         self.acquisition_fun = acquisitionfun
-        super().__init__(testfun, lb, ub, n_max, n_init, ns0=n_init)
+        super().__init__(testfun,  lb, ub, n_max, n_init, ns0=n_init)
 
         if optional is None:
             self.optional = {
@@ -92,3 +92,15 @@ class BaseBOOptimizer(BaseOptimizer):
             )
 
         return x_best
+
+    def test(self):
+        """
+        test and saves performance measures
+        """
+        x_rec = self.policy()
+        y_true = self.evaluate_objective(x=x_rec, log_time=self.method_time)
+        n = len(self.y_train) * 1.0
+        self.performance = torch.vstack([self.performance, torch.Tensor([n, y_true])])
+
+        self.save()
+        return y_true

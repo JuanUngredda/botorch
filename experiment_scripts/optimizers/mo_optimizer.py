@@ -1,6 +1,6 @@
 import os
 import pickle as pkl
-from typing import Optional
+from typing import Optional, Any
 
 import torch
 from botorch.acquisition import PosteriorMean
@@ -12,16 +12,18 @@ from botorch.utils import standardize
 from botorch.utils.transforms import unnormalize, normalize
 from gpytorch.kernels import RBFKernel, ScaleKernel
 from gpytorch.mlls import ExactMarginalLogLikelihood
+from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
 from torch import Tensor
 
 from .basebooptimizer import BaseBOOptimizer
 from .utils import timeit
-
+from botorch.models.model_list_gp_regression import ModelListGP
 
 class Optimizer(BaseBOOptimizer):
     def __init__(
         self,
         testfun,
+        constraints,
         acquisitionfun,
         lb,
         ub,
@@ -36,6 +38,7 @@ class Optimizer(BaseBOOptimizer):
 
         super().__init__(
             testfun,
+            constraints,
             acquisitionfun,
             lb,
             ub,
@@ -61,33 +64,27 @@ class Optimizer(BaseBOOptimizer):
             raise Exception("Expected RBF or Matern Kernel")
 
     @timeit
-    def evaluate_objective(self, x: Tensor, **kwargs) -> Tensor:
+    def evaluate_objective(self, x: Tensor, **kwargs) -> tuple[Tensor, Any]:
         x = unnormalize(X=x, bounds=self.bounds)
-        y = torch.Tensor([self.f(x)])
-        return y
+        objective = torch.Tensor([self.f(x)])
+        constraints = -self.c.evaluate_slack(x)
+        return objective , constraints
 
-    def _update_model(self, X_train: Tensor, Y_train: Tensor):
+    def _update_model(self, X_train: Tensor, Y_train: Tensor, C_train:Tensor):
         X_train_normalized = normalize(X=X_train, bounds=self.bounds)
-        Y_train_standarized = standardize(Y_train)
+        train_obj_consts_vals = torch.cat([Y_train, C_train], dim=-1)
 
-        if self.optional["NOISE_OBJECTIVE"]:
-            self.model = SingleTaskGP(
-                train_X=X_train_normalized,
-                train_Y=Y_train_standarized,
-                covar_module=self.covar_module,
-            )
-        else:
-            NOISE_VAR = torch.Tensor([1e-4])
-
-            self.model = FixedNoiseGP(
-                train_X=X_train_normalized,
-                train_Y=Y_train_standarized,
-                covar_module=self.covar_module,
-                train_Yvar=NOISE_VAR.expand_as(Y_train_standarized),
+        models = []
+        for i in range(train_obj_consts_vals.shape[-1]):
+            models.append(
+                SingleTaskGP(X_train_normalized , Y_train[..., i:i + 1], outcome_transform=standardize(m=1))
             )
 
-        mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)
+        self.model = ModelListGP(*models)
+        mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
         fit_gpytorch_model(mll)
+
+
 
     def policy(self):
 
@@ -102,8 +99,7 @@ class Optimizer(BaseBOOptimizer):
         "Include data to find best posterior mean"
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
-        print(bounds_normalized)
-        raise
+
         # generate initialisation points
         batch_initial_conditions = gen_batch_initial_conditions(
             acq_function=PosteriorMean(model),
@@ -134,7 +130,6 @@ class Optimizer(BaseBOOptimizer):
             num_restarts=self.optional["NUM_RESTARTS"],
             raw_samples=self.optional["RAW_SAMPLES"],
         )
-
         return argmax_pmean
 
     def get_next_point(self):

@@ -101,7 +101,7 @@ class Optimizer(BaseBOOptimizer):
         assert self.y_train is not None
         "Include data to find best posterior mean"
 
-        bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
+        bounds_normalized = torch.hstack([torch.zeros((self.dim, 1)), torch.ones(( self.dim, 1))])
 
         # generate initialisation points
         batch_initial_conditions = gen_batch_initial_conditions(

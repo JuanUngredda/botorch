@@ -16,7 +16,7 @@
 CONFIG_DICT = {
     "branin_experiments": {
         "problems": ["Branin"],
-        "method": ["DISCKG", "MCKG", "HYBRIDKG", "ONESHOTKG"],
+        "method": ["DISCKG"], #, "MCKG", "HYBRIDKG", "ONESHOTKG"],
         "num_discrete_points": [1000, None, None, None],
         "num_fantasies": [5, 5, 5, 5],
         "num_restarts_inner_optimizer": [1] * 4,

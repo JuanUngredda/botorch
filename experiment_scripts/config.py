@@ -18,7 +18,7 @@ CONFIG_DICT = {
         "problems": ["Branin"],
         "method": ["DISCKG", "MCKG", "HYBRIDKG", "ONESHOTKG"],
         "num_discrete_points": [1000, None, None, None],
-        "num_fantasies": [5, 5, 5, 5],
+        "num_fantasies": [None, 10, 5, 125],
         "num_restarts_inner_optimizer": [1] * 4,
         "raw_samples_inner_optimizer": [100] * 4,
         "acquisition_optimizer": [
@@ -34,7 +34,7 @@ CONFIG_DICT = {
         "problems": ["Rosenbrock"],
         "method": ["DISCKG", "MCKG", "HYBRIDKG", "ONESHOTKG"],
         "num_discrete_points": [1000, None, None, None],
-        "num_fantasies": [5, 5, 5, 5],
+        "num_fantasies": [None, 10, 5, 125],
         "num_restarts_inner_optimizer": [1] * 4,
         "raw_samples_inner_optimizer": [100] * 4,
         "acquisition_optimizer": [

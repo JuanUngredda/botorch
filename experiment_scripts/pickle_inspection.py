@@ -6,7 +6,7 @@ import torch
 # read python dict back from the file
 from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock
 
-methods = ["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
+methods = ["ONESHOTKG"]#["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
 
 performance_comparison = {}
 for i, m in enumerate(methods):

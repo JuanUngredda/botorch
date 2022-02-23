@@ -24,6 +24,7 @@ from botorch.models.gpytorch import GPyTorchModel
 from botorch.models.model import Model
 from botorch.posteriors.posterior import Posterior
 from botorch.sampling.samplers import SobolQMCNormalSampler
+from botorch.utils.sampling import draw_sobol_samples
 from botorch.utils.transforms import convert_to_target_pre_hook, t_batch_mode_transform
 from torch import Tensor
 from torch.distributions import Normal
@@ -78,6 +79,180 @@ class AnalyticAcquisitionFunction(AcquisitionFunction, ABC):
         raise UnsupportedError(
             "Analytic acquisition functions do not account for X_pending yet."
         )
+
+
+class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
+    r"""Knowledge Gradient using a fixed discretisation in the Design Space "X"."""
+
+    def __init__(
+        self,
+        model: Model,
+        bounds: Optional[Tensor] = None,
+        num_discrete_points: Optional[int] = None,
+        X_discretisation: Optional[Tensor] = None,
+    ) -> None:
+        r"""
+        Discrete Knowledge Gradient
+        Args:
+            model: A fitted model.
+            bounds: A `2 x d` tensor of lower and upper bounds for each column
+            num_discrete_points: (int) The number of discrete points to use for input (X) space. More discrete
+                points result in a better approximation, at the expense of
+                memory and wall time.
+            discretisation: A `k x d`-dim Tensor of `k` design points that will approximate the
+                continuous space with a discretisation.
+        """
+
+        if X_discretisation is None:
+            if num_discrete_points is None:
+                raise ValueError(
+                    "Must specify `num_discrete_points` for random discretisation if no `discretisation` is provided."
+                )
+
+            X_discretisation = draw_sobol_samples(
+                bounds=bounds, n=num_discrete_points, q=1
+            )
+
+        super(AnalyticAcquisitionFunction, self).__init__(model=model)
+
+        self.num_input_dimensions = bounds.shape[1]
+        self.X_discretisation = X_discretisation
+
+    @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
+    def forward(self, X: Tensor) -> Tensor:
+        kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+        for xnew_idx, xnew in enumerate(X):
+            xnew = xnew.unsqueeze(0)
+            kgvals[xnew_idx] = self.compute_discrete_kg(
+                xnew=xnew, optimal_discretisation=self.X_discretisation
+            )
+        return kgvals
+
+    def compute_discrete_kg(
+        self, xnew: Tensor, optimal_discretisation: Tensor
+    ) -> Tensor:
+        """
+
+        Args:
+        xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
+            `d` dimensions.
+            optimal_discretisation: num_fantasies x d Tensor. Optimal X values for each z in zvalues.
+
+        """
+        # Augment the discretisation with the designs.
+        concatenated_xnew_discretisation = torch.cat(
+            [xnew, optimal_discretisation], dim=0
+        ).squeeze()  # (m + num_X_disc, d)
+
+        # Compute posterior mean, variance, and covariance.
+        full_posterior = self.model.posterior(
+            concatenated_xnew_discretisation, observation_noise=False
+        )
+        noise_variance = torch.unique(self.model.likelihood.noise_covar.noise)
+        full_posterior_mean = full_posterior.mean  # (1 + num_X_disc , 1)
+
+        # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
+        full_posterior_covariance = (
+            full_posterior.mvn.covariance_matrix
+        )  # (1 + num_X_disc , 1 + num_X_disc )
+        posterior_cov_xnew_opt_disc = full_posterior_covariance[
+            : len(xnew), :
+        ].squeeze()  # ( 1 + num_X_disc,)
+        full_posterior_variance = (
+            full_posterior.variance.squeeze()
+        )  # (1 + num_X_disc, )
+
+        full_predictive_covariance = (
+            posterior_cov_xnew_opt_disc
+            / (full_posterior_variance + noise_variance).sqrt()
+        )
+        # initialise empty kgvals torch.tensor
+        kgval = self.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
+
+        return kgval
+
+    @staticmethod
+    def kgcb(a: Tensor, b: Tensor) -> Tensor:
+        r"""
+        Calculates the linear epigraph, i.e. the boundary of the set of points
+        in 2D lying above a collection of straight lines y=a+bx.
+        Parameters
+        ----------
+        a
+            Vector of intercepts describing a set of straight lines
+        b
+            Vector of slopes describing a set of straight lines
+        Returns
+        -------
+        KGCB
+            average height of the epigraph
+        """
+
+        a = a.squeeze()
+        b = b.squeeze()
+        assert len(a) > 0, "must provide slopes"
+        assert len(a) == len(b), f"#intercepts != #slopes, {len(a)}, {len(b)}"
+
+        maxa = torch.max(a)
+
+        if torch.all(torch.abs(b) < 0.000000001):
+            return torch.Tensor([0])  # , np.zeros(a.shape), np.zeros(b.shape)
+
+        # Order by ascending b and descending a. There should be an easier way to do this
+        # but it seems that pytorch sorts everything as a 1D Tensor
+
+        ab_tensor = torch.vstack([-a, b]).T
+        ab_tensor_sort_a = ab_tensor[ab_tensor[:, 0].sort()[1]]
+        ab_tensor_sort_b = ab_tensor_sort_a[ab_tensor_sort_a[:, 1].sort()[1]]
+        a = -ab_tensor_sort_b[:, 0]
+        b = ab_tensor_sort_b[:, 1]
+
+        # exclude duplicated b (or super duper similar b)
+        threshold = (b[-1] - b[0]) * 0.00001
+        diff_b = b[1:] - b[:-1]
+        keep = diff_b > threshold
+        keep = torch.cat([torch.Tensor([True]), keep])
+        keep[torch.argmax(a)] = True
+        keep = keep.bool()  # making sure 0 1's are transformed to booleans
+
+        a = a[keep]
+        b = b[keep]
+
+        # initialize
+        idz = [0]
+        i_last = 0
+        x = [-torch.inf]
+
+        n_lines = len(a)
+        # main loop TODO describe logic
+        # TODO not pruning properly, e.g. a=[0,1,2], b=[-1,0,1]
+        # returns x=[-inf, -1, -1, inf], shouldn't affect kgcb
+        while i_last < n_lines - 1:
+            i_mask = torch.arange(i_last + 1, n_lines)
+            x_mask = -(a[i_last] - a[i_mask]) / (b[i_last] - b[i_mask])
+
+            best_pos = torch.argmin(x_mask)
+            idz.append(i_mask[best_pos])
+            x.append(x_mask[best_pos])
+
+            i_last = idz[-1]
+
+        x.append(torch.inf)
+
+        x = torch.Tensor(x)
+        idz = torch.LongTensor(idz)
+        # found the epigraph, now compute the expectation
+        a = a[idz]
+        b = b[idz]
+
+        normal = Normal(torch.zeros_like(x), torch.ones_like(x))
+
+        pdf = torch.exp(normal.log_prob(x))
+        cdf = normal.cdf(x)
+
+        kg = torch.sum(a * (cdf[1:] - cdf[:-1]) + b * (pdf[:-1] - pdf[1:]))
+        kg -= maxa
+        return kg
 
 
 class ExpectedImprovement(AnalyticAcquisitionFunction):

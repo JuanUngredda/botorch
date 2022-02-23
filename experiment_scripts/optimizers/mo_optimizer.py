@@ -1,23 +1,25 @@
 import os
 import pickle as pkl
-from typing import Optional, Any
+from typing import Optional
 
 import torch
-from botorch.acquisition import PosteriorMean
 from botorch.fit import fit_gpytorch_model
-from botorch.models import FixedNoiseGP, SingleTaskGP
-from botorch.optim import optimize_acqf
-from botorch.optim.initializers import gen_batch_initial_conditions
+from botorch.models import SingleTaskGP
+from botorch.models.model_list_gp_regression import ModelListGP
 from botorch.models.transforms.outcome import Standardize
+from botorch.utils.multi_objective.scalarization import (
+    get_chebyshev_scalarization,
+    get_linear_scalarization,
+)
+from botorch.utils.sampling import sample_simplex
 from botorch.utils.transforms import unnormalize, normalize
 from gpytorch.kernels import RBFKernel, ScaleKernel
-from gpytorch.mlls import ExactMarginalLogLikelihood
 from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
 from torch import Tensor
 
 from .basebooptimizer import BaseBOOptimizer
-from .utils import timeit
-from botorch.models.model_list_gp_regression import ModelListGP
+from .utils import timeit, ParetoFrontApproximation, _compute_expected_utility
+
 
 class Optimizer(BaseBOOptimizer):
     def __init__(
@@ -26,6 +28,8 @@ class Optimizer(BaseBOOptimizer):
         acquisitionfun,
         lb,
         ub,
+        utility_model: str,
+        num_scalarizations: int,
         n_max: int,
         n_init: int = 20,
         kernel_str: str = None,
@@ -50,6 +54,7 @@ class Optimizer(BaseBOOptimizer):
         self.nz = nz
         self.save_folder = save_folder
         self.bounds = testfun.bounds
+        self.num_scalarisations = num_scalarizations
         if kernel_str == "RBF":
             self.covar_module = ScaleKernel(
                 RBFKernel(ard_num_dims=self.dim),
@@ -60,6 +65,12 @@ class Optimizer(BaseBOOptimizer):
             )
         else:
             raise Exception("Expected RBF or Matern Kernel")
+
+        if utility_model == "Tche":
+            self.utility_model = get_chebyshev_scalarization
+
+        elif utility_model == "Lin":
+            self.utility_model = get_linear_scalarization
 
     @timeit
     def evaluate_objective(self, x: Tensor, **kwargs) -> Tensor:
@@ -74,7 +85,7 @@ class Optimizer(BaseBOOptimizer):
         constraints = -self.f.evaluate_slack(x)
         return constraints
 
-    def _update_model(self, X_train: Tensor, Y_train: Tensor, C_train:Tensor):
+    def _update_model(self, X_train: Tensor, Y_train: Tensor, C_train: Tensor):
         X_train_normalized = normalize(X=X_train, bounds=self.bounds)
         train_joint_YC = torch.cat([Y_train, C_train], dim=-1)
         Y_dim = Y_train.shape[1]
@@ -82,30 +93,35 @@ class Optimizer(BaseBOOptimizer):
         for i in range(train_joint_YC.shape[-1]):
             if i < Y_dim:
                 models.append(
-                    SingleTaskGP(X_train_normalized , train_joint_YC[..., i:i + 1], outcome_transform=Standardize(m=1))
+                    SingleTaskGP(
+                        X_train_normalized,
+                        train_joint_YC[..., i : i + 1],
+                        outcome_transform=Standardize(m=1),
+                    )
                 )
             else:
                 models.append(
-                    SingleTaskGP(X_train_normalized , train_joint_YC[..., i:i + 1])
+                    SingleTaskGP(X_train_normalized, train_joint_YC[..., i : i + 1])
                 )
         self.model = ModelListGP(*models)
         mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
         fit_gpytorch_model(mll)
 
-
-        plot_X = torch.rand((1000,3))
-        posterior = self.model.posterior(plot_X)
-        mean = posterior.mean.detach().numpy()
-        is_feas = (mean[:,2] <= 0)
-        print("mean", mean.shape)
-        import matplotlib.pyplot as plt
-        plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mean[is_feas,2])
-        plt.show()
-        raise
+        # plot_X = torch.rand((1000,3))
+        # posterior = self.model.posterior(plot_X)
+        # mean = posterior.mean.detach().numpy()
+        # is_feas = (mean[:,2] <= 0)
+        # print("mean", mean.shape)
+        # import matplotlib.pyplot as plt
+        # plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mean[is_feas,2])
+        # plt.show()
+        # raise
 
     def policy(self):
 
-        self._update_model(X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train)
+        self._update_model(
+            X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train
+        )
         x_rec = self.best_model_posterior_mean(model=self.model)
         return x_rec
 
@@ -117,37 +133,22 @@ class Optimizer(BaseBOOptimizer):
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
-        # generate initialisation points
-        batch_initial_conditions = gen_batch_initial_conditions(
-            acq_function=PosteriorMean(model),
+        # sample random weights
+        weights = sample_simplex(
+            n=self.num_scalarisations, d=self.f.num_objectives
+        ).squeeze()
+
+        X_pareto_solutions = ParetoFrontApproximation(
+            model=self.model,
+            scalatization_fun=self.utility_model,
+            input_dim=self.dim,
             bounds=bounds_normalized,
-            q=1,
-            num_restarts=self.optional["NUM_RESTARTS"],
-            raw_samples=self.optional["RAW_SAMPLES"],
+            y_train=self.y_train,
+            weights=weights,
+            optional=self.optional,
         )
 
-        # making sure that the posterior mean is at least higher when compared to the sampled solutions.
-        x_train_normalized = normalize(X=self.x_train, bounds=self.bounds)
-        x_train_posterior_mean = PosteriorMean(model).forward(
-            x_train_normalized[:, None, :]
-        )
-        argmax_sampled_pmean = x_train_normalized[
-            x_train_posterior_mean.argmax(), :
-        ].clone()
-
-        x_candidates = torch.cat(
-            (argmax_sampled_pmean[None, None, :], batch_initial_conditions), dim=0
-        )
-
-        argmax_pmean, _ = optimize_acqf(
-            acq_function=PosteriorMean(model),
-            bounds=bounds_normalized,
-            batch_initial_conditions=x_candidates,
-            q=1,
-            num_restarts=self.optional["NUM_RESTARTS"],
-            raw_samples=self.optional["RAW_SAMPLES"],
-        )
-        return argmax_pmean
+        return X_pareto_solutions, weights
 
     def get_next_point(self):
         self._update_model(self.x_train, self.y_train)
@@ -159,14 +160,20 @@ class Optimizer(BaseBOOptimizer):
 
     def save(self):
         # save the output
-        ynoise = torch.unique(self.model.likelihood.noise_covar.noise)
-        gp_likelihood_noise = torch.Tensor([ynoise])
-        gp_lengthscales = self.model.covar_module.base_kernel.lengthscale.detach()
-        self.gp_likelihood_noise = torch.cat(
-            [self.gp_likelihood_noise, gp_likelihood_noise]
+
+        self.gp_likelihood_noise = [
+            self.model.likelihood.likelihoods[n].noise_covar.noise
+            for n in range(self.model.num_outputs)
+        ]
+
+        self.gp_lengthscales = [
+            self.model.models[n].covar_module.base_kernel.lengthscale.detach()
+            for n in range(self.model.num_outputs)
+        ]
+
+        self.kernel_name = str(
+            self.model.models[0].covar_module.base_kernel.__class__.__name__
         )
-        self.gp_lengthscales = torch.cat([self.gp_lengthscales, gp_lengthscales])
-        self.kernel_name = str(self.model.covar_module.base_kernel.__class__.__name__)
 
         output = {
             "problem": self.f.problem,
@@ -174,6 +181,9 @@ class Optimizer(BaseBOOptimizer):
             "OC": self.performance,
             "x": self.x_train,
             "y": self.y_train,
+            "c": self.c_train,
+            "x_pareto_recommended": self.pareto_set_recommended,
+            "weights": self.weights,
             "kernel": self.kernel_name,
             "gp_lik_noise": self.gp_likelihood_noise,
             "gp_lengthscales": self.gp_lengthscales,
@@ -188,3 +198,31 @@ class Optimizer(BaseBOOptimizer):
 
             with open(self.save_folder + "/" + str(self.base_seed) + ".pkl", "wb") as f:
                 pkl.dump(output, f)
+
+    def test(self):
+        """
+        test and saves performance measures
+        """
+        x_rec, weights = self.policy()
+        self.pareto_set_recommended = x_rec
+        self.weights = weights
+
+        y_pareto_values = torch.vstack([self.evaluate_objective(x_i) for x_i in x_rec])
+        c_pareto_values = torch.vstack(
+            [self.evaluate_constraints(x_i) for x_i in x_rec]
+        )
+
+        expected_PF_utility = _compute_expected_utility(
+            objective=self.f,
+            scalatization_fun=self.utility_model,
+            y_values=y_pareto_values,
+            c_values=c_pareto_values,
+            weights=weights,
+        )
+
+        n = len(self.y_train) * 1.0
+        self.performance = torch.vstack(
+            [self.performance, torch.Tensor([n, expected_PF_utility])]
+        )
+        self.save()
+        raise

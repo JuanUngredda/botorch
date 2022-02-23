@@ -17,6 +17,8 @@ CONFIG_DICT = {
     "C2DTLZ2_experiments": {
         "problems": ["C2DTLZ2"],
         "method": ["DISCKG", "MCKG", "HYBRIDKG", "ONESHOTKG"],
+        "number_of_scalarizations": [10],
+        "utility_model": ["Tche"],
         "num_discrete_points": [1000, None, None, None],
         "num_fantasies": [5, 5, 5, 5],
         "num_restarts_inner_optimizer": [1] * 4,

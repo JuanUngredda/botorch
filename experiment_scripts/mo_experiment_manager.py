@@ -64,16 +64,23 @@ def run_experiment(
     d = 3
     M = 2
 
-    testfun = testfun_dict[problem](dim=d, num_objectives=M, negate=True).to(dtype=dtype)
+    testfun = testfun_dict[problem](dim=d, num_objectives=M, negate=True).to(
+        dtype=dtype
+    )
     dim = testfun.dim
     bounds = testfun.bounds  # Bounds tensor (2, d)
     lb, ub = bounds
     testfun.problem = problem
     bounds_normalized = torch.vstack([torch.zeros(dim), torch.ones(dim)])
 
+    CONFIG_UTILITY_MODEL = CONFIG_DICT[experiment_name]["utility_model"][experiment_tag]
+
     CONFIG_NUMBER_FANTASIES = CONFIG_DICT[experiment_name]["num_fantasies"][
         experiment_tag
     ]
+    CONFIG_NUMBER_OF_SCALARIZATIONS = CONFIG_DICT[experiment_name][
+        "number_of_scalarizations"
+    ][experiment_tag]
     CONFIG_NUMBER_DISCRETE_POINTS = CONFIG_DICT[experiment_name]["num_discrete_points"][
         experiment_tag
     ]
@@ -95,7 +102,9 @@ def run_experiment(
         "raw_samples_acq_optimizer"
     ][experiment_tag]
 
-    from botorch.acquisition.multi_objective.monte_carlo import qNoisyExpectedHypervolumeImprovement
+    from botorch.acquisition.multi_objective.monte_carlo import (
+        qNoisyExpectedHypervolumeImprovement,
+    )
 
     acquisition_function = KG_wrapper(
         method=method,
@@ -110,6 +119,8 @@ def run_experiment(
     optimizer = Optimizer(
         testfun=testfun,
         acquisitionfun=acquisition_function,
+        utility_model=CONFIG_UTILITY_MODEL,
+        num_scalarizations=CONFIG_NUMBER_OF_SCALARIZATIONS,
         lb=lb,
         ub=ub,
         n_init=100,  # n_init,
@@ -147,6 +158,9 @@ def run_experiment(
         "OC": optimizer.performance,
         "x": optimizer.x_train,
         "y": optimizer.y_train,
+        "c": optimizer.c_train,
+        "x_front_recommended": optimizer.pareto_set_recommended,
+        "weights": optimizer.weights,
         "cwd": os.getcwd(),
         "savefile": savefile,
         "HOSTNAME": HOSTNAME,

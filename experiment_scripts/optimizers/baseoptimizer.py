@@ -83,8 +83,12 @@ class BaseOptimizer(ABC):
 
         # initial random dataset
         self.x_train = lhc(n=self.n_init, dim=self.dim)
-        self.y_train = torch.vstack([self.evaluate_objective(x_i) for x_i in self.x_train])
-        self.c_train = torch.vstack([self.evaluate_constraints(x_i) for x_i in self.x_train])
+        self.y_train = torch.vstack(
+            [self.evaluate_objective(x_i) for x_i in self.x_train]
+        )
+        self.c_train = torch.vstack(
+            [self.evaluate_constraints(x_i) for x_i in self.x_train]
+        )
 
         # test initial
         self.test()
@@ -107,7 +111,7 @@ class BaseOptimizer(ABC):
 
             # test if necessary
             if torch.any(len(self.y_train) == self.testable_iters):
-                _ = self.test()
+                self.test()
                 logger.info(f"Test performance: {self.performance[-1, :]}")
 
     def evaluate_objective(self, x: Tensor, **kwargs) -> Tensor:
@@ -119,7 +123,6 @@ class BaseOptimizer(ABC):
         """
         evaluate constraint function c(x)
         """
-
 
     @abstractmethod
     def get_next_point(self):
@@ -142,4 +145,3 @@ class BaseOptimizer(ABC):
         """
         test and saves performance measures
         """
-

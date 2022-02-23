@@ -92,16 +92,3 @@ class BaseBOOptimizer(BaseOptimizer):
             )
 
         return x_best
-
-    def test(self):
-        """
-        test and saves performance measures
-        """
-        x_rec = self.policy()
-        y_true = self.evaluate_objective(x=x_rec, log_time=self.method_time)
-        c_true = self.evaluate_constraints(x=x_rec, log_time= self.method_time)
-        n = len(self.y_train) * 1.0
-        self.performance = torch.vstack([self.performance, torch.Tensor([n, y_true])])
-
-        self.save()
-        return y_true

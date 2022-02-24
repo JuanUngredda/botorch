@@ -20,18 +20,18 @@ from .utils import timeit
 
 class Optimizer(BaseBOOptimizer):
     def __init__(
-        self,
-        testfun,
-        acquisitionfun,
-        lb,
-        ub,
-        n_max: int,
-        n_init: int = 20,
-        kernel_str: str = None,
-        nz: int = 5,
-        base_seed: Optional[int] = 0,
-        save_folder: Optional[str] = None,
-        optional: Optional[dict[str, int]] = None,
+            self,
+            testfun,
+            acquisitionfun,
+            lb,
+            ub,
+            n_max: int,
+            n_init: int = 20,
+            kernel_str: str = None,
+            nz: int = 5,
+            base_seed: Optional[int] = 0,
+            save_folder: Optional[str] = None,
+            optional: Optional[dict[str, int]] = None,
     ):
 
         super().__init__(
@@ -61,20 +61,26 @@ class Optimizer(BaseBOOptimizer):
 
     @timeit
     def evaluate_objective(self, x: Tensor, **kwargs) -> Tensor:
+
+        # bring x \in [0,1]^d to original bounds.
         x = unnormalize(X=x, bounds=self.bounds)
         y = torch.Tensor([self.f(x)])
         return y
 
     def _update_model(self, X_train: Tensor, Y_train: Tensor):
+
+        # Standarize traint Y values to Normal(0,1).
         Y_train_standarized = standardize(Y_train)
 
         if self.optional["NOISE_OBJECTIVE"]:
+            # We can specify that it's noisy and learn the noise by maximum likelihood.
             self.model = SingleTaskGP(
                 train_X=X_train,
                 train_Y=Y_train_standarized,
                 covar_module=self.covar_module,
             )
         else:
+            # We can specify that it's deterministic and adding some small noise for numerical stability.
             NOISE_VAR = torch.Tensor([1e-4])
 
             self.model = FixedNoiseGP(
@@ -118,8 +124,8 @@ class Optimizer(BaseBOOptimizer):
             x_train_normalized[:, None, :]
         )
         argmax_sampled_pmean = x_train_normalized[
-            x_train_posterior_mean.argmax(), :
-        ].clone()
+                               x_train_posterior_mean.argmax(), :
+                               ].clone()
 
         x_candidates = torch.cat(
             (argmax_sampled_pmean[None, None, :], batch_initial_conditions), dim=0

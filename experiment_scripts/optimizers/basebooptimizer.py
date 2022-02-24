@@ -3,11 +3,11 @@ import sys
 from typing import Optional
 
 import torch
-from torch import Tensor
-
 from botorch.generation import gen_candidates_torch
 from botorch.optim import gen_batch_initial_conditions
 from botorch.optim import optimize_acqf
+from torch import Tensor
+
 from .baseoptimizer import BaseOptimizer
 from .utils import timeit
 

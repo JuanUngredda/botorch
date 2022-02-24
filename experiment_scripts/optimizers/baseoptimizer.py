@@ -83,10 +83,10 @@ class BaseOptimizer(ABC):
         logger.info(f"Starting optim, n_init: {self.n_init}")
 
         # initial random dataset
-        self.x_train = lhc(self.n_init, dim=self.dim)
+        self.x_train = lhc(self.n_init, dim=self.dim) # Tensor (n_init , X_dim)
         self.y_train = torch.Tensor(
             [self.evaluate_objective(x_i) for x_i in self.x_train]
-        ).reshape((self.x_train.shape[0], 1))
+        ).reshape((self.x_train.shape[0], 1)) # Tensor (n_init , 1)
 
         # test initial
         self.test()
@@ -118,7 +118,7 @@ class BaseOptimizer(ABC):
     @abstractmethod
     def get_next_point(self):
         """
-        return next (x) point.
+        return next design from acquisition function (acq) as, x=argmax_{x} acq(x).
         """
 
     @abstractmethod
@@ -129,7 +129,7 @@ class BaseOptimizer(ABC):
 
     def save(self):
         """
-        saves intermidiate results in directory.
+        saves intermediate results in directory.
         """
 
     def test(self):

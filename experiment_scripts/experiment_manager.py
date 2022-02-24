@@ -67,6 +67,8 @@ def run_experiment(
     testfun.problem = problem
     bounds_normalized = torch.vstack([torch.zeros(dim), torch.ones(dim)])
 
+    #-------------------------------------------------------------------------
+    # PULL CONFIG VARIABLE VALUES
     CONFIG_NUMBER_FANTASIES = CONFIG_DICT[experiment_name]["num_fantasies"][
         experiment_tag
     ]
@@ -91,6 +93,16 @@ def run_experiment(
         "raw_samples_acq_optimizer"
     ][experiment_tag]
 
+    CONFIG_NUMBER_INITAL_DESIGN = CONFIG_DICT[experiment_name][
+        "num_samples_initial_design"
+    ][experiment_tag]
+
+    CONFIG_MAX_NUM_EVALUATIONS = CONFIG_DICT[experiment_name][
+        "num_max_evaluatations"
+    ][experiment_tag]
+    #---------------------------------------------------------------------------------
+
+    # This wrapper includes the parameters to each acquisition function.
     acquisition_function = KG_wrapper(
         method=method,
         bounds=bounds_normalized,
@@ -99,15 +111,15 @@ def run_experiment(
         num_restarts=CONFIG_NUMBER_RESTARTS_INNER_OPT,
         raw_samples=CONFIG_NUMBER_RAW_SAMPLES_INNER_OPT,
     )
-    # instantiate the optimizer
 
+    # instantiate the optimizer
     optimizer = Optimizer(
         testfun=testfun,
         acquisitionfun=acquisition_function,
         lb=lb,
         ub=ub,
-        n_init=10,  # n_init,
-        n_max=50,  # n_max,
+        n_init=CONFIG_NUMBER_INITAL_DESIGN,  # n_init,
+        n_max=CONFIG_MAX_NUM_EVALUATIONS,  # n_max,
         kernel_str="Matern",
         save_folder=savefile,
         base_seed=base_seed,
@@ -119,7 +131,7 @@ def run_experiment(
         },
     )
 
-    # optmize the test problem
+    # optimize the test problem
     optimizer.optimize()
 
     # save the output

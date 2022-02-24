@@ -6,7 +6,7 @@ import torch
 # read python dict back from the file
 from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock
 
-methods = ["ONESHOTKG"]#["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
+methods = ["ONESHOTKG"]  # ["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
 
 performance_comparison = {}
 for i, m in enumerate(methods):
@@ -51,7 +51,7 @@ for i, m in enumerate(methods):
 
 plt.title("performance comparison")
 for i, m in enumerate(methods):
-    plt.plot(op_value-performance_comparison[m], label=m)
+    plt.plot(op_value - performance_comparison[m], label=m)
 plt.legend()
 plt.yscale("log")
 plt.show()

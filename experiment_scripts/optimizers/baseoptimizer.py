@@ -82,13 +82,13 @@ class BaseOptimizer(ABC):
         logger.info(f"Starting optim, n_init: {self.n_init}")
 
         # initial random dataset
-        self.x_train = lhc(n=self.n_init, dim=self.dim)
+        self.x_train = lhc(n=self.n_init, dim=self.dim).to(dtype =torch.double)
         self.y_train = torch.vstack(
             [self.evaluate_objective(x_i) for x_i in self.x_train]
-        )
+        ).to(dtype =torch.double)
         self.c_train = torch.vstack(
             [self.evaluate_constraints(x_i) for x_i in self.x_train]
-        )
+        ).to(dtype =torch.double)
 
         # test initial
         self.test()
@@ -98,8 +98,8 @@ class BaseOptimizer(ABC):
         for _ in range(self.n_max - self.n_init):
 
             # collect next points
-            x_new = self.get_next_point()
-            y_new = self.evaluate_objective(x_new)
+            x_new = self.get_next_point().to(dtype =torch.double)
+            y_new = self.evaluate_objective(x_new).to(dtype =torch.double)
             c_new = self.evaluate_constraints(x_new)
 
             # update stored data

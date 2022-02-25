@@ -16,6 +16,7 @@ from botorch.utils.transforms import unnormalize, normalize
 from gpytorch.kernels import RBFKernel, ScaleKernel
 from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
 from torch import Tensor
+from botorch.utils import standardize
 
 from .basebooptimizer import BaseBOOptimizer
 from .utils import timeit, ParetoFrontApproximation, _compute_expected_utility
@@ -28,7 +29,7 @@ class Optimizer(BaseBOOptimizer):
         acquisitionfun,
         lb,
         ub,
-        utility_model: str,
+        utility_model_name: str,
         num_scalarizations: int,
         n_max: int,
         n_init: int = 20,
@@ -66,10 +67,10 @@ class Optimizer(BaseBOOptimizer):
         else:
             raise Exception("Expected RBF or Matern Kernel")
 
-        if utility_model == "Tche":
+        if utility_model_name == "Tche":
             self.utility_model = get_chebyshev_scalarization
 
-        elif utility_model == "Lin":
+        elif utility_model_name == "Lin":
             self.utility_model = get_linear_scalarization
 
     @timeit
@@ -86,23 +87,15 @@ class Optimizer(BaseBOOptimizer):
         return constraints
 
     def _update_model(self, X_train: Tensor, Y_train: Tensor, C_train: Tensor):
-        X_train_normalized = normalize(X=X_train, bounds=self.bounds)
-        train_joint_YC = torch.cat([Y_train, C_train], dim=-1)
-        Y_dim = Y_train.shape[1]
+
+        Y_train_standarized = standardize(Y_train)
+        train_joint_YC = torch.cat([Y_train_standarized, C_train], dim=-1)
+
         models = []
         for i in range(train_joint_YC.shape[-1]):
-            if i < Y_dim:
-                models.append(
-                    SingleTaskGP(
-                        X_train_normalized,
-                        train_joint_YC[..., i : i + 1],
-                        outcome_transform=Standardize(m=1),
-                    )
-                )
-            else:
-                models.append(
-                    SingleTaskGP(X_train_normalized, train_joint_YC[..., i : i + 1])
-                )
+            models.append(
+                SingleTaskGP(X_train, train_joint_YC[..., i : i + 1])
+            )
         self.model = ModelListGP(*models)
         mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
         fit_gpytorch_model(mll)
@@ -113,6 +106,7 @@ class Optimizer(BaseBOOptimizer):
         # is_feas = (mean[:,2] <= 0)
         # print("mean", mean.shape)
         # import matplotlib.pyplot as plt
+        # plt.scatter(mean[:, 0], mean[:, 1], color="grey")
         # plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mean[is_feas,2])
         # plt.show()
         # raise
@@ -138,8 +132,9 @@ class Optimizer(BaseBOOptimizer):
             n=self.num_scalarisations, d=self.f.num_objectives
         ).squeeze()
 
-        X_pareto_solutions = ParetoFrontApproximation(
-            model=self.model,
+        X_pareto_solutions, _ = ParetoFrontApproximation(
+            model=model,
+            objective_dim=self.y_train.shape[1],
             scalatization_fun=self.utility_model,
             input_dim=self.dim,
             bounds=bounds_normalized,
@@ -151,7 +146,7 @@ class Optimizer(BaseBOOptimizer):
         return X_pareto_solutions, weights
 
     def get_next_point(self):
-        self._update_model(self.x_train, self.y_train)
+        self._update_model(X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train)
         acquisition_function = self.acquisition_fun(self.model)
         x_new = self._sgd_optimize_aqc_fun(
             acquisition_function, log_time=self.method_time
@@ -225,4 +220,3 @@ class Optimizer(BaseBOOptimizer):
             [self.performance, torch.Tensor([n, expected_PF_utility])]
         )
         self.save()
-        raise

@@ -6,11 +6,11 @@ import sys
 from itertools import product
 
 import torch
+
 from botorch.test_functions.multi_objective import C2DTLZ2
 from mo_config import CONFIG_DICT
 from optimizers.mo_optimizer import Optimizer
-from optimizers.utils import KG_wrapper
-
+from optimizers.utils import mo_acq_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +28,14 @@ dtype = torch.double
 
 
 def run_experiment(
-    experiment_name: str,
-    experiment_tag: int,
-    problem: str,
-    method: str,
-    savefile: str,
-    base_seed: int,
-    n_init=4,
-    n_max=50,
+        experiment_name: str,
+        experiment_tag: int,
+        problem: str,
+        method: str,
+        savefile: str,
+        base_seed: int,
+        n_init=4,
+        n_max=50,
 ):
     """
     ARGS:
@@ -61,7 +61,7 @@ def run_experiment(
         experiment_tag
     ]
     # TODO: Change objective function parametrisation to not be hard-coded
-    d = 3
+    d = 4
     M = 2
 
     testfun = testfun_dict[problem](dim=d, num_objectives=M, negate=True).to(
@@ -102,24 +102,21 @@ def run_experiment(
         "raw_samples_acq_optimizer"
     ][experiment_tag]
 
-    from botorch.acquisition.multi_objective.monte_carlo import (
-        qNoisyExpectedHypervolumeImprovement,
-    )
 
-    acquisition_function = KG_wrapper(
-        method=method,
-        bounds=bounds_normalized,
-        num_fantasies=CONFIG_NUMBER_FANTASIES,
-        num_discrete_points=CONFIG_NUMBER_DISCRETE_POINTS,
-        num_restarts=CONFIG_NUMBER_RESTARTS_INNER_OPT,
-        raw_samples=CONFIG_NUMBER_RAW_SAMPLES_INNER_OPT,
-    )
+    acquisition_function = mo_acq_wrapper(method=method, bounds=bounds_normalized,
+                                          utility_model_name=CONFIG_UTILITY_MODEL,
+                                          num_fantasies=CONFIG_NUMBER_FANTASIES,
+                                          num_objectives= M,
+                                          num_scalarizations = CONFIG_NUMBER_OF_SCALARIZATIONS,
+                                          num_discrete_points=CONFIG_NUMBER_DISCRETE_POINTS,
+                                          num_restarts=CONFIG_NUMBER_RESTARTS_INNER_OPT,
+                                          raw_samples=CONFIG_NUMBER_RAW_SAMPLES_INNER_OPT)
     # instantiate the optimizer
 
     optimizer = Optimizer(
         testfun=testfun,
         acquisitionfun=acquisition_function,
-        utility_model=CONFIG_UTILITY_MODEL,
+        utility_model_name=CONFIG_UTILITY_MODEL,
         num_scalarizations=CONFIG_NUMBER_OF_SCALARIZATIONS,
         lb=lb,
         ub=ub,
@@ -176,6 +173,7 @@ def run_experiment(
 
 def main(exp_names, seed):
     # make table of experiment settings
+
     EXPERIMENT_NAME = exp_names
     PROBLEMS = CONFIG_DICT[EXPERIMENT_NAME]["problems"]
     ALGOS = CONFIG_DICT[EXPERIMENT_NAME]["method"]
@@ -190,16 +188,19 @@ def main(exp_names, seed):
             problem=EXPERIMENTS[idx][0],
             method=EXPERIMENTS[idx][1],
             savefile=script_dir
-            + "/results/"
-            + EXPERIMENTS[idx][0]
-            + "/"
-            + EXPERIMENTS[idx][1],
+                     + "/results/"
+                     + EXPERIMENTS[idx][0]
+                     + "/"
+                     + EXPERIMENTS[idx][1],
             base_seed=seed,
         )
 
 
 if __name__ == "__main__":
+
+
     main(sys.argv[1:])
+
 
     # parser = argparse.ArgumentParser(description="Run KG experiment")
     # parser.add_argument("--seed", type=int, help="base seed", default=0)

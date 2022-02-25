@@ -66,6 +66,19 @@ class BaseBOOptimizer(BaseOptimizer):
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
+        plot_X = torch.rand((5, 1, 1, 4))
+        posterior = self.model.posterior(plot_X)
+        mean = posterior.mean.squeeze().detach().numpy()
+        is_feas = (mean[:, 2] <= 0)
+        import matplotlib.pyplot as plt
+        plt.scatter(mean[is_feas, 0], mean[is_feas, 1], c=mean[is_feas, 2])
+        plt.show()
+
+        acq_vals = acq_fun.forward(plot_X).squeeze().detach().numpy()
+        plt.scatter(mean[:, 0], mean[:, 1], c=acq_vals)
+        plt.show()
+        raise
+
         # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
         if self.optional["OPTIMIZER"] == "Adam":
             initial_conditions = gen_batch_initial_conditions(

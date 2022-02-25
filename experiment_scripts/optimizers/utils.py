@@ -2,20 +2,21 @@ import time
 from typing import Optional, Callable, Dict, Tuple
 
 import torch
-from botorch.acquisition import (
-    qKnowledgeGradient,
-    HybridKnowledgeGradient,
-    DiscreteKnowledgeGradient,
-    MCKnowledgeGradient,
-)
+from torch import Tensor
+
 from botorch.acquisition.analytic import AnalyticAcquisitionFunction, _construct_dist
+from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG
 from botorch.generation.gen import gen_candidates_scipy
 from botorch.models.model import Model
 from botorch.utils import standardize
-from botorch.utils.multi_objective.scalarization import get_chebyshev_scalarization
 from botorch.utils.transforms import t_batch_mode_transform
-from torch import Tensor
 
+from botorch.utils.multi_objective.scalarization import (
+    get_chebyshev_scalarization,
+    get_linear_scalarization,
+)
+
+dtype = torch.double
 
 #################################################################
 #                                                               #
@@ -25,10 +26,10 @@ from torch import Tensor
 
 
 def lhc(
-    n: int,
-    dim: Optional[int] = None,
-    lb: Optional[Tensor] = None,
-    ub: Optional[Tensor] = None,
+        n: int,
+        dim: Optional[int] = None,
+        lb: Optional[Tensor] = None,
+        ub: Optional[Tensor] = None,
 ) -> Tensor:
     """
     Parameters
@@ -79,41 +80,36 @@ def timeit(method):
     return timed
 
 
-def KG_wrapper(
-    method: str,
-    bounds: Optional[Tensor] = None,
-    num_fantasies: Optional[int] = None,
-    num_discrete_points: Optional[int] = None,
-    num_restarts: Optional[int] = None,
-    raw_samples: Optional[int] = None,
+def mo_acq_wrapper(
+        method: str,
+        num_objectives: int,
+        utility_model_name=str,
+        bounds: Optional[Tensor] = None,
+        num_fantasies: Optional[int] = None,
+        num_scalarizations: Optional[int] = None,
+        num_discrete_points: Optional[int] = None,
+        num_restarts: Optional[int] = None,
+        raw_samples: Optional[int] = None,
 ):
+    if utility_model_name == "Tche":
+        utility_model = get_chebyshev_scalarization
+
+    elif utility_model_name == "Lin":
+        utility_model = get_linear_scalarization
+
     def acquisition_function(model: method):
-        if method == "DISCKG":
-            KG_acq_fun = DiscreteKnowledgeGradient(
+        if method == "macKG":
+            KG_acq_fun = MultiAttributeConstrainedKG(
                 model=model,
                 bounds=bounds,
-                num_discrete_points=num_discrete_points,
-                X_discretisation=None,
-            )
-        elif method == "MCKG":
+                utility_model= utility_model,
+                num_objectives= num_objectives,
+                num_fantasies=num_fantasies,
+                num_scalarisations=num_scalarizations)
 
-            KG_acq_fun = MCKnowledgeGradient(
-                model,
-                bounds=bounds,
-                num_fantasies=num_fantasies,
-                num_restarts=num_restarts if num_restarts is not None else 4,
-                raw_samples=raw_samples if raw_samples is not None else 80,
-            )
-        elif method == "HYBRIDKG":
-            KG_acq_fun = HybridKnowledgeGradient(
-                model,
-                bounds=bounds,
-                num_fantasies=num_fantasies,
-                num_restarts=num_restarts if num_restarts is not None else 4,
-                raw_samples=raw_samples if raw_samples is not None else 80,
-            )
-        elif method == "ONESHOTKG":
-            KG_acq_fun = qKnowledgeGradient(model, num_fantasies=num_fantasies)
+        elif method == "SMSEGO":
+            pass
+
         else:
             raise Exception(
                 "method does not exist. Specify implemented method: DISCKG (Discrete KG), "
@@ -136,11 +132,11 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        objective_index: int,
-        maximize: bool = True,
-        scalarization=Callable,
+            self,
+            model: Model,
+            objective_index: int,
+            maximize: bool = True,
+            scalarization=Callable,
     ) -> None:
         r"""Analytic Constrained Expected Improvement.
 
@@ -178,15 +174,16 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
             A `(b)`-dim Tensor of Expected Improvement values at the given
             design points `X`.
         """
-        posterior = self._get_posterior(X=X)
+        X = X.to(dtype=torch.double)
+        posterior = self.model.posterior(X=X)
         means = posterior.mean.squeeze(dim=-2)  # (b) x m
         sigmas = posterior.variance.squeeze(dim=-2).sqrt().clamp_min(1e-9)  # (b) x m
 
         # (b) x 1
         oi = self.objective_index
         mean_obj = means[..., :oi]
+        scalarized_objective = self.scalarization(Y=mean_obj)
 
-        scalarized_objective = self.scalarization(mean_obj)
         mean_constraints = means[..., oi:]
         sigma_constraints = sigmas[..., oi:]
 
@@ -194,13 +191,20 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
             X=X.squeeze(dim=-2),
             means=mean_constraints.squeeze(dim=-2),
             sigmas=sigma_constraints.squeeze(dim=-2),
-        )
+        ).double()
 
-        constrained_posterior_mean = scalarized_objective.mul(prob_feas)
-        return constrained_posterior_mean.squeeze(dim=-1)
+        constrained_posterior_mean = scalarized_objective.squeeze() * prob_feas.squeeze()
+
+        # import matplotlib.pyplot as plt
+        # val =constrained_posterior_mean.squeeze(dim=-1).detach().numpy()
+        # plt.scatter(mean_obj.detach().numpy()[..., 0], mean_obj.detach().numpy()[..., 1], c=val)
+        # plt.show()
+        # raise
+
+        return constrained_posterior_mean.squeeze(dim=-1).double()
 
     def _preprocess_constraint_bounds(
-        self, constraints: Dict[int, Tuple[Optional[float], Optional[float]]]
+            self, constraints: Dict[int, Tuple[Optional[float], Optional[float]]]
     ) -> None:
         r"""Set up constraint bounds.
 
@@ -280,20 +284,26 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
 
 
 def ParetoFrontApproximation(
-    model: Model,
-    input_dim: int,
-    scalatization_fun: Callable,
-    bounds: Tensor,
-    y_train: Tensor,
-    weights: Tensor,
-    optional: Optional[dict[str, int]] = None,
-) -> Tensor:
-    y_train_standarized = standardize(y_train)
+        model: Model,
+        input_dim: int,
+        objective_dim: int,
+        scalatization_fun: Callable,
+        bounds: Tensor,
+        y_train: Tensor,
+        weights: Tensor,
+        optional: Optional[dict[str, int]] = None,
+) -> tuple[Tensor, Tensor]:
+
     X_pareto_solutions = []
-    # X_random_start = []
+    X_pmean = []
+
+    dummy_X = torch.rand((500, input_dim))
+    posterior = model.posterior(dummy_X)
+    dummy_mean = posterior.mean[..., :objective_dim]
+
     for w in weights:
-        # normalizes scalariztion between [0,1] given the training data.
-        scalarization = scalatization_fun(weights=w, Y=y_train_standarized)
+        # normalizes scalarization between [0,1] given the training data.
+        scalarization = scalatization_fun(weights=w, Y=dummy_mean)
 
         constrained_model = ConstrainedPosteriorMean(
             model=model,
@@ -301,70 +311,61 @@ def ParetoFrontApproximation(
             scalarization=scalarization,
         )
 
-        domain_offset = bounds[0]
-        domain_range = bounds[1] - bounds[0]
-        X_unit_cube_samples = torch.rand((optional["RAW_SAMPLES"], 1, 1, input_dim))
-        X_initial_conditions_raw = X_unit_cube_samples * domain_range + domain_offset
+        X_initial_conditions_raw = torch.rand((optional["RAW_SAMPLES"], 1, 1, input_dim))
 
         mu_val_initial_conditions_raw = constrained_model.forward(
             X_initial_conditions_raw
         )
 
         best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
-            : optional["NUM_RESTARTS"]
-        ]
-        X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
+                         : optional["NUM_RESTARTS"]
+                         ]
+        X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :].double()
+
         top_x_initial_means, value_initial_means = gen_candidates_scipy(
             initial_conditions=X_initial_conditions,
             acquisition_function=constrained_model,
-            lower_bounds=bounds[0],
-            upper_bounds=bounds[1],
-        )
-        # subopt_x = X_initial_conditions[torch.argmax(value_initial_means), ...]
+            lower_bounds=torch.zeros(input_dim),
+            upper_bounds=torch.ones(input_dim))
+
         top_x = top_x_initial_means[torch.argmax(value_initial_means), ...]
         X_pareto_solutions.append(top_x)
-        # X_random_start.append(subopt_x)
+        X_pmean.append(torch.max(value_initial_means))
 
     X_pareto_solutions = torch.vstack(X_pareto_solutions)
-    # X_random_start = torch.vstack(X_random_start)
+    X_pmean = torch.vstack(X_pmean)
 
     # plot_X = torch.rand((1000,3))
-    # posterior = self.model.posterior(plot_X)
+    # posterior = model.posterior(plot_X)
     # mean = posterior.mean.detach().numpy()
     # is_feas = (mean[:,2] <= 0)
     # print("mean", mean.shape)
     # import matplotlib.pyplot as plt
     # plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mean[is_feas,2])
     #
-    # Y_pareto_posterior = self.model.posterior(X_pareto_solutions)
+    # Y_pareto_posterior = model.posterior(X_pareto_solutions)
     # Y_pareto_mean = Y_pareto_posterior.mean.detach().numpy()
     # print(Y_pareto_mean.shape)
     # plt.scatter(Y_pareto_mean[...,0], Y_pareto_mean[...,1], color="red")
     #
-    # Y_pareto_posterior = self.model.posterior(X_random_start)
-    # Y_pareto_mean = Y_pareto_posterior.mean.detach().numpy()
-    # print(Y_pareto_mean.shape)
-    # plt.scatter(Y_pareto_mean[...,0], Y_pareto_mean[...,1], color="red", marker="x")
-    #
     # plt.show()
     # raise
-    # raise
-    return X_pareto_solutions
+
+    return X_pareto_solutions, X_pmean
 
 
 def _compute_expected_utility(
-    objective: Callable,
-    scalatization_fun: Callable,
-    y_values: Tensor,
-    c_values: Tensor,
-    weights: Tensor,
+        objective: Callable,
+        scalatization_fun: Callable,
+        y_values: Tensor,
+        c_values: Tensor,
+        weights: Tensor,
 ) -> Tensor:
 
-    objective_func_front = objective.gen_pareto_front(n=20)
     utility = torch.zeros((weights.shape[0], y_values.shape[0]))
 
     for idx, w in enumerate(weights):
-        scalarization = scalatization_fun(weights=w, Y=objective_func_front)
+        scalarization = scalatization_fun(weights=w, Y=torch.Tensor([]).view((0,y_values.shape[1])))
         utility_values = scalarization(y_values).squeeze()
         constraint_binary_values = (c_values <= 0).type_as(utility_values).squeeze()
 

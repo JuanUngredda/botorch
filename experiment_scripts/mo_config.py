@@ -16,13 +16,13 @@
 CONFIG_DICT = {
     "C2DTLZ2_experiments": {
         "problems": ["C2DTLZ2"],
-        "method": ["DISCKG", "MCKG", "HYBRIDKG", "ONESHOTKG"],
+        "method": ["macKG"],
         "number_of_scalarizations": [10],
         "utility_model": ["Tche"],
         "num_discrete_points": [1000, None, None, None],
         "num_fantasies": [5, 5, 5, 5],
         "num_restarts_inner_optimizer": [1] * 4,
-        "raw_samples_inner_optimizer": [100] * 4,
+        "raw_samples_inner_optimizer": [20] * 4,
         "acquisition_optimizer": [
             "L-BFGS-B",
             "L-BFGS-B",
@@ -30,6 +30,6 @@ CONFIG_DICT = {
             "L-BFGS-B",
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [3] * 4,
-        "raw_samples_acq_optimizer": [80] * 4,
+        "raw_samples_acq_optimizer": [5] * 4,
     }
 }

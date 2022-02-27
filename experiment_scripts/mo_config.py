@@ -19,7 +19,7 @@ CONFIG_DICT = {
         "method": ["macKG"],
         "number_of_scalarizations": 10 ,
         "num_samples_initial_design": 10,
-        "num_max_evaluatations": 11,
+        "num_max_evaluatations": 100,
         "utility_model": ["Lin", "Tche"],
         "num_discrete_points": None,
         "num_fantasies": 5,

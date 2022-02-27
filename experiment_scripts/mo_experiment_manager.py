@@ -173,7 +173,7 @@ def run_experiment(
 
 def main(exp_names, seed):
     # make table of experiment settings
-
+    seed += 7
     EXPERIMENT_NAME = exp_names
     PROBLEMS = CONFIG_DICT[EXPERIMENT_NAME]["problems"]
     ALGOS = CONFIG_DICT[EXPERIMENT_NAME]["method"]

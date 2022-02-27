@@ -355,7 +355,6 @@ def ParetoFrontApproximation(
 
 
 def _compute_expected_utility(
-        objective: Callable,
         scalatization_fun: Callable,
         y_values: Tensor,
         c_values: Tensor,
@@ -367,9 +366,16 @@ def _compute_expected_utility(
     for idx, w in enumerate(weights):
         scalarization = scalatization_fun(weights=w, Y=torch.Tensor([]).view((0,y_values.shape[1])))
         utility_values = scalarization(y_values).squeeze()
-        constraint_binary_values = (c_values <= 0).type_as(utility_values).squeeze()
+        utility[idx, :] = utility_values
 
-        utility[idx, :] = utility_values * constraint_binary_values
+    is_feas =  (c_values <= 0).squeeze()
 
-    expected_utility = utility.mean()
-    return expected_utility
+    if is_feas.sum() == 0:
+        expected_utility = torch.Tensor([-100])
+        return expected_utility
+    else:
+        utility_feas = utility[:, is_feas]
+        best_utility = torch.max(utility_feas , dim=1).values
+        expected_utility = best_utility.mean()
+
+        return expected_utility

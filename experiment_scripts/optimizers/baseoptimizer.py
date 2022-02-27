@@ -67,7 +67,8 @@ class BaseOptimizer(ABC):
         self.lb = lb.squeeze(-1)
         self.ub = ub.squeeze(-1)
         self.dim = len(lb.squeeze())
-        self.performance = torch.zeros((0, 2))
+        self.GP_performance = torch.zeros((0, 2))
+        self.sampled_performance = torch.zeros((0, 2))
         self.method_time = {}
         self.gp_likelihood_noise = torch.Tensor([])
         self.gp_lengthscales = torch.Tensor([])
@@ -92,7 +93,8 @@ class BaseOptimizer(ABC):
 
         # test initial
         self.test()
-        logger.info("Test performance:\n %s", self.performance[-1, :])
+        logger.info("Test GP performance:\n %s", self.GP_performance[-1, :])
+        logger.info("Test sampled performance:\n %s", self.sampled_performance[-1, :])
 
         # start iterating until the budget is exhausted.
         for _ in range(self.n_max - self.n_init):
@@ -112,7 +114,8 @@ class BaseOptimizer(ABC):
             # test if necessary
             if torch.any(len(self.y_train) == self.testable_iters):
                 self.test()
-                logger.info(f"Test performance: {self.performance[-1, :]}")
+                logger.info("Test GP performance:\n %s", self.GP_performance[-1, :])
+                logger.info("Test sampled performance:\n %s", self.sampled_performance[-1, :])
 
     def evaluate_objective(self, x: Tensor, **kwargs) -> Tensor:
         """

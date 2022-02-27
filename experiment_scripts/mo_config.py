@@ -17,19 +17,17 @@ CONFIG_DICT = {
     "C2DTLZ2_experiments": {
         "problems": ["C2DTLZ2"],
         "method": ["macKG"],
-        "number_of_scalarizations": [10],
-        "utility_model": ["Tche"],
-        "num_discrete_points": [1000, None, None, None],
-        "num_fantasies": [5, 5, 5, 5],
-        "num_restarts_inner_optimizer": [1] * 4,
-        "raw_samples_inner_optimizer": [20] * 4,
-        "acquisition_optimizer": [
-            "L-BFGS-B",
-            "L-BFGS-B",
-            "L-BFGS-B",
-            "L-BFGS-B",
-        ],  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": [3] * 4,
-        "raw_samples_acq_optimizer": [5] * 4,
+        "number_of_scalarizations": 10 ,
+        "num_samples_initial_design": 10,
+        "num_max_evaluatations": 11,
+        "utility_model": ["Lin", "Tche"],
+        "num_discrete_points": None,
+        "num_fantasies": 5,
+        "num_restarts_inner_optimizer": 1 ,
+        "raw_samples_inner_optimizer": 100,
+        "acquisition_optimizer":
+            "Adam",  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": 1,
+        "raw_samples_acq_optimizer": 100,
     }
 }

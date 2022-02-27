@@ -111,15 +111,16 @@ class Optimizer(BaseBOOptimizer):
         # plt.show()
         # raise
 
-    def policy(self):
+    def policy(self, num_scalarizations:int):
 
+        # print(self.x_train, self.y_train, self.c_train)
         self._update_model(
             X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train
         )
-        x_rec = self.best_model_posterior_mean(model=self.model)
+        x_rec = self.best_model_posterior_mean(model=self.model, num_scalarizations=num_scalarizations)
         return x_rec
 
-    def best_model_posterior_mean(self, model):
+    def best_model_posterior_mean(self, model, num_scalarizations):
         """find the highest predicted x to return to the user"""
 
         assert self.y_train is not None
@@ -129,7 +130,7 @@ class Optimizer(BaseBOOptimizer):
 
         # sample random weights
         weights = sample_simplex(
-            n=self.num_scalarisations, d=self.f.num_objectives
+            n=num_scalarizations, d=self.f.num_objectives
         ).squeeze()
 
         X_pareto_solutions, _ = ParetoFrontApproximation(
@@ -173,7 +174,8 @@ class Optimizer(BaseBOOptimizer):
         output = {
             "problem": self.f.problem,
             "method_times": self.method_time,
-            "OC": self.performance,
+            "OC_GP": self.GP_performance,
+            "OC_sampled": self.sampled_performance,
             "x": self.x_train,
             "y": self.y_train,
             "c": self.c_train,
@@ -198,7 +200,7 @@ class Optimizer(BaseBOOptimizer):
         """
         test and saves performance measures
         """
-        x_rec, weights = self.policy()
+        x_rec, weights = self.policy(num_scalarizations=self.x_train.shape[0])
         self.pareto_set_recommended = x_rec
         self.weights = weights
 
@@ -207,8 +209,14 @@ class Optimizer(BaseBOOptimizer):
             [self.evaluate_constraints(x_i) for x_i in x_rec]
         )
 
+        expected_sampled_utility = _compute_expected_utility(
+            scalatization_fun=self.utility_model,
+            y_values=self.y_train,
+            c_values=self.c_train,
+            weights=weights,
+        )
+
         expected_PF_utility = _compute_expected_utility(
-            objective=self.f,
             scalatization_fun=self.utility_model,
             y_values=y_pareto_values,
             c_values=c_pareto_values,
@@ -216,7 +224,11 @@ class Optimizer(BaseBOOptimizer):
         )
 
         n = len(self.y_train) * 1.0
-        self.performance = torch.vstack(
-            [self.performance, torch.Tensor([n, expected_PF_utility])]
+        self.GP_performance = torch.vstack(
+            [self.GP_performance, torch.Tensor([n, expected_PF_utility ])]
+        )
+
+        self.sampled_performance = torch.vstack(
+            [self.sampled_performance , torch.Tensor([n, expected_sampled_utility])]
         )
         self.save()

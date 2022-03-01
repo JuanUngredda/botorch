@@ -100,16 +100,6 @@ class Optimizer(BaseBOOptimizer):
         mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
         fit_gpytorch_model(mll)
 
-        # plot_X = torch.rand((1000,3))
-        # posterior = self.model.posterior(plot_X)
-        # mean = posterior.mean.detach().numpy()
-        # is_feas = (mean[:,2] <= 0)
-        # print("mean", mean.shape)
-        # import matplotlib.pyplot as plt
-        # plt.scatter(mean[:, 0], mean[:, 1], color="grey")
-        # plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mean[is_feas,2])
-        # plt.show()
-        # raise
 
     def policy(self, num_scalarizations:int):
 

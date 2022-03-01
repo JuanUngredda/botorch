@@ -7,7 +7,7 @@ from itertools import product
 
 import torch
 
-from botorch.test_functions.multi_objective import C2DTLZ2
+from botorch.test_functions.multi_objective import C2DTLZ2, SRN , ConstrainedBraninCurrin
 from mo_config import CONFIG_DICT
 from optimizers.mo_optimizer import Optimizer
 from optimizers.utils import mo_acq_wrapper
@@ -55,14 +55,13 @@ def run_experiment(
     # instantiate the test problem
     testfun_dict = {
         "C2DTLZ2": C2DTLZ2,
+        "ConstrainedBraninCurrin": ConstrainedBraninCurrin
     }
 
     CONFIG_NUMBER_FANTASIES = CONFIG_DICT[experiment_name]["num_fantasies"]
     # TODO: Change objective function parametrisation to not be hard-coded
-    d = 4
-    M = 2
 
-    testfun = testfun_dict[problem](dim=d, num_objectives=M, negate=True).to(
+    testfun = testfun_dict[problem](negate=True).to(
         dtype=dtype
     )
     dim = testfun.dim
@@ -105,7 +104,7 @@ def run_experiment(
     acquisition_function = mo_acq_wrapper(method=method, bounds=bounds_normalized,
                                           utility_model_name=CONFIG_UTILITY_MODEL,
                                           num_fantasies=CONFIG_NUMBER_FANTASIES,
-                                          num_objectives=M,
+                                          num_objectives=testfun.num_objectives,
                                           num_scalarizations=CONFIG_NUMBER_OF_SCALARIZATIONS,
                                           num_discrete_points=CONFIG_NUMBER_DISCRETE_POINTS,
                                           num_restarts=CONFIG_NUMBER_RESTARTS_INNER_OPT,
@@ -173,7 +172,7 @@ def run_experiment(
 
 def main(exp_names, seed):
     # make table of experiment settings
-    seed += 7
+    # seed += 7
     EXPERIMENT_NAME = exp_names
     PROBLEMS = CONFIG_DICT[EXPERIMENT_NAME]["problems"]
     ALGOS = CONFIG_DICT[EXPERIMENT_NAME]["method"]

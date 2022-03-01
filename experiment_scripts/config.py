@@ -13,14 +13,15 @@
 # "Rosenbrock"
 # "beale"
 
+# 2, 5, 10, 20, 50,  100, 200
 CONFIG_DICT = {
     "Branin_experiments": {
         "problems": ["Branin"],
         "method": ["DISCKG", "MCKG", "HYBRIDKG", "ONESHOTKG"],
         "num_samples_initial_design": [10]*4,
         "num_max_evaluatations":[50]*4,
-        "num_discrete_points": [1000, None, None, None],
-        "num_fantasies": [None, 10, 5, 125],
+        "num_discrete_points": [2, None, None, None],
+        "num_fantasies": [None, 2, 2, 2],
         "num_restarts_inner_optimizer": [1] * 4,
         "raw_samples_inner_optimizer": [100] * 4,
         "acquisition_optimizer": [
@@ -35,8 +36,10 @@ CONFIG_DICT = {
     "Rosenbrock_experiments": {
         "problems": ["Rosenbrock"],
         "method": ["DISCKG", "MCKG", "HYBRIDKG", "ONESHOTKG"],
-        "num_discrete_points": [1000, None, None, None],
-        "num_fantasies": [None, 10, 5, 125],
+        "num_samples_initial_design": [10]*4,
+        "num_max_evaluatations": [50]*4,
+        "num_discrete_points": [2, None, None, None],
+        "num_fantasies": [None, 2, 2, 2],
         "num_restarts_inner_optimizer": [1] * 4,
         "raw_samples_inner_optimizer": [100] * 4,
         "acquisition_optimizer": [

@@ -6,6 +6,7 @@ import sys
 from itertools import product
 
 import torch
+
 from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock
 from botorch.utils.transforms import unnormalize
 from config import CONFIG_DICT
@@ -28,14 +29,14 @@ dtype = torch.double
 
 
 def run_experiment(
-    experiment_name: str,
-    experiment_tag: int,
-    problem: str,
-    method: str,
-    savefile: str,
-    base_seed: int,
-    n_init=4,
-    n_max=50,
+        experiment_name: str,
+        experiment_tag: int,
+        problem: str,
+        method: str,
+        savefile: str,
+        base_seed: int,
+        n_init=4,
+        n_max=50,
 ):
     """
     ARGS:
@@ -67,7 +68,7 @@ def run_experiment(
     testfun.problem = problem
     bounds_normalized = torch.vstack([torch.zeros(dim), torch.ones(dim)])
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # PULL CONFIG VARIABLE VALUES
     CONFIG_NUMBER_FANTASIES = CONFIG_DICT[experiment_name]["num_fantasies"][
         experiment_tag
@@ -100,7 +101,7 @@ def run_experiment(
     CONFIG_MAX_NUM_EVALUATIONS = CONFIG_DICT[experiment_name][
         "num_max_evaluatations"
     ][experiment_tag]
-    #---------------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------------
 
     # This wrapper includes the parameters to each acquisition function.
     acquisition_function = KG_wrapper(
@@ -182,10 +183,12 @@ def main(exp_names, seed):
             problem=EXPERIMENTS[idx][0],
             method=EXPERIMENTS[idx][1],
             savefile=script_dir
-            + "/results/"
-            + EXPERIMENTS[idx][0]
-            + "/"
-            + EXPERIMENTS[idx][1],
+                     + "/results/" +
+                     EXPERIMENT_NAME
+                     + "/"
+                     + EXPERIMENTS[idx][0]
+                     + "/"
+                     + EXPERIMENTS[idx][1],
             base_seed=seed,
         )
 

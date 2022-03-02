@@ -7,7 +7,7 @@ from itertools import product
 
 import torch
 
-from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock
+from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock, Hartmann
 from botorch.utils.transforms import unnormalize
 from config import CONFIG_DICT
 from optimizers.optimizer import Optimizer
@@ -59,6 +59,7 @@ def run_experiment(
         "Branin": Branin,
         "SixHumpCamel": SixHumpCamel,
         "Rosenbrock": Rosenbrock,
+        "Hartmann": Hartmann
     }
 
     testfun = testfun_dict[problem](negate=True).to(dtype=dtype)

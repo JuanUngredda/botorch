@@ -15,35 +15,6 @@
 
 # 2, 5, 10, 20, 50,  100, 200
 CONFIG_DICT = {
-    "DiscreteKG_Branin_wxnew_2": {
-        "problems": ["Branin"],
-        "method": ["DISCKG"],
-        "num_samples_initial_design": [10],
-        "num_max_evaluatations": [50],
-        "num_discrete_points": [2],
-        "num_fantasies": [None],
-        "num_restarts_inner_optimizer": [1],
-        "raw_samples_inner_optimizer": [100],
-        "acquisition_optimizer": [
-            "L-BFGS-B"
-        ],  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": [3],
-        "raw_samples_acq_optimizer": [80]},
-
-    "DiscreteKG_Branin_wxnew_1000": {
-        "problems": ["Branin"],
-        "method": ["DISCKG"],
-        "num_samples_initial_design": [10],
-        "num_max_evaluatations": [50],
-        "num_discrete_points": [1000],
-        "num_fantasies": [None],
-        "num_restarts_inner_optimizer": [1],
-        "raw_samples_inner_optimizer": [100],
-        "acquisition_optimizer": [
-            "L-BFGS-B"
-        ],  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": [3],
-        "raw_samples_acq_optimizer": [80]},
 
     "DiscreteKG_Branin_2": {
         "problems": ["Branin"],
@@ -60,8 +31,23 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80]},
 
-    "DiscreteKG_Branin_10": {
+    "DiscreteKG_Branin_1000": {
         "problems": ["Branin"],
+        "method": ["DISCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [50],
+        "num_discrete_points": [1000],
+        "num_fantasies": [None],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [80],
+    },
+    "DiscreteKG_Rosenbrock_2": {
+        "problems": ["Rosenbrock"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],
         "num_max_evaluatations": [50],
@@ -74,53 +60,9 @@ CONFIG_DICT = {
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80]},
-    "DiscreteKG_Branin_50": {
-        "problems": ["Branin"],
-        "method": ["DISCKG"],
-        "num_samples_initial_design": [10],
-        "num_max_evaluatations": [50],
-        "num_discrete_points": [50],
-        "num_fantasies": [None],
-        "num_restarts_inner_optimizer": [1],
-        "raw_samples_inner_optimizer": [100],
-        "acquisition_optimizer": [
-            "L-BFGS-B"
-        ],  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": [3],
-        "raw_samples_acq_optimizer": [80],
-    },
-    "DiscreteKG_Branin_100": {
-        "problems": ["Branin"],
-        "method": ["DISCKG"],
-        "num_samples_initial_design": [10],
-        "num_max_evaluatations": [50],
-        "num_discrete_points": [100],
-        "num_fantasies": [None],
-        "num_restarts_inner_optimizer": [1],
-        "raw_samples_inner_optimizer": [100],
-        "acquisition_optimizer": [
-            "L-BFGS-B"
-        ],  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": [3],
-        "raw_samples_acq_optimizer": [80],
-    },
-    "DiscreteKG_Branin_500": {
-        "problems": ["Branin"],
-        "method": ["DISCKG"],
-        "num_samples_initial_design": [10],
-        "num_max_evaluatations": [50],
-        "num_discrete_points": [500],
-        "num_fantasies": [None],
-        "num_restarts_inner_optimizer": [1],
-        "raw_samples_inner_optimizer": [100],
-        "acquisition_optimizer": [
-            "L-BFGS-B"
-        ],  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": [3],
-        "raw_samples_acq_optimizer": [80],
-    },
-    "DiscreteKG_Branin_1000": {
-        "problems": ["Branin"],
+
+    "DiscreteKG_Rosenbrock_1000": {
+        "problems": ["Rosenbrock"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],
         "num_max_evaluatations": [50],

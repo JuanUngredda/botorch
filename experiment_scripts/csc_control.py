@@ -47,9 +47,9 @@ def run(args):
 
     number_of_csc_machines = len(U)
     # print(number_of_csc_machines)
-    seed = 40
-    for _ in range(60):
-        experiment_names = ["DiscreteKG_Branin_2", "DiscreteKG_Branin_1000" ]
+    seed = 0
+    for _ in range(10):
+        experiment_names = ["DiscreteKG_Rosenbrock_2", "DiscreteKG_Rosenbrock_1000"]
         for exp_name in experiment_names:
             # print("args.k + seed",args.k + seed)
             experiment_manager.main(exp_names=exp_name, seed=args.k + seed)

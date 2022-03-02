@@ -1,9 +1,9 @@
 import argparse
 import os
 import subprocess as sp
-import sys
 
 import numpy as np
+
 
 # This is a bare script that receives args, prints something, wastes some time,function_caller_test_func_2_TS
 # and saves something. Use this as a blank template to run experiments.
@@ -44,7 +44,9 @@ def run(args):
     # IMPORT AND RUN MODULES
     import experiment_manager
 
-    experiment_names = ["Branin_experiments_2", "Branin_experiments_5"]
+    experiment_names = ["Branin_experiments_10", "Branin_experiments_50", "Branin_experiments_100",
+                        "Branin_experiments_500","Branin_experiments_1000" ]
+
     for exp_name in experiment_names:
         experiment_manager.main(exp_names=exp_name, seed=args.k)
 

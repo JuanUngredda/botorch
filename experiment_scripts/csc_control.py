@@ -44,8 +44,8 @@ def run(args):
     # IMPORT AND RUN MODULES
     import experiment_manager
 
-    experiment_names = ["Branin_experiments_10", "Branin_experiments_50", "Branin_experiments_100",
-                        "Branin_experiments_500","Branin_experiments_1000" ]
+    experiment_names = ["DiscreteKG_Branin_10", "DiscreteKG_Branin_50", "DiscreteKG_Branin_100",
+                        "DiscreteKG_Branin_500","DiscreteKG_Branin_1000" ]
 
     for exp_name in experiment_names:
         experiment_manager.main(exp_names=exp_name, seed=args.k)

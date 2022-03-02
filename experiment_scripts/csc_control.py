@@ -49,7 +49,7 @@ def run(args):
     # print(number_of_csc_machines)
     seed = 0
     for _ in range(10):
-        experiment_names = ["DiscreteKG_Hartmann_2", "DiscreteKG_Hartmann_1000"]
+        experiment_names = ["DiscreteKG_Hartmann_3D_2", "DiscreteKG_Hartmann_3D_1000"]
         for exp_name in experiment_names:
             # print("args.k + seed",args.k + seed)
             experiment_manager.main(exp_names=exp_name, seed=args.k + seed)

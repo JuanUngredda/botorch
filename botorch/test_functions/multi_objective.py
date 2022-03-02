@@ -955,6 +955,16 @@ class ConstrainedBraninCurrin(BraninCurrin, ConstrainedBaseTestProblem):
         X_tf = unnormalize(X, self.con_bounds)
         return 50 - (X_tf[..., 0:1] - 2.5).pow(2) - (X_tf[..., 1:2] - 7.5).pow(2)
 
+# X_plot = torch.rand((100000, 2))
+# import matplotlib.pyplot as plt
+# fun = ConstrainedBraninCurrin()
+# fval =fun(X_plot)
+# c = -fun.evaluate_slack_true(X_plot)
+# is_feas = (c<0).squeeze()
+# plt.scatter(fval[:,0], fval[:,1])
+# plt.scatter(fval[is_feas,0], fval[is_feas,1], color="green")
+# plt.show()
+# raise
 
 class C2DTLZ2(DTLZ2, ConstrainedBaseTestProblem):
 

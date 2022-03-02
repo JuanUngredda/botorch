@@ -89,6 +89,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         model: Model,
         bounds: Optional[Tensor] = None,
         num_discrete_points: Optional[int] = None,
+        include_xnew: Optional[bool] = True,
         X_discretisation: Optional[Tensor] = None,
     ) -> None:
         r"""
@@ -115,6 +116,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         super(AnalyticAcquisitionFunction, self).__init__(model=model)
 
+        self.include_xnew = include_xnew
         self.num_input_dimensions = bounds.shape[1]
         self.X_discretisation = X_discretisation
 
@@ -140,9 +142,12 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         """
         # Augment the discretisation with the designs.
-        concatenated_xnew_discretisation = torch.cat(
-            [xnew, optimal_discretisation], dim=0
-        ).squeeze()  # (m + num_X_disc, d)
+        if self.include_xnew:
+            concatenated_xnew_discretisation = torch.cat(
+                [xnew, optimal_discretisation], dim=0
+            ).squeeze()  # (m + num_X_disc, d)
+        else:
+            concatenated_xnew_discretisation = optimal_discretisation
 
         # Compute posterior mean, variance, and covariance.
         full_posterior = self.model.posterior(

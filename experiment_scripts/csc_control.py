@@ -43,12 +43,18 @@ def run(args):
 
     # IMPORT AND RUN MODULES
     import experiment_manager
+    from forking_CSC.fork0_to_csc import U
 
-    experiment_names = ["DiscreteKG_Branin_1000" ]
-
-    for exp_name in experiment_names:
-        experiment_manager.main(exp_names=exp_name, seed=args.k)
-
+    number_of_csc_machines = len(U)
+    # print(number_of_csc_machines)
+    seed = 40
+    for _ in range(60):
+        experiment_names = ["DiscreteKG_Branin_2", "DiscreteKG_Branin_1000" ]
+        for exp_name in experiment_names:
+            # print("args.k + seed",args.k + seed)
+            experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+        seed += number_of_csc_machines
+    raise
     # experiment_manager(args.k)
 
     # save something to hard drive in /res/ subfolder

@@ -62,7 +62,7 @@ def run_experiment(
         "Hartmann": Hartmann
     }
 
-    testfun = testfun_dict[problem](dim=3, negate=True).to(dtype=dtype)
+    testfun = testfun_dict[problem](negate=True).to(dtype=dtype)
     dim = testfun.dim
     bounds = testfun.bounds  # Bounds tensor (2, d)
     lb, ub = bounds

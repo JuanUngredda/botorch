@@ -142,12 +142,10 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         """
         # Augment the discretisation with the designs.
-        if self.include_xnew:
-            concatenated_xnew_discretisation = torch.cat(
-                [xnew, optimal_discretisation], dim=0
-            ).squeeze()  # (m + num_X_disc, d)
-        else:
-            concatenated_xnew_discretisation = optimal_discretisation
+
+        concatenated_xnew_discretisation = torch.cat(
+            [xnew, optimal_discretisation], dim=0
+        ).squeeze()  # (m + num_X_disc, d)
 
         # Compute posterior mean, variance, and covariance.
         full_posterior = self.model.posterior(
@@ -172,8 +170,10 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
             / (full_posterior_variance + noise_variance).sqrt()
         )
         # initialise empty kgvals torch.tensor
-        kgval = self.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
-
+        if self.include_xnew:
+            kgval = self.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
+        else:
+            kgval = self.kgcb(a=full_posterior_mean[1:], b=full_predictive_covariance[1:])
         return kgval
 
     @staticmethod

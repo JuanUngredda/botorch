@@ -89,7 +89,6 @@ def KG_wrapper(
                 model=model,
                 bounds=bounds,
                 num_discrete_points=num_discrete_points,
-                include_xnew= False,
                 X_discretisation=None,
             )
         elif method == "MCKG":

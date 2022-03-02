@@ -45,6 +45,21 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80]},
 
+    "DiscreteKG_Branin_2": {
+        "problems": ["Branin"],
+        "method": ["DISCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [50],
+        "num_discrete_points": [10],
+        "num_fantasies": [None],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [80]},
+
     "DiscreteKG_Branin_10": {
         "problems": ["Branin"],
         "method": ["DISCKG"],

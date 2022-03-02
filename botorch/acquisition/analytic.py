@@ -16,6 +16,9 @@ from copy import deepcopy
 from typing import Dict, Optional, Tuple, Union
 
 import torch
+from torch import Tensor
+from torch.distributions import Normal
+
 from botorch.acquisition.acquisition import AcquisitionFunction
 from botorch.acquisition.objective import ScalarizedObjective
 from botorch.exceptions import UnsupportedError
@@ -26,15 +29,13 @@ from botorch.posteriors.posterior import Posterior
 from botorch.sampling.samplers import SobolQMCNormalSampler
 from botorch.utils.sampling import draw_sobol_samples
 from botorch.utils.transforms import convert_to_target_pre_hook, t_batch_mode_transform
-from torch import Tensor
-from torch.distributions import Normal
 
 
 class AnalyticAcquisitionFunction(AcquisitionFunction, ABC):
     r"""Base class for analytic acquisition functions."""
 
     def __init__(
-        self, model: Model, objective: Optional[ScalarizedObjective] = None
+            self, model: Model, objective: Optional[ScalarizedObjective] = None
     ) -> None:
         r"""Base constructor for analytic acquisition functions.
 
@@ -85,12 +86,11 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
     r"""Knowledge Gradient using a fixed discretisation in the Design Space "X"."""
 
     def __init__(
-        self,
-        model: Model,
-        bounds: Optional[Tensor] = None,
-        num_discrete_points: Optional[int] = None,
-        include_xnew: Optional[bool] = True,
-        X_discretisation: Optional[Tensor] = None,
+            self,
+            model: Model,
+            bounds: Optional[Tensor] = None,
+            num_discrete_points: Optional[int] = None,
+            X_discretisation: Optional[Tensor] = None,
     ) -> None:
         r"""
         Discrete Knowledge Gradient
@@ -116,7 +116,6 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         super(AnalyticAcquisitionFunction, self).__init__(model=model)
 
-        self.include_xnew = include_xnew
         self.num_input_dimensions = bounds.shape[1]
         self.X_discretisation = X_discretisation
 
@@ -131,7 +130,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         return kgvals
 
     def compute_discrete_kg(
-        self, xnew: Tensor, optimal_discretisation: Tensor
+            self, xnew: Tensor, optimal_discretisation: Tensor
     ) -> Tensor:
         """
 
@@ -159,21 +158,19 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
             full_posterior.mvn.covariance_matrix
         )  # (1 + num_X_disc , 1 + num_X_disc )
         posterior_cov_xnew_opt_disc = full_posterior_covariance[
-            : len(xnew), :
-        ].squeeze()  # ( 1 + num_X_disc,)
+                                      : len(xnew), :
+                                      ].squeeze()  # ( 1 + num_X_disc,)
         full_posterior_variance = (
             full_posterior.variance.squeeze()
         )  # (1 + num_X_disc, )
 
         full_predictive_covariance = (
-            posterior_cov_xnew_opt_disc
-            / (full_posterior_variance + noise_variance).sqrt()
+                posterior_cov_xnew_opt_disc
+                / (full_posterior_variance + noise_variance).sqrt()
         )
         # initialise empty kgvals torch.tensor
-        if self.include_xnew:
-            kgval = self.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
-        else:
-            kgval = self.kgcb(a=full_posterior_mean[1:], b=full_predictive_covariance[1:])
+
+        kgval = self.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
         return kgval
 
     @staticmethod
@@ -279,11 +276,11 @@ class ExpectedImprovement(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        best_f: Union[float, Tensor],
-        objective: Optional[ScalarizedObjective] = None,
-        maximize: bool = True,
+            self,
+            model: Model,
+            best_f: Union[float, Tensor],
+            objective: Optional[ScalarizedObjective] = None,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome Expected Improvement (analytic).
 
@@ -344,10 +341,10 @@ class PosteriorMean(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        objective: Optional[ScalarizedObjective] = None,
-        maximize: bool = True,
+            self,
+            model: Model,
+            objective: Optional[ScalarizedObjective] = None,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome Posterior Mean.
 
@@ -400,11 +397,11 @@ class ProbabilityOfImprovement(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        best_f: Union[float, Tensor],
-        objective: Optional[ScalarizedObjective] = None,
-        maximize: bool = True,
+            self,
+            model: Model,
+            best_f: Union[float, Tensor],
+            objective: Optional[ScalarizedObjective] = None,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome analytic Probability of Improvement.
 
@@ -464,11 +461,11 @@ class UpperConfidenceBound(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        beta: Union[float, Tensor],
-        objective: Optional[ScalarizedObjective] = None,
-        maximize: bool = True,
+            self,
+            model: Model,
+            beta: Union[float, Tensor],
+            objective: Optional[ScalarizedObjective] = None,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome Upper Confidence Bound.
 
@@ -534,12 +531,12 @@ class ConstrainedExpectedImprovement(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        best_f: Union[float, Tensor],
-        objective_index: int,
-        constraints: Dict[int, Tuple[Optional[float], Optional[float]]],
-        maximize: bool = True,
+            self,
+            model: Model,
+            best_f: Union[float, Tensor],
+            objective_index: int,
+            constraints: Dict[int, Tuple[Optional[float], Optional[float]]],
+            maximize: bool = True,
     ) -> None:
         r"""Analytic Constrained Expected Improvement.
 
@@ -582,8 +579,8 @@ class ConstrainedExpectedImprovement(AnalyticAcquisitionFunction):
 
         # (b) x 1
         oi = self.objective_index
-        mean_obj = means[..., oi : oi + 1]
-        sigma_obj = sigmas[..., oi : oi + 1]
+        mean_obj = means[..., oi: oi + 1]
+        sigma_obj = sigmas[..., oi: oi + 1]
         u = (mean_obj - self.best_f.expand_as(mean_obj)) / sigma_obj
         if not self.maximize:
             u = -u
@@ -599,7 +596,7 @@ class ConstrainedExpectedImprovement(AnalyticAcquisitionFunction):
         return ei.squeeze(dim=-1)
 
     def _preprocess_constraint_bounds(
-        self, constraints: Dict[int, Tuple[Optional[float], Optional[float]]]
+            self, constraints: Dict[int, Tuple[Optional[float], Optional[float]]]
     ) -> None:
         r"""Set up constraint bounds.
 
@@ -699,11 +696,11 @@ class NoisyExpectedImprovement(ExpectedImprovement):
     """
 
     def __init__(
-        self,
-        model: GPyTorchModel,
-        X_observed: Tensor,
-        num_fantasies: int = 20,
-        maximize: bool = True,
+            self,
+            model: GPyTorchModel,
+            X_observed: Tensor,
+            num_fantasies: int = 20,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome Noisy Expected Improvement (via fantasies).
 
@@ -759,7 +756,7 @@ def _construct_dist(means: Tensor, sigmas: Tensor, inds: Tensor) -> Normal:
 
 
 def _get_noiseless_fantasy_model(
-    model: FixedNoiseGP, batch_X_observed: Tensor, Y_fantasized: Tensor
+        model: FixedNoiseGP, batch_X_observed: Tensor, Y_fantasized: Tensor
 ) -> FixedNoiseGP:
     r"""Construct a fantasy model from a fitted model and provided fantasies.
 
@@ -805,10 +802,10 @@ class ScalarizedPosteriorMean(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        weights: Tensor,
-        objective: Optional[ScalarizedObjective] = None,
+            self,
+            model: Model,
+            weights: Tensor,
+            objective: Optional[ScalarizedObjective] = None,
     ) -> None:
         r"""Scalarized Posterior Mean.
 

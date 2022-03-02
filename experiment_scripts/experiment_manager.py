@@ -168,7 +168,7 @@ def run_experiment(
 
 
 def main(exp_names, seed):
-
+    seed +=20
     # make table of experiment settings
     EXPERIMENT_NAME = exp_names
     PROBLEMS = CONFIG_DICT[EXPERIMENT_NAME]["problems"]

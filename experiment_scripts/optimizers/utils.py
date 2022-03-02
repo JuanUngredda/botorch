@@ -84,10 +84,12 @@ def KG_wrapper(
 ):
     def acquisition_function(model: method):
         if method == "DISCKG":
+
             KG_acq_fun = DiscreteKnowledgeGradient(
                 model=model,
                 bounds=bounds,
                 num_discrete_points=num_discrete_points,
+                include_xnew= False,
                 X_discretisation=None,
             )
         elif method == "MCKG":

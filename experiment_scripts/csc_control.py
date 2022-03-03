@@ -50,11 +50,11 @@ def run(args):
     seed = 0
     for _ in range(10):
         experiment_names = ["DISCKG_Branin_2",
-                            "DISCKG_Branin_10",
+                            "DISCKG_Branin_1000",
                             "DISCKG_Rosenbrock_2",
-                            "DISCKG_Rosenbrock_10",
+                            "DISCKG_Rosenbrock_1000",
                             "DISCKG_Hartmann_2",
-                            "DISCKG_Hartmann_10",
+                            "DISCKG_Hartmann_1000",
                             "HYBRIDKG_Branin_2",
                             "HYBRIDKG_Branin_10",
                             "HYBRIDKG_Rosenbrock_2",

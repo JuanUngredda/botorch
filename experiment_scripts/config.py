@@ -46,7 +46,36 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80],
     },
+    "HYBRIDKG_Branin_2": {
+        "problems": ["Branin"],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [50],
+        "num_discrete_points": [10],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [80]},
 
+    "HYBRIDKG_Branin_10": {
+        "problems": ["Branin"],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [50],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [80],
+    },
     "DiscreteKG_Branin_2": {
         "problems": ["Branin"],
         "method": ["DISCKG"],
@@ -137,6 +166,36 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80],
     },
+    "HYBRIDKG_Rosenbrock_2": {
+        "problems": ["Rosenbrock"],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [50],
+        "num_discrete_points": [10],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [80]},
+
+    "HYBRIDKG_Rosenbrock_10": {
+        "problems": ["Rosenbrock"],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [50],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [80],
+    },
     "DiscreteKG_Hartmann_2": {
         "problems": ["Hartmann"],
         "method": ["DISCKG"],
@@ -185,6 +244,36 @@ CONFIG_DICT = {
     "MCKG_Hartmann_10": {
         "problems": ["Hartmann"],
         "method": ["MCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [50],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [80],
+    },
+    "HYBRIDKG_Hartmann_2": {
+        "problems": ["Hartmann"],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [50],
+        "num_discrete_points": [10],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [80]},
+
+    "HYBRIDKG_Hartmann_10": {
+        "problems": ["Hartmann"],
+        "method": ["HYBRIDKG"],
         "num_samples_initial_design": [10],
         "num_max_evaluatations": [50],
         "num_discrete_points": [1000],

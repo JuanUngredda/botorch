@@ -110,37 +110,32 @@ class Optimizer(BaseBOOptimizer):
         )
 
         # generate initialisation points
-        batch_initial_conditions = gen_batch_initial_conditions(
+        X_random_initial_conditions_raw = torch.rand((self.optional["RAW_SAMPLES"], self.dim))
+        X_sampled = self.x_train
+
+        # print(x_GP_rec.shape, X_random_initial_conditions_raw.shape, X_sampled.shape)
+        X_initial_conditions_raw = torch.concat([X_random_initial_conditions_raw, X_sampled])
+        X_initial_conditions_raw = X_initial_conditions_raw.unsqueeze(dim=-2)
+
+        with torch.no_grad():
+            x_train_posterior_mean = PosteriorMean(model).forward(X_initial_conditions_raw)
+
+        best_k_indeces = torch.argsort(x_train_posterior_mean, descending=True)[:self.optional["NUM_RESTARTS"]]
+        X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
+
+
+        X_optimised, X_optimised_vals = optimize_acqf(
             acq_function=PosteriorMean(model),
             bounds=bounds_normalized,
+            batch_initial_conditions=X_initial_conditions,
             q=1,
             num_restarts=self.optional["NUM_RESTARTS"],
             raw_samples=self.optional["RAW_SAMPLES"],
         )
 
-        # making sure that the posterior mean is at least higher when compared to the sampled solutions.
-        x_train_normalized = normalize(X=self.x_train, bounds=self.bounds)
-        x_train_posterior_mean = PosteriorMean(model).forward(
-            x_train_normalized[:, None, :]
-        )
-        argmax_sampled_pmean = x_train_normalized[
-                               x_train_posterior_mean.argmax(), :
-                               ].clone()
+        x_best = X_optimised[torch.argmax(X_optimised_vals)]
 
-        x_candidates = torch.cat(
-            (argmax_sampled_pmean[None, None, :], batch_initial_conditions), dim=0
-        )
-
-        argmax_pmean, _ = optimize_acqf(
-            acq_function=PosteriorMean(model),
-            bounds=bounds_normalized,
-            batch_initial_conditions=x_candidates,
-            q=1,
-            num_restarts=self.optional["NUM_RESTARTS"],
-            raw_samples=self.optional["RAW_SAMPLES"],
-        )
-
-        return argmax_pmean
+        return torch.atleast_2d(x_best)
 
     def get_next_point(self):
         self._update_model(self.x_train, self.y_train)

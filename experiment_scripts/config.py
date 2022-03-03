@@ -76,7 +76,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80],
     },
-    "DiscreteKG_Branin_2": {
+    "DISCKG_Branin_2": {
         "problems": ["Branin"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],
@@ -91,7 +91,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80]},
 
-    "DiscreteKG_Branin_1000": {
+    "DISCKG_Branin_1000": {
         "problems": ["Branin"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],
@@ -106,7 +106,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80],
     },
-    "DiscreteKG_Rosenbrock_2": {
+    "DISCKG_Rosenbrock_2": {
         "problems": ["Rosenbrock"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],
@@ -121,7 +121,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80]},
 
-    "DiscreteKG_Rosenbrock_1000": {
+    "DISCKG_Rosenbrock_1000": {
         "problems": ["Rosenbrock"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],
@@ -196,7 +196,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80],
     },
-    "DiscreteKG_Hartmann_2": {
+    "DISCKG_Hartmann_2": {
         "problems": ["Hartmann"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],
@@ -211,7 +211,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80]},
 
-    "DiscreteKG_Hartmann_1000": {
+    "DISCKG_Hartmann_1000": {
         "problems": ["Hartmann"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],
@@ -286,7 +286,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80],
     },
-    "DiscreteKG_Hartmann_3D_2": {
+    "DISCKG_Hartmann_3D_2": {
         "problems": ["Hartmann"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],
@@ -301,7 +301,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [80]},
 
-    "DiscreteKG_Hartmann_3D_1000": {
+    "DISCKG_Hartmann_3D_1000": {
         "problems": ["Hartmann"],
         "method": ["DISCKG"],
         "num_samples_initial_design": [10],

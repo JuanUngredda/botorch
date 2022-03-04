@@ -47,8 +47,8 @@ def run(args):
 
     number_of_csc_machines = len(U)
     # print(number_of_csc_machines)
-    seed = 10
-    for _ in range(20):
+    seed = 0
+    for _ in range(33):
         experiment_names = [#"DISCKG_Branin_2",
                             #"DISCKG_Branin_1000",
                             # "DISCKG_Rosenbrock_2",

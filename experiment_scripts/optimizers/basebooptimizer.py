@@ -9,9 +9,10 @@ from botorch.optim import optimize_acqf
 from torch import Tensor
 from botorch.generation.gen import gen_candidates_scipy
 from botorch.utils.transforms import unnormalize, normalize
+from botorch.acquisition.knowledge_gradient import qKnowledgeGradient
 
 from .baseoptimizer import BaseOptimizer
-from .utils import timeit
+from .utils import timeit, RandomSample
 
 LOG_FORMAT = (
     "%(asctime)s - %(name)s:%(funcName)s:%(lineno)s - %(levelname)s:  %(message)s"
@@ -69,7 +70,22 @@ class BaseBOOptimizer(BaseOptimizer):
         bounds_normalized = torch.vstack(
             [torch.zeros((1, self.dim)), torch.ones((1, self.dim))]
         )
+
+        if isinstance(acq_fun, RandomSample):
+            x_best = torch.rand((1, self.dim))
+            return x_best
         # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
+        if isinstance(acq_fun, qKnowledgeGradient):
+
+            x_best, _ = optimize_acqf(
+                acq_function=acq_fun,
+                bounds=bounds_normalized,
+                q=1,
+                num_restarts=self.optional["NUM_RESTARTS"],
+                raw_samples=self.optional["RAW_SAMPLES"],
+            )
+            return x_best
+
         if self.optional["OPTIMIZER"] == "Adam":
             initial_conditions = gen_batch_initial_conditions(
                 acq_function=acq_fun,

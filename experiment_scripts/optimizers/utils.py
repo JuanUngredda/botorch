@@ -73,6 +73,13 @@ def timeit(method):
 
     return timed
 
+class RandomSample():
+    def __init__(self, dim=int):
+        self.dim = dim
+
+    def forward(self, X: Tensor) -> Tensor:
+
+        return torch.rand((1, self.dim))
 
 def KG_wrapper(
     method: str,
@@ -110,6 +117,9 @@ def KG_wrapper(
             )
         elif method == "ONESHOTKG":
             KG_acq_fun = qKnowledgeGradient(model, num_fantasies=num_fantasies)
+
+        elif method =="RANDOM":
+            KG_acq_fun = RandomSample(dim=bounds.shape[1])
         else:
             raise Exception(
                 "method does not exist. Specify implemented method: DISCKG (Discrete KG), "

@@ -15,6 +15,20 @@
 
 # 2, 5, 10, 20, 50,  100, 200
 CONFIG_DICT = {
+            "RANDOMKG_Branin": {
+                "problems": ["Branin"],
+                "method": ["RANDOM"],
+                "num_samples_initial_design": [10],
+                "num_max_evaluatations": [50],
+                "num_discrete_points": [10],
+                "num_fantasies": [2],
+                "num_restarts_inner_optimizer": [1],
+                "raw_samples_inner_optimizer": [100],
+                "acquisition_optimizer": [
+                    "L-BFGS-B"
+                ],  # "L-BFGS-B" or "Adam"
+                "num_restarts_acq_optimizer": [3],
+                "raw_samples_acq_optimizer": [80]},
 
                   "MCKG_Branin_2": {
                       "problems": ["Branin"],

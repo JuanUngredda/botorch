@@ -47,9 +47,17 @@ def run(args):
 
     number_of_csc_machines = len(U)
     # print(number_of_csc_machines)
-    seed = 0
-    for _ in range(33):
-        experiment_names = [#"DISCKG_Branin_2",
+    seed = 3
+    for _ in range(25):
+        experiment_names = ["DISCKG_GP_synthetic_dim2_l0.1",
+                            "DISCKG_GP_synthetic_dim2_l0.4",
+                            "DISCKG_GP_synthetic_dim2_l1",
+                            "DISCKG_GP_synthetic_dim4_l0.1",
+                            "DISCKG_GP_synthetic_dim4_l0.4",
+                            "DISCKG_GP_synthetic_dim4_l1",
+                            "DISCKG_GP_synthetic_dim6_l0.1",
+                            "DISCKG_GP_synthetic_dim6_l0.4",
+                            "DISCKG_GP_synthetic_dim6_l1",
                             #"DISCKG_Branin_1000",
                             # "DISCKG_Rosenbrock_2",
                             # "DISCKG_Rosenbrock_1000",
@@ -63,10 +71,10 @@ def run(args):
                             # "HYBRIDKG_Hartmann_10",
                             # "MCKG_Branin_2",
                             # "MCKG_Branin_10",
-                            "RANDOMKG_Branin",
-                            "ONESHOTKG_Branin_2",
-                            "ONESHOTKG_Branin_10",
-                            "ONESHOTKG_Branin_125"
+                            # "RANDOMKG_Branin",
+                            # "ONESHOTKG_Branin_2",
+                            # "ONESHOTKG_Branin_10",
+                            # "ONESHOTKG_Branin_125"
                             # "MCKG_Rosenbrock_2",
                             # "MCKG_Rosenbrock_10",
                             # "MCKG_Hartmann_2",
@@ -76,7 +84,7 @@ def run(args):
         for exp_name in experiment_names:
             # print("args.k + seed",args.k + seed)
             experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
-        seed += number_of_csc_machines
+        seed += 1#number_of_csc_machines
     raise
     # experiment_manager(args.k)
 

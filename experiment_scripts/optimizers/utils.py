@@ -118,7 +118,7 @@ def KG_wrapper(
         elif method == "ONESHOTKG":
             KG_acq_fun = qKnowledgeGradient(model, num_fantasies=num_fantasies)
 
-        elif method =="RANDOM":
+        elif method =="RANDOMKG":
             KG_acq_fun = RandomSample(dim=bounds.shape[1])
         else:
             raise Exception(

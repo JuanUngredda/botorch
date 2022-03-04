@@ -13,7 +13,7 @@ LOG_FORMAT = (
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
-
+dtype=torch.double
 ###################################################################
 ##                                                               ##
 ##                         OPTIMIZERS                            ##
@@ -136,7 +136,8 @@ class BaseOptimizer(ABC):
         x_rec = self.policy()
         y_true = self.evaluate_objective(x=x_rec, log_time=self.method_time)
         n = len(self.y_train) * 1.0
-        self.performance = torch.vstack([self.performance, torch.Tensor([n, y_true])])
+
+        self.performance = torch.vstack([self.performance, torch.Tensor([n, y_true]).to(dtype=dtype)])
 
         self.save()
         return y_true

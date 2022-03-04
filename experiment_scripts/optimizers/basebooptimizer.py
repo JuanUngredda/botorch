@@ -111,7 +111,7 @@ class BaseBOOptimizer(BaseOptimizer):
             X_initial_conditions_raw = torch.concat([X_random_initial_conditions_raw, x_GP_rec, X_sampled])
             X_initial_conditions_raw = X_initial_conditions_raw.unsqueeze(dim=-2)
             with torch.no_grad():
-                mu_val_initial_conditions_raw = acq_fun.forward(X=X_initial_conditions_raw)
+                mu_val_initial_conditions_raw = acq_fun.forward(X=X_initial_conditions_raw).squeeze()
 
             best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:self.optional["NUM_RESTARTS"]]
             X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
@@ -124,6 +124,6 @@ class BaseBOOptimizer(BaseOptimizer):
                 upper_bounds=torch.ones(self.dim),
             )
 
-            x_best = X_optimised[torch.argmax(X_optimised_vals)]
+            x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
 
         return x_best

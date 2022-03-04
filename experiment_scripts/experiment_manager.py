@@ -12,6 +12,7 @@ from botorch.utils.transforms import unnormalize
 from config import CONFIG_DICT
 from optimizers.optimizer import Optimizer
 from optimizers.utils import KG_wrapper
+from experiment_scripts.optimizers.test_functions.gp_synthetic_test_function import GP_synthetic
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +60,26 @@ def run_experiment(
         "Branin": Branin,
         "SixHumpCamel": SixHumpCamel,
         "Rosenbrock": Rosenbrock,
-        "Hartmann": Hartmann
+        "Hartmann": Hartmann,
+        "GP_synthetic": GP_synthetic
     }
 
-    testfun = testfun_dict[problem](negate=True).to(dtype=dtype)
+    if "GP_synthetic" == problem:
+        CONFIG_INPUT_DIM = CONFIG_DICT[experiment_name]["num_input_dim"][experiment_tag]
+        CONFIG_LENGTHSCALE = CONFIG_DICT[experiment_name]["lengthscale"][experiment_tag]
+
+        testfun = testfun_dict[problem](dim=CONFIG_INPUT_DIM,
+                                        seed=base_seed,
+                                        hypers_ls= CONFIG_LENGTHSCALE,
+                                        negate = True).to(dtype=dtype)
+
+    else:
+        testfun = testfun_dict[problem](negate=True).to(dtype=dtype)
+
     dim = testfun.dim
     bounds = testfun.bounds  # Bounds tensor (2, d)
     lb, ub = bounds
+
     testfun.problem = problem
     bounds_normalized = torch.vstack([torch.zeros(dim), torch.ones(dim)])
 
@@ -153,6 +167,7 @@ def run_experiment(
         "gp_lengthscales": optimizer.gp_lengthscales,
         "method_times": optimizer.method_time,
         "OC": optimizer.performance,
+        "optimum": optimizer.optimal_value,
         "x": unnormalize(optimizer.x_train, bounds=bounds),
         "y": optimizer.y_train,
         "cwd": os.getcwd(),

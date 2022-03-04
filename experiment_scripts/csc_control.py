@@ -84,7 +84,7 @@ def run(args):
         for exp_name in experiment_names:
             # print("args.k + seed",args.k + seed)
             experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
-        seed += 1#number_of_csc_machines
+        seed += number_of_csc_machines
     raise
     # experiment_manager(args.k)
 

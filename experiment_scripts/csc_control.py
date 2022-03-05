@@ -48,7 +48,7 @@ def run(args):
     number_of_csc_machines = len(U)
     # print(number_of_csc_machines)
     seed = 0
-    for _ in range(20):
+    for _ in range(25):
         experiment_names = ["MCKG_GP_synthetic_3_dim2_l0.1",
                             "MCKG_GP_synthetic_3_dim2_l0.4",
                             "MCKG_GP_synthetic_3_dim2_l1",

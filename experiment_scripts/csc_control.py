@@ -47,8 +47,8 @@ def run(args):
 
     number_of_csc_machines = len(U)
     # print(number_of_csc_machines)
-    seed = 3
-    for _ in range(25):
+    seed = 0
+    for _ in range(20):
         experiment_names = ["DISCKG_GP_synthetic_1000_dim2_l0.1",
                             "DISCKG_GP_synthetic_1000_dim2_l0.4",
                             "DISCKG_GP_synthetic_1000_dim2_l1",

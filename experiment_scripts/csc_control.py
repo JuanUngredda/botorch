@@ -102,12 +102,14 @@ def run(args):
         # experiment_names = ["DISCKG_Hartmann_2"]
         for exp_name in experiment_names:
             # print("args.k + seed",args.k + seed)
-            experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
-            # print(args.k + seed)
-            seed += number_of_csc_machines
-
-            if seed>100:
+            if args.k + seed>100:
                 raise
+
+            experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            # print(args.k + seed, exp_name)
+        seed += number_of_csc_machines
+
+
     # experiment_manager(args.k)
 
     # save something to hard drive in /res/ subfolder

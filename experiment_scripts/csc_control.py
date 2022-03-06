@@ -47,26 +47,27 @@ def run(args):
 
     number_of_csc_machines = len(U)
     # print(number_of_csc_machines)
-    seed = 0
-    for _ in range(25):
-        experiment_names = ["MCKG_GP_synthetic_3_dim2_l0.1",
-                            "MCKG_GP_synthetic_3_dim2_l0.4",
-                            "MCKG_GP_synthetic_3_dim2_l1",
-                            "MCKG_GP_synthetic_3_dim4_l0.1",
-                            "MCKG_GP_synthetic_3_dim4_l0.4",
-                            "MCKG_GP_synthetic_3_dim4_l1",
-                            "MCKG_GP_synthetic_3_dim6_l0.1",
-                            "MCKG_GP_synthetic_3_dim6_l0.4",
-                            "MCKG_GP_synthetic_3_dim6_l1",
-                            # "DISCKG_GP_synthetic_1000_dim2_l0.1",
-                            # "DISCKG_GP_synthetic_1000_dim2_l0.4",
-                            # "DISCKG_GP_synthetic_1000_dim2_l1",
-                            # "DISCKG_GP_synthetic_1000_dim4_l0.1",
-                            # "DISCKG_GP_synthetic_1000_dim4_l0.4",
-                            # "DISCKG_GP_synthetic_1000_dim4_l1",
-                            # "DISCKG_GP_synthetic_1000_dim6_l0.1",
-                            # "DISCKG_GP_synthetic_1000_dim6_l0.4",
-                            # "DISCKG_GP_synthetic_1000_dim6_l1",
+    seed = 40
+    for _ in range(20):
+        experiment_names = [
+            # "MCKG_GP_synthetic_3_dim2_l0.1",
+            #                 "MCKG_GP_synthetic_3_dim2_l0.4",
+            #                 "MCKG_GP_synthetic_3_dim2_l1",
+            #                 "MCKG_GP_synthetic_3_dim4_l0.1",
+            #                 "MCKG_GP_synthetic_3_dim4_l0.4",
+            #                 "MCKG_GP_synthetic_3_dim4_l1",
+            #                 "MCKG_GP_synthetic_3_dim6_l0.1",
+            #                 "MCKG_GP_synthetic_3_dim6_l0.4",
+            #                 "MCKG_GP_synthetic_3_dim6_l1",
+                            "DISCKG_GP_synthetic_1000_dim2_l0.1",
+                            "DISCKG_GP_synthetic_1000_dim2_l0.4",
+                            "DISCKG_GP_synthetic_1000_dim2_l1",
+                            "DISCKG_GP_synthetic_1000_dim4_l0.1",
+                            "DISCKG_GP_synthetic_1000_dim4_l0.4",
+                            "DISCKG_GP_synthetic_1000_dim4_l1",
+                            "DISCKG_GP_synthetic_1000_dim6_l0.1",
+                            "DISCKG_GP_synthetic_1000_dim6_l0.4",
+                            "DISCKG_GP_synthetic_1000_dim6_l1",
                             # "DISCKG_GP_synthetic_dim2_l0.1",
                             # "DISCKG_GP_synthetic_dim2_l0.4",
                             # "DISCKG_GP_synthetic_dim2_l1",

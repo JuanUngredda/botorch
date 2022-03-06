@@ -176,7 +176,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
         "L-BFGS-B"
     ],  # "L-BFGS-B" or "Adam"
     "num_restarts_acq_optimizer": [1],
-    "raw_samples_acq_optimizer": [100]},
+    "raw_samples_acq_optimizer": [50]},
 
     "DISCKG_GP_synthetic_1000_dim2_l0.4": {
         "problems": ["GP_synthetic"],
@@ -193,7 +193,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [100]},
+        "raw_samples_acq_optimizer": [50]},
     "DISCKG_GP_synthetic_1000_dim2_l1": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [2],
@@ -209,7 +209,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [100]},
+        "raw_samples_acq_optimizer": [50]},
     "DISCKG_GP_synthetic_1000_dim4_l0.1": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [4],
@@ -225,7 +225,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [100]},
+        "raw_samples_acq_optimizer": [50]},
     "DISCKG_GP_synthetic_1000_dim4_l0.4": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [4],
@@ -241,7 +241,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [100]},
+        "raw_samples_acq_optimizer": [50]},
     "DISCKG_GP_synthetic_1000_dim4_l1": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [4],
@@ -257,7 +257,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [100]},
+        "raw_samples_acq_optimizer": [50]},
     "DISCKG_GP_synthetic_1000_dim6_l0.1": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [6],
@@ -273,7 +273,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [100]},
+        "raw_samples_acq_optimizer": [50]},
     "DISCKG_GP_synthetic_1000_dim6_l0.4": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [6],
@@ -289,7 +289,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [100]},
+        "raw_samples_acq_optimizer": [50]},
     "DISCKG_GP_synthetic_1000_dim6_l1": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [6],
@@ -305,7 +305,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [100]},
+        "raw_samples_acq_optimizer": [50]},
 }
 
 # CONFIG_DICT = {"DISCKG_GP_synthetic_dim2_l0.1": {

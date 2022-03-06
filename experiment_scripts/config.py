@@ -175,8 +175,8 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
     "acquisition_optimizer": [
         "L-BFGS-B"
     ],  # "L-BFGS-B" or "Adam"
-    "num_restarts_acq_optimizer": [3],
-    "raw_samples_acq_optimizer": [80]},
+    "num_restarts_acq_optimizer": [1],
+    "raw_samples_acq_optimizer": [1000]},
     "DISCKG_GP_synthetic_1000_dim2_l0.4": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [2],

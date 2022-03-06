@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import torch
 from torch import Tensor
-
+import time
 from .utils import lhc
 
 LOG_FORMAT = (
@@ -96,9 +96,14 @@ class BaseOptimizer(ABC):
         for _ in range(self.n_max - self.n_init):
 
             # collect next points
+            start = time.time()
             x_new = self.get_next_point()
+            stop = time.time()
+            print("acq: ", stop-start)
+            start = time.time()
             y_new = self.evaluate_objective(x_new)
-
+            stop = time.time()
+            print("fx: ", stop - start)
             # update stored data
             self.x_train = torch.vstack([self.x_train, x_new.reshape(1, -1)])
             self.y_train = torch.vstack((self.y_train, y_new))
@@ -107,7 +112,10 @@ class BaseOptimizer(ABC):
 
             # test if necessary
             if torch.any(len(self.y_train) == self.testable_iters):
+                start = time.time()
                 _ = self.test()
+                stop = time.time()
+                print("test: ", stop - start)
                 logger.info(f"Test performance: {self.performance[-1, :]}")
 
     def evaluate_objective(self, x: Tensor, **kwargs) -> Tensor:

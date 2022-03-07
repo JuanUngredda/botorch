@@ -10,9 +10,9 @@ import torch
 from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock, Hartmann
 from botorch.utils.transforms import unnormalize
 from config import CONFIG_DICT
+from experiment_scripts.optimizers.test_functions.gp_synthetic_test_function import GP_synthetic
 from optimizers.optimizer import Optimizer
 from optimizers.utils import KG_wrapper
-from experiment_scripts.optimizers.test_functions.gp_synthetic_test_function import GP_synthetic
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +70,8 @@ def run_experiment(
 
         testfun = testfun_dict[problem](dim=CONFIG_INPUT_DIM,
                                         seed=base_seed,
-                                        hypers_ls= CONFIG_LENGTHSCALE,
-                                        negate = True).to(dtype=dtype)
+                                        hypers_ls=CONFIG_LENGTHSCALE,
+                                        negate=True).to(dtype=dtype)
 
     else:
         testfun = testfun_dict[problem](negate=True).to(dtype=dtype)
@@ -193,20 +193,20 @@ def main(exp_names, seed):
 
     # run that badboy
     for idx, _ in enumerate(EXPERIMENTS):
-        run_experiment(
-            experiment_name=EXPERIMENT_NAME,
-            experiment_tag=idx,
-            problem=EXPERIMENTS[idx][0],
-            method=EXPERIMENTS[idx][1],
-            savefile=script_dir
-                     + "/results/" +
-                     EXPERIMENT_NAME
-                     + "/"
-                     + EXPERIMENTS[idx][0]
-                     + "/"
-                     + EXPERIMENTS[idx][1],
-            base_seed=seed,
-        )
+
+        savefile = script_dir + "/results/" + EXPERIMENT_NAME + "/" + EXPERIMENTS[idx][0] + "/" + EXPERIMENTS[idx][
+            1] + "/" + str(seed) + ".pkl"
+
+        if os.path.isfile(savefile) == False:
+
+            run_experiment(
+                experiment_name=EXPERIMENT_NAME,
+                experiment_tag=idx,
+                problem=EXPERIMENTS[idx][0],
+                method=EXPERIMENTS[idx][1],
+                savefile=savefile,
+                base_seed=seed,
+            )
 
 
 if __name__ == "__main__":

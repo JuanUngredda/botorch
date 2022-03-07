@@ -194,17 +194,18 @@ def main(exp_names, seed):
     # run that badboy
     for idx, _ in enumerate(EXPERIMENTS):
 
-        savefile = script_dir + "/results/" + EXPERIMENT_NAME + "/" + EXPERIMENTS[idx][0] + "/" + EXPERIMENTS[idx][
+        file_name = script_dir + "/results/" + EXPERIMENT_NAME + "/" + EXPERIMENTS[idx][0] + "/" + EXPERIMENTS[idx][
             1] + "/" + str(seed) + ".pkl"
 
-        if os.path.isfile(savefile) == False:
-
+        if os.path.isfile(file_name) == False:
             run_experiment(
                 experiment_name=EXPERIMENT_NAME,
                 experiment_tag=idx,
                 problem=EXPERIMENTS[idx][0],
                 method=EXPERIMENTS[idx][1],
-                savefile=savefile,
+                savefile=script_dir + "/results/" + EXPERIMENT_NAME + "/" + EXPERIMENTS[idx][0] + "/" +
+                         EXPERIMENTS[idx][
+                             1],
                 base_seed=seed,
             )
 

@@ -3,7 +3,7 @@ import torch
 from gpytorch.mlls import ExactMarginalLogLikelihood
 
 from botorch.fit import fit_gpytorch_model
-from botorch.models import SingleTaskGP, FixedNoiseGP
+from botorch.models import FixedNoiseGP
 from botorch.test_functions import Rosenbrock
 from botorch.utils.transforms import unnormalize
 
@@ -20,10 +20,11 @@ def eval_objective(x):
     x_unnormed = unnormalize(x, torch.Tensor([-2.7, 7.5])).squeeze()
     return (torch.sin(x_unnormed) + torch.sin((10.0 / 3.0) * x_unnormed)).unsqueeze(-1)
 
+
 n_init_design = 4
 # Generate XY data
-torch.manual_seed(6)
-train_X = torch.linspace(0.1,0.90, 4).unsqueeze(-1)
+torch.manual_seed(1)
+train_X = torch.linspace(0.1, 0.90, n_init_design).unsqueeze(-1)
 train_Y = eval_objective(train_X)
 
 # Fit GP model
@@ -43,6 +44,7 @@ mean = posterior.mean.detach().numpy().reshape(-1)
 variance = posterior.variance.detach().numpy().reshape(-1)
 
 import numpy as np
+
 X_plot = X_plot.detach().numpy().reshape(-1)
 plt.plot(X_plot, mean + 1.95 * np.sqrt(variance), color="grey", alpha=0.6)
 plt.plot(X_plot, mean - 1.95 * np.sqrt(variance), color="grey", alpha=0.6)
@@ -51,35 +53,73 @@ plt.fill_between(x=X_plot, y1=mean - 1.95 * np.sqrt(variance), y2=mean + 1.95 * 
 plt.plot(X_plot, mean, color="black", linestyle='--', label="GP mean")
 plt.plot(X_plot, true_fvals, color="green", label="black-box function")
 plt.scatter(train_X, train_Y, color="magenta", edgecolors="black", s=60, label="initial design")
-plt.scatter(X_plot[np.argmax(true_fvals)], np.max(true_fvals), marker=(5, 1), edgecolors="black", color="yellow", s=300, label="true best design")
-plt.legend(prop={'size': 12})
-plt.xlim(0,1)
+plt.scatter(X_plot[np.argmax(true_fvals)], np.max(true_fvals), marker=(5, 1), edgecolors="black", color="yellow", s=300,
+            label="true best design")
+plt.legend(prop={'size': 10})
+plt.xlim(0, 1)
 plt.xlabel("$\mathbb{X}$", size=24)
+plt.savefig("/home/juan/Documents/repos_data/PhD_Thesis/pictures/GP_regression_init_design.pdf", bbox_inches='tight')
 plt.show()
 
-
-for i in range(0,20):
+for i in range(0, 50):
     from botorch.acquisition import ExpectedImprovement
 
     best_value = train_Y.max()
-    EI = ExpectedImprovement(model=model, best_f=best_value)
+    print("best val", best_value)
+    EI = ExpectedImprovement(model=model, best_f=best_value, maximize=True)
 
-    from botorch.optim import optimize_acqf
+    X_plot = torch.sort(torch.rand((1000, 1, 1)), dim=0).values
+    EI_vals = EI.forward(X_plot)
+    x_best = X_plot[torch.argmax(EI_vals.squeeze())]
 
-    new_point_analytic, _ = optimize_acqf(
-        acq_function=EI,
-        bounds=torch.tensor([[0.0] * 1, [1.0] * 1]),
-        q=1,
-        num_restarts=1,
-        raw_samples=100,
-        options={},
-    )
+    acq_vals = (EI_vals.detach().numpy() - np.min(EI_vals.detach().numpy()))/(np.max(EI_vals.detach().numpy())-np.min(EI_vals.detach().numpy()))
 
-    X_plot = torch.linspace(0, 1, 100).unsqueeze(dim=-2).unsqueeze(dim=-2)
-    acq_vals = EI.forward(X_plot).detach().numpy()
-    plt.plot(X_plot, acq_vals)
+    plt.plot(X_plot.squeeze().detach().numpy(), acq_vals)
+
+    plt.vlines(x=X_plot.squeeze().detach().numpy()[np.argmax(acq_vals)], ymin=-0.01, ymax=np.max(acq_vals),
+               color="red", linestyles="--", label="$$")
+    plt.scatter(X_plot.squeeze().detach().numpy()[np.argmax(acq_vals)], np.max(acq_vals), marker=(5, 2), color="red",
+                s=100)
+    plt.xlabel("$\mathbb{X}$", size=24)
+    plt.ylabel(r"$\alpha$(x)", size=24)
+    plt.xlim((0, 1))
+    plt.ylim((-0.01, np.max(acq_vals) + 0.02))
+    plt.savefig("/home/juan/Documents/repos_data/PhD_Thesis/pictures/acq_it_{}.pdf".format(i), bbox_inches='tight')
     plt.show()
-    raise
+
+    train_X = torch.cat([train_X, x_best])
+    new_y = torch.atleast_2d(eval_objective(x_best))
+    train_Y = torch.cat([train_Y, new_y])
+
+    model = FixedNoiseGP(train_X, train_Y, NOISE_VAR.expand_as(train_Y))
+    mll = ExactMarginalLogLikelihood(model.likelihood, model)
+    fit_gpytorch_model(mll)
+
+    X_plot = torch.linspace(0, 1, 100).unsqueeze(dim=-1)
+    true_fvals = eval_objective(X_plot).detach().numpy()
+    # print(X_plot.shape)
+    posterior = model.posterior(X_plot)
+    mean = posterior.mean.detach().numpy().reshape(-1)
+    variance = posterior.variance.detach().numpy().reshape(-1)
+    X_plot = X_plot.detach().numpy().reshape(-1)
+    plt.plot(X_plot, mean + 1.95 * np.sqrt(variance), color="grey", alpha=0.6)
+    plt.plot(X_plot, mean - 1.95 * np.sqrt(variance), color="grey", alpha=0.6)
+    plt.fill_between(x=X_plot, y1=mean - 1.95 * np.sqrt(variance), y2=mean + 1.95 * np.sqrt(variance),
+                     color="salmon", alpha=0.2, label="GP 95% CI")
+    plt.plot(X_plot, mean, color="black", linestyle='--', label="GP mean")
+    plt.plot(X_plot, true_fvals, color="green", label="black-box function")
+    plt.scatter(train_X[:n_init_design], train_Y[:n_init_design], color="magenta", edgecolors="black", s=60,
+                label="initial design")
+    plt.scatter(train_X[n_init_design:], train_Y[n_init_design:], color="red", edgecolors="black", s=60,
+                label="sampled designs")
+    plt.scatter(X_plot[np.argmax(true_fvals)], np.max(true_fvals), marker=(5, 1), edgecolors="black", color="yellow",
+                s=300, label="true best design")
+    plt.legend(prop={'size': 10})
+    plt.xlim(0, 1)
+    plt.xlabel("$\mathbb{X}$", size=24)
+    plt.savefig("/home/juan/Documents/repos_data/PhD_Thesis/pictures/GP_regression_it_{}.pdf".format(i), bbox_inches='tight')
+    plt.show()
+    # raise
 # for
 # print(mean, variance)
 raise

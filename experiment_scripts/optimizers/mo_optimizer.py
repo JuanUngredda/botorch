@@ -98,6 +98,7 @@ class Optimizer(BaseBOOptimizer):
             n=self.num_scalarisations, d=self.f.num_objectives
         ).squeeze()
 
+
         NOISE_VAR = torch.Tensor([1e-4])
         models = []
         for w in self.weights:
@@ -118,6 +119,7 @@ class Optimizer(BaseBOOptimizer):
             )
 
         self.model = ModelListGP(*models)
+
         mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
         fit_gpytorch_model(mll)
 
@@ -131,7 +133,7 @@ class Optimizer(BaseBOOptimizer):
         )
 
         x_rec = self.best_model_posterior_mean(model=self.model, weights=self.weights)
-        raise
+
         return x_rec
 
     def best_model_posterior_mean(self, model, weights):
@@ -149,6 +151,8 @@ class Optimizer(BaseBOOptimizer):
             input_dim=self.dim,
             bounds=bounds_normalized,
             y_train=self.y_train,
+            x_train=self.x_train,
+            c_train = self.c_train,
             weights=self.weights,
             num_objectives = self.weights.shape[0],
             num_constraints = self.c_train.shape[-1],

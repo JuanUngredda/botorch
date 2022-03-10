@@ -19,16 +19,16 @@ CONFIG_DICT = {
         "method": ["macKG"],
         "output_dim": 2,
         "input_dim": 3,
-        "number_of_scalarizations": 10 ,
-        "num_samples_initial_design": 4,
+        "number_of_scalarizations": 20 ,
+        "num_samples_initial_design": 90,
         "num_max_evaluatations": 100,
-        "utility_model": ["Lin", "Tche"],
+        "utility_model": [ "Tche"],
         "num_discrete_points": None,
         "num_fantasies": 5,
         "num_restarts_inner_optimizer": 1 ,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":
-            "Adam",  # "L-BFGS-B" or "Adam"
+            "L-BFGS-B",  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 100,
     },

@@ -156,9 +156,10 @@ class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
         self.objective_index = objective_index
         self.num_objectives = num_objectives
         self.constraints_index = num_constraints
+
+        self.model_obj = self.model.subset_output(idcs=range(self.objective_index, self.objective_index + 1))
+        self.model_cs = self.model.subset_output(idcs=range(self.num_objectives, model.num_outputs))
         default_value = (None, 0)
-        print("model.num_outputs",model.num_outputs)
-        print("self.num_objectives",self.num_objectives)
         constraints = dict.fromkeys(
             range(model.num_outputs - self.num_objectives), default_value
         )
@@ -177,23 +178,21 @@ class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
             design points `X`.
         """
         X = X.to(dtype=torch.double)
-        posterior = self.model.posterior(X=X)
-        means = posterior.mean.squeeze(dim=-2)  # (b) x m
-        sigmas = posterior.variance.squeeze(dim=-2).sqrt().clamp_min(1e-9)  # (b) x m
+        posterior_obj = self.model_obj.posterior(X=X)
+        mean_obj = posterior_obj.mean.squeeze(dim=-2)  # (b) x m
 
-        # (b) x 1
-        oi = self.objective_index
-        ci = self.constraints_index
-        mean_obj = means[..., oi]
-        mean_constraints = means[..., -ci:]
-        sigma_constraints = sigmas[..., -ci:]
+        posterior_cs = self.model_cs.posterior(X=X)
+        mean_constraints = posterior_cs.mean.squeeze(dim=-2)  # (b) x m
+        sigma_constraints = posterior_cs.variance.squeeze(dim=-2).sqrt().clamp_min(1e-9)  # (b) x m
+
 
         prob_feas = self._compute_prob_feas(
             X=X.squeeze(dim=-2),
             means=mean_constraints.squeeze(dim=-2),
             sigmas=sigma_constraints.squeeze(dim=-2),
         ).double()
-
+        print(mean_obj.squeeze().shape)
+        print(prob_feas.squeeze().shape)
         constrained_posterior_mean = mean_obj.squeeze() * prob_feas.squeeze()
 
         return constrained_posterior_mean.squeeze(dim=-1).double()
@@ -450,6 +449,8 @@ def ParetoFrontApproximation(
         scalatization_fun: Callable,
         bounds: Tensor,
         y_train: Tensor,
+        x_train: Tensor,
+        c_train: Tensor,
         weights: Tensor,
         num_objectives: int,
         num_constraints: int,
@@ -460,7 +461,7 @@ def ParetoFrontApproximation(
     X_pmean = []
 
     for idx, w in enumerate(weights):
-
+        print("weight", idx)
         constrained_model = ConstrainedPosteriorMean_individual(
             model=model,
             objective_index=idx,
@@ -492,10 +493,25 @@ def ParetoFrontApproximation(
     X_pareto_solutions = torch.vstack(X_pareto_solutions)
     X_pmean = torch.vstack(X_pmean)
 
+    ##########################################################
     plot_X = torch.rand((1000,3))
 
+    from botorch.fit import fit_gpytorch_model
+    from botorch.models import SingleTaskGP
+    from botorch.models.model_list_gp_regression import ModelListGP
+    from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
 
-    model =
+    Y_train_standarized = standardize(y_train)
+    train_joint_YC = torch.cat([Y_train_standarized, c_train], dim=-1)
+
+    models = []
+    for i in range(train_joint_YC.shape[-1]):
+        models.append(
+            SingleTaskGP(x_train, train_joint_YC[..., i: i + 1])
+        )
+    model = ModelListGP(*models)
+    mll = SumMarginalLogLikelihood(model.likelihood, model)
+    fit_gpytorch_model(mll)
 
     posterior = model.posterior(plot_X)
     mean = posterior.mean.detach().numpy()

@@ -44,7 +44,7 @@ def run(args):
     # IMPORT AND RUN MODULES
     import mo_experiment_manager
 
-    experiment_names = ["BraninCurrin_experiments"]
+    experiment_names = ["C2DTLZ2_experiments"]
     for exp_name in experiment_names:
         mo_experiment_manager.main(exp_names=exp_name, seed=args.k)
 

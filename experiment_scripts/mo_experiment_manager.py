@@ -60,8 +60,15 @@ def run_experiment(
 
     CONFIG_NUMBER_FANTASIES = CONFIG_DICT[experiment_name]["num_fantasies"]
     # TODO: Change objective function parametrisation to not be hard-coded
+    CONFIG_NUMBER_INPUT_DIM = CONFIG_DICT[experiment_name][
+        "input_dim"
+    ]
+    CONFIG_NUMBER_OUTPUT_DIM = CONFIG_DICT[experiment_name][
+        "output_dim"
+    ]
 
-    testfun = testfun_dict[problem](negate=True).to(
+    testfun = testfun_dict[problem]( dim= CONFIG_NUMBER_INPUT_DIM,
+        num_objectives = CONFIG_NUMBER_OUTPUT_DIM ,negate=True).to(
         dtype=dtype
     )
     dim = testfun.dim

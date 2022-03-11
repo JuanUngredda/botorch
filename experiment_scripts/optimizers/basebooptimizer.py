@@ -61,15 +61,18 @@ class BaseBOOptimizer(BaseOptimizer):
             self.optional = optional
 
     @timeit
-    def _sgd_optimize_aqc_fun(self, acq_fun: callable, **kwargs) -> Tensor:
+    def _sgd_optimize_aqc_fun(self, acq_fun: callable,
+                              bacth_initial_points: Optional[Tensor]=None, **kwargs) -> Tensor:
         """Use multi-start Adam SGD over multiple seeds"""
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
-        with torch.no_grad():
+        if bacth_initial_points is None:
+            X_initial_conditions_raw = self.best_model_posterior_mean(model=self.model, weights=self.weights)
+        else:
+            X_initial_conditions_raw = bacth_initial_points
 
-            X_initial_conditions_raw, _, _ = acq_fun._initialize_maKG_parameters(model=self.model)
-
+        with torch.no_grad(): #torch.enable_grad():#torch.no_grad():
             mu_val_initial_conditions_raw = acq_fun.forward(X_initial_conditions_raw)
 
             best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
@@ -100,22 +103,46 @@ class BaseBOOptimizer(BaseOptimizer):
         # mean_best = posterior_best.mean.squeeze().detach().numpy()
         # print("mean_best",mean_best, "_", _)
         # raise
-        # with torch.no_grad():
-        #     plot_X = torch.rand((1000, 1, 1, 4))
-        #     posterior = self.model.posterior(plot_X)
-        #     mean = posterior.mean.squeeze().detach().numpy()
-        #     is_feas = (mean[:, 2] <= 0)
-        #     import matplotlib.pyplot as plt
-        #     plt.scatter(mean[is_feas, 0], mean[is_feas, 1], c=mean[is_feas, 2])
-        #     plt.show()
-        #
-        #     acq_vals = acq_fun.forward(plot_X).squeeze().detach().numpy()
-        #     posterior_best = self.model.posterior(x_best)
-        #     mean_best = posterior_best.mean.squeeze().detach().numpy()
-        #     print("mean_best", mean_best)
-        #     plt.scatter(mean[:, 0], mean[:, 1], c=acq_vals)
-        #     plt.scatter(mean_best[0], mean_best[1], color="red")
-        #     plt.show()
-        #     raise
+        #################################################
+        plot_X = torch.rand((1000, 1, 3))
+
+        from botorch.fit import fit_gpytorch_model
+        from botorch.models import SingleTaskGP
+        from botorch.models.model_list_gp_regression import ModelListGP
+        from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
+        from botorch.utils import standardize
+
+        Y_train_standarized = standardize(self.y_train)
+        train_joint_YC = torch.cat([Y_train_standarized, self.c_train], dim=-1)
+
+        models = []
+        for i in range(train_joint_YC.shape[-1]):
+            models.append(
+                SingleTaskGP(self.x_train, train_joint_YC[..., i: i + 1])
+            )
+        model = ModelListGP(*models)
+        mll = SumMarginalLogLikelihood(model.likelihood, model)
+        fit_gpytorch_model(mll)
+
+        with torch.no_grad():
+            posterior = model.posterior(plot_X)
+            mean = posterior.mean.squeeze().detach().numpy()
+            is_feas = (mean[..., -1] <= 0)
+            import matplotlib.pyplot as plt
+            posterior_best = model.posterior(x_best)
+            mean_best = posterior_best.mean.squeeze().detach().numpy()
+            plt.scatter(mean[is_feas, 0], mean[is_feas, 1])#, c=mean[is_feas, 2])
+            plt.scatter(mean_best[0], mean_best[1], color="red")
+            # plt.show()
+            plt.savefig("/home/juan/Documents/repos_data/macKG/diagnostics/image_diag_{}.pdf".format(self.x_train.shape[0]))
+            plt.cla()
+            # acq_vals = acq_fun.forward(plot_X).squeeze().detach().numpy()
+            # posterior_best = model.posterior(x_best)
+            # mean_best = posterior_best.mean.squeeze().detach().numpy()
+            # print("mean_best", mean_best)
+            # plt.scatter(mean[:, 0], mean[:, 1], c=acq_vals)
+            # plt.scatter(mean_best[0], mean_best[1], color="red")
+            # plt.show()
+            # raise
         print("x_best", x_best, "value", _)
         return x_best.squeeze(dim=-2).detach()

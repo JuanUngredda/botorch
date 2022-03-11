@@ -13,7 +13,7 @@ for i, m in enumerate(methods):
     pkl_file = open(
         "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/C2DTLZ2/"
         + m
-        + "/0.pkl",
+        + "/Tche/0.pkl",
         "rb",
     )
     mydict2 = pickle.load(pkl_file)
@@ -39,8 +39,10 @@ for i, m in enumerate(methods):
     is_feas = is_feas.reshape(-1)
 
     Y_feas = Y#[C.squeeze()<0]
+
     plt.scatter(Y_plot[is_feas,0], Y_plot[is_feas,1])
     plt.scatter(Y_feas[:, 0], Y_feas[:, 1])
+    plt.scatter(Y_feas[:8, 0], Y_feas[:8, 1], color="magenta")
     plt.show()
 
 

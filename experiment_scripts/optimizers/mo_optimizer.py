@@ -165,10 +165,15 @@ class Optimizer(BaseBOOptimizer):
         self._update_model(
             X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train
         )
-        acquisition_function = self.acquisition_fun(self.model, fixed_scalarizations=self.weights)
+
+        X_initial_conditions_raw, _ = self.best_model_posterior_mean(model=self.model, weights=self.weights)
+        acquisition_function = self.acquisition_fun(self.model,
+                                                    fixed_scalarizations=self.weights,
+                                                    X_pending = X_initial_conditions_raw)
         x_new = self._sgd_optimize_aqc_fun(
-            acquisition_function, log_time=self.method_time
-        )
+            acquisition_function,
+            bacth_initial_points= X_initial_conditions_raw,
+            log_time=self.method_time)
         return x_new
 
     def save(self):

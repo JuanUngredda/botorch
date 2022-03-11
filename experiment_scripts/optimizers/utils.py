@@ -97,7 +97,9 @@ def mo_acq_wrapper(
     elif utility_model_name == "Lin":
         utility_model = get_linear_scalarization
 
-    def acquisition_function(model: method, fixed_scalarizations: Tensor):
+    def acquisition_function(model: method,
+                             fixed_scalarizations: Tensor,
+                             X_pending: Optional[Tensor]=None):
         if method == "macKG":
             KG_acq_fun = MultiAttributeConstrainedKG(
                 model=model,
@@ -106,7 +108,8 @@ def mo_acq_wrapper(
                 num_objectives= num_objectives,
                 num_fantasies=num_fantasies,
                 fixed_scalarizations=fixed_scalarizations,
-                num_scalarisations=num_scalarizations)
+                num_scalarisations=num_scalarizations,
+                X_pending=X_pending)
 
         elif method == "SMSEGO":
             pass
@@ -191,8 +194,6 @@ class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
             means=mean_constraints.squeeze(dim=-2),
             sigmas=sigma_constraints.squeeze(dim=-2),
         ).double()
-        print(mean_obj.squeeze().shape)
-        print(prob_feas.squeeze().shape)
         constrained_posterior_mean = mean_obj.squeeze() * prob_feas.squeeze()
 
         return constrained_posterior_mean.squeeze(dim=-1).double()
@@ -494,39 +495,39 @@ def ParetoFrontApproximation(
     X_pmean = torch.vstack(X_pmean)
 
     ##########################################################
-    plot_X = torch.rand((1000,3))
-
-    from botorch.fit import fit_gpytorch_model
-    from botorch.models import SingleTaskGP
-    from botorch.models.model_list_gp_regression import ModelListGP
-    from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
-
-    Y_train_standarized = standardize(y_train)
-    train_joint_YC = torch.cat([Y_train_standarized, c_train], dim=-1)
-
-    models = []
-    for i in range(train_joint_YC.shape[-1]):
-        models.append(
-            SingleTaskGP(x_train, train_joint_YC[..., i: i + 1])
-        )
-    model = ModelListGP(*models)
-    mll = SumMarginalLogLikelihood(model.likelihood, model)
-    fit_gpytorch_model(mll)
-
-    posterior = model.posterior(plot_X)
-    mean = posterior.mean.detach().numpy()
-    is_feas = (mean[:,2] <= 0)
-    print("mean", mean.shape)
-    import matplotlib.pyplot as plt
-    plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mean[is_feas,2])
-
-    Y_pareto_posterior = model.posterior(X_pareto_solutions)
-    Y_pareto_mean = Y_pareto_posterior.mean.detach().numpy()
-    print(Y_pareto_mean.shape)
-    plt.scatter(Y_pareto_mean[...,0], Y_pareto_mean[...,1], color="red")
-
-    plt.show()
-    raise
+    # plot_X = torch.rand((1000,3))
+    #
+    # from botorch.fit import fit_gpytorch_model
+    # from botorch.models import SingleTaskGP
+    # from botorch.models.model_list_gp_regression import ModelListGP
+    # from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
+    #
+    # Y_train_standarized = standardize(y_train)
+    # train_joint_YC = torch.cat([Y_train_standarized, c_train], dim=-1)
+    #
+    # models = []
+    # for i in range(train_joint_YC.shape[-1]):
+    #     models.append(
+    #         SingleTaskGP(x_train, train_joint_YC[..., i: i + 1])
+    #     )
+    # model = ModelListGP(*models)
+    # mll = SumMarginalLogLikelihood(model.likelihood, model)
+    # fit_gpytorch_model(mll)
+    #
+    # posterior = model.posterior(plot_X)
+    # mean = posterior.mean.detach().numpy()
+    # is_feas = (mean[:,2] <= 0)
+    # print("mean", mean.shape)
+    # import matplotlib.pyplot as plt
+    # plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mean[is_feas,2])
+    #
+    # Y_pareto_posterior = model.posterior(X_pareto_solutions)
+    # Y_pareto_mean = Y_pareto_posterior.mean.detach().numpy()
+    # print(Y_pareto_mean.shape)
+    # plt.scatter(Y_pareto_mean[...,0], Y_pareto_mean[...,1], color="red")
+    #
+    # plt.show()
+    # raise
 
     return X_pareto_solutions, X_pmean
 

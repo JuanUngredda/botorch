@@ -20,7 +20,7 @@ CONFIG_DICT = {
         "output_dim": 2,
         "input_dim": 3,
         "number_of_scalarizations": 20 ,
-        "num_samples_initial_design": 90,
+        "num_samples_initial_design": 8,
         "num_max_evaluatations": 100,
         "utility_model": [ "Tche"],
         "num_discrete_points": None,

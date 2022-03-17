@@ -30,6 +30,7 @@ from botorch.acquisition.knowledge_gradient import (
     MCKnowledgeGradient,
     qKnowledgeGradient,
     qMultiFidelityKnowledgeGradient,
+    HybridOneShotKnowledgeGradient
 )
 from botorch.acquisition.max_value_entropy_search import (
     MaxValueBase,
@@ -75,7 +76,8 @@ __all__ = [
     "HybridKnowledgeGradient",
     "qKnowledgeGradient",
     "DiscreteKnowledgeGradient",
-    "ContinuousKnowledgeGradient",
+    "MCKnowledgeGradient",
+    "HybridOneShotKnowledgeGradient",
     "MaxValueBase",
     "qMultiFidelityKnowledgeGradient",
     "qMaxValueEntropy",

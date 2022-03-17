@@ -534,6 +534,96 @@ class qKnowledgeGradient(MCAcquisitionFunction, OneShotAcquisitionFunction):
         return X_full[..., : -self.num_fantasies, :]
 
 
+class HybridOneShotKnowledgeGradient(qKnowledgeGradient):
+    def __init__(
+            self,
+            model: Model,
+            num_fantasies: Optional[int] = None,
+            **kwargs: Any,
+    ) -> None:
+        r"""q-Knowledge Gradient (one-shot optimization).
+
+        Args:
+            model: A fitted model. Must support fantasizing.
+            num_fantasies: The number of fantasy points to use. More fantasy
+                points result in a better approximation, at the expense of
+                memory and wall time. Unused if `sampler` is specified.
+        """
+
+        if num_fantasies is None:
+            raise ValueError(
+                "Must specify `num_fantasies` if no `sampler` is provided."
+            )
+
+        super(HybridOneShotKnowledgeGradient, self).__init__(model=model)
+
+        self.num_fantasies = num_fantasies
+
+    @t_batch_mode_transform()
+    def forward(self, X: Tensor) -> Tensor:
+        r"""Evaluate HybridOneShotKnowledgeGradient on the candidate set `X`.
+
+        Args:
+            X: A `b x (q + num_fantasies) x d` Tensor with `b` t-batches of
+                `q + num_fantasies` design points each. We split this X tensor
+                into two parts in the `q` dimension (`dim=-2`). The first `q`
+                are the q-batch of design points and the last num_fantasies are
+                the current solutions of the inner optimization problem.
+
+                `X_fantasies = X[..., -num_fantasies:, :]`
+                `X_fantasies.shape = b x num_fantasies x d`
+
+                `X_actual = X[..., :-num_fantasies, :]`
+                `X_actual.shape = b x q x d`
+
+        Returns:
+            A Tensor of shape `b`. For t-batch b, the q-KG value of the design
+                `X_actual[b]` is averaged across the fantasy models, where
+                `X_fantasies[b, i]` is chosen as the final selection for the
+                `i`-th fantasy model.
+                NOTE: If `current_value` is not provided, then this is not the
+                true KG value of `X_actual[b]`, and `X_fantasies[b, : ]` must be
+                maximized at fixed `X_actual[b]`.
+        """
+        kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+        X_actual, X_fantasies = _split_fantasy_points(X=X, n_f=self.num_fantasies)
+
+        # make sure to propagate gradients to the fantasy model train inputs
+        with settings.propagate_grads(True):
+            for x_i, xnew in enumerate(X_actual):
+                X_discretisation = X_fantasies[:, x_i, ...]
+                xnew = xnew.unsqueeze(0)
+                kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
+                                                                       xnew=xnew,
+                                                                       optimal_discretisation=X_discretisation)
+
+        return kgvals
+
+    def get_augmented_q_batch_size(self, q: int) -> int:
+        r"""Get augmented q batch size for one-shot optimization.
+
+        Args:
+            q: The number of candidates to consider jointly.
+
+        Returns:
+            The augmented size for one-shot optimization (including variables
+            parameterizing the fantasy solutions).
+        """
+        return q + self.num_fantasies
+
+    def extract_candidates(self, X_full: Tensor) -> Tensor:
+        r"""We only return X as the set of candidates post-optimization.
+
+        Args:
+            X_full: A `b x (q + num_fantasies) x d`-dim Tensor with `b`
+                t-batches of `q + num_fantasies` design points each.
+
+        Returns:
+            A `b x q x d`-dim Tensor with `b` t-batches of `q` design points each.
+        """
+        return X_full[..., : -self.num_fantasies, :]
+
+
 class qMultiFidelityKnowledgeGradient(qKnowledgeGradient):
     r"""Batch Knowledge Gradient for multi-fidelity optimization.
 

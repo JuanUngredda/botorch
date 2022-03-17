@@ -116,62 +116,18 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         super(AnalyticAcquisitionFunction, self).__init__(model=model)
 
-        self.num_input_dimensions = bounds.shape[1]
         self.X_discretisation = X_discretisation
 
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
     def forward(self, X: Tensor) -> Tensor:
         kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+
         for xnew_idx, xnew in enumerate(X):
             xnew = xnew.unsqueeze(0)
             kgvals[xnew_idx] = self.compute_discrete_kg(
-                xnew=xnew, optimal_discretisation=self.X_discretisation
+                model=self.model, xnew=xnew, optimal_discretisation=self.X_discretisation
             )
         return kgvals
-
-    def compute_discrete_kg(
-            self, xnew: Tensor, optimal_discretisation: Tensor
-    ) -> Tensor:
-        """
-
-        Args:
-        xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
-            `d` dimensions.
-            optimal_discretisation: num_fantasies x d Tensor. Optimal X values for each z in zvalues.
-
-        """
-        # Augment the discretisation with the designs.
-
-        concatenated_xnew_discretisation = torch.cat(
-            [xnew, optimal_discretisation], dim=0
-        ).squeeze()  # (m + num_X_disc, d)
-
-        # Compute posterior mean, variance, and covariance.
-        full_posterior = self.model.posterior(
-            concatenated_xnew_discretisation, observation_noise=False
-        )
-        noise_variance = torch.unique(self.model.likelihood.noise_covar.noise)
-        full_posterior_mean = full_posterior.mean  # (1 + num_X_disc , 1)
-
-        # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
-        full_posterior_covariance = (
-            full_posterior.mvn.covariance_matrix
-        )  # (1 + num_X_disc , 1 + num_X_disc )
-        posterior_cov_xnew_opt_disc = full_posterior_covariance[
-                                      : len(xnew), :
-                                      ].squeeze()  # ( 1 + num_X_disc,)
-        full_posterior_variance = (
-            full_posterior.variance.squeeze()
-        )  # (1 + num_X_disc, )
-
-        full_predictive_covariance = (
-                posterior_cov_xnew_opt_disc
-                / (full_posterior_variance + noise_variance).sqrt()
-        )
-        # initialise empty kgvals torch.tensor
-
-        kgval = self.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
-        return kgval
 
     @staticmethod
     def kgcb(a: Tensor, b: Tensor) -> Tensor:
@@ -256,6 +212,49 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         kg -= maxa
         return kg
 
+    @staticmethod
+    def compute_discrete_kg(
+             model: Model, xnew: Tensor, optimal_discretisation: Tensor
+    ) -> Tensor:
+        """
+
+        Args:
+        xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
+            `d` dimensions.
+            optimal_discretisation: num_fantasies x d Tensor. Optimal X values for each z in zvalues.
+
+        """
+        # Augment the discretisation with the designs.
+        concatenated_xnew_discretisation = torch.cat(
+            [xnew, optimal_discretisation], dim=0
+        ).squeeze()  # (m + num_X_disc, d)
+
+        # Compute posterior mean, variance, and covariance.
+        full_posterior = model.posterior(
+            concatenated_xnew_discretisation, observation_noise=False
+        )
+        noise_variance = torch.unique(model.likelihood.noise_covar.noise)
+        full_posterior_mean = full_posterior.mean  # (1 + num_X_disc , 1)
+
+        # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
+        full_posterior_covariance = (
+            full_posterior.mvn.covariance_matrix
+        )  # (1 + num_X_disc , 1 + num_X_disc )
+        posterior_cov_xnew_opt_disc = full_posterior_covariance[
+                                      : len(xnew), :
+                                      ].squeeze()  # ( 1 + num_X_disc,)
+        full_posterior_variance = (
+            full_posterior.variance.squeeze()
+        )  # (1 + num_X_disc, )
+
+        full_predictive_covariance = (
+                posterior_cov_xnew_opt_disc
+                / (full_posterior_variance + noise_variance).sqrt()
+        )
+        # initialise empty kgvals torch.tensor
+
+        kgval = DiscreteKnowledgeGradient.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
+        return kgval
 
 class ExpectedImprovement(AnalyticAcquisitionFunction):
     r"""Single-outcome Expected Improvement (analytic).

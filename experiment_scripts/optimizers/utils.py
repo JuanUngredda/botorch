@@ -7,6 +7,7 @@ from botorch.acquisition import (
     HybridKnowledgeGradient,
     DiscreteKnowledgeGradient,
     MCKnowledgeGradient,
+    HybridOneShotKnowledgeGradient
 )
 from torch import Tensor
 
@@ -120,6 +121,9 @@ def KG_wrapper(
 
         elif method =="RANDOMKG":
             KG_acq_fun = RandomSample(dim=bounds.shape[1])
+
+        elif method=="ONESHOTHYBRIDKG":
+            KG_acq_fun = HybridOneShotKnowledgeGradient(model=model, num_fantasies=num_fantasies)
         else:
             raise Exception(
                 "method does not exist. Specify implemented method: DISCKG (Discrete KG), "

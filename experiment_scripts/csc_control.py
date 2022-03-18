@@ -50,10 +50,10 @@ def run(args):
     seed = 0
     for _ in range(33):
         experiment_names = [
-            "ONESHOTKG_GP_synthetic_3_dim2_l0.1",
-            "ONESHOTKG_GP_synthetic_3_dim2_l0.4",
-            "ONESHOTKG_GP_synthetic_3_dim4_l0.1",
-            "ONESHOTKG_GP_synthetic_3_dim4_l0.4",
+            "ONESHOTKG_GP_synthetic_10_dim2_l0.1",
+            "ONESHOTKG_GP_synthetic_10_dim2_l0.4",
+            "ONESHOTKG_GP_synthetic_10_dim4_l0.1",
+            "ONESHOTKG_GP_synthetic_10_dim4_l0.4",
 
                             # "MCKG_GP_synthetic_10_dim2_l0.1",
                             # "MCKG_GP_synthetic_10_dim2_l0.4",

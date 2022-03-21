@@ -50,14 +50,14 @@ def run(args):
     seed = 0
     while True:
         experiment_names = [
-            "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1",
-            "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.4",
-            "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.1",
-            "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.4",
+            "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.1",
+            "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.4",
+            "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.1",
+            "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.4",
                             ]
         # experiment_names = ["DISCKG_Hartmann_2"]
         for exp_name in experiment_names:
-            # print("args.k + seed",args.k + seed)
+
             if args.k + seed>100:
                 raise
 

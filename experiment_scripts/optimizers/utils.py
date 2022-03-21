@@ -88,9 +88,9 @@ def KG_wrapper(
     num_fantasies: Optional[int] = None,
     num_discrete_points: Optional[int] = None,
     num_restarts: Optional[int] = None,
-    raw_samples: Optional[int] = None,
+    raw_samples: Optional[int] = None
 ):
-    def acquisition_function(model: method):
+    def acquisition_function(model: method, x_optimiser: Optional[Tensor]=None):
         if method == "DISCKG":
 
             KG_acq_fun = DiscreteKnowledgeGradient(
@@ -123,7 +123,9 @@ def KG_wrapper(
             KG_acq_fun = RandomSample(dim=bounds.shape[1])
 
         elif method=="ONESHOTHYBRIDKG":
-            KG_acq_fun = HybridOneShotKnowledgeGradient(model=model, num_fantasies=num_fantasies)
+            KG_acq_fun = HybridOneShotKnowledgeGradient(model=model,
+                                                        num_fantasies=num_fantasies,
+                                                        x_optimiser=x_optimiser)
         else:
             raise Exception(
                 "method does not exist. Specify implemented method: DISCKG (Discrete KG), "

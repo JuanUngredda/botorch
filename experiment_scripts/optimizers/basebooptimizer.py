@@ -10,6 +10,10 @@ from torch import Tensor
 from botorch.generation.gen import gen_candidates_scipy
 from botorch.utils.transforms import unnormalize, normalize
 from botorch.acquisition.knowledge_gradient import qKnowledgeGradient
+from botorch.optim.initializers import (
+    gen_batch_initial_conditions,
+    gen_one_shot_kg_initial_conditions,
+)
 
 from .baseoptimizer import BaseOptimizer
 from .utils import timeit, RandomSample
@@ -81,9 +85,90 @@ class BaseBOOptimizer(BaseOptimizer):
                 bounds=bounds_normalized,
                 q=1,
                 num_restarts=self.optional["NUM_RESTARTS"],
-                raw_samples=self.optional["RAW_SAMPLES"],
+                raw_samples=self.optional["RAW_SAMPLES"]
             )
+
             return x_best
+            # batch_initial_conditions = gen_one_shot_kg_initial_conditions(
+            #     acq_function=acq_fun,
+            #     bounds=bounds_normalized,
+            #     q=1,
+            #     num_restarts=self.optional["NUM_RESTARTS"],
+            #     raw_samples=self.optional["RAW_SAMPLES"]
+            # )
+            #
+            # _ = acq_fun.evaluate_discrete_kg(X=batch_initial_conditions, test=True)
+            #
+            #
+            # x_best, _ = optimize_acqf(
+            #     acq_function=acq_fun,
+            #     bounds=bounds_normalized,
+            #     q=1,
+            #     num_restarts=self.optional["NUM_RESTARTS"],
+            #     batch_initial_conditions = batch_initial_conditions,
+            #     return_full_tree= True
+            # )
+            #
+            # _ = acq_fun.evaluate_discrete_kg(X=x_best, test=True)
+            #
+            # from botorch.utils.sampling import (
+            #     draw_sobol_samples
+            # )
+            # import matplotlib.pyplot as plt
+            # from botorch.acquisition.analytic import DiscreteKnowledgeGradient
+            #
+            # with torch.no_grad():
+            #     X_discretisation = draw_sobol_samples(
+            #         bounds=bounds_normalized, n=100, q=1
+            #     )
+            #
+            #     X_plot = draw_sobol_samples(
+            #         bounds=bounds_normalized, n=1000, q=1
+            #     )
+            #
+            #     kgvals = torch.zeros(X_plot.shape[0], dtype=torch.double)
+            #     optimal_kgvals = torch.zeros(X_plot.shape[0], dtype=torch.double)
+            #
+            #     for x_i, xnew in enumerate(X_plot):
+            #         xnew = torch.atleast_2d(xnew.squeeze())
+            #         optimal_discretisation = x_best[1:,:].squeeze()
+            #
+            #         optimal_kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
+            #                                                                 xnew=xnew,
+            #                                                                optimal_discretisation=optimal_discretisation)
+            #
+            #     for x_i, xnew in enumerate(X_plot):
+            #         xnew = torch.atleast_2d(xnew.squeeze())
+            #         X_discretisation = X_discretisation.squeeze()
+            #         kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
+            #                                                                 xnew=xnew,
+            #                                                                optimal_discretisation=X_discretisation)
+            #
+            #
+            #     print("max min",torch.max(kgvals), torch.min(kgvals))
+            #
+            # X_plot =X_plot.squeeze().numpy()
+            # plt.scatter(X_plot[:,0], X_plot[:,1] , c = kgvals.detach().numpy())
+            # plt.scatter(x_best[:,0], x_best[:,1], color="blue")
+            # plt.scatter(batch_initial_conditions[0,0,0], batch_initial_conditions[0,0,1], color="red", marker="x")
+            # plt.scatter(x_best[0,0], x_best[0,1], color="red")
+            #
+            # x_GP_rec = self.policy()
+            # plt.scatter(x_GP_rec[:,0], x_GP_rec[:,1], color="magenta")
+            # plt.show()
+            #
+            # X_plot =X_plot.squeeze()
+            # plt.scatter(X_plot[:,0], X_plot[:,1] , c = optimal_kgvals.detach())
+            # plt.scatter(x_best[:,0], x_best[:,1], color="blue")
+            # plt.scatter(batch_initial_conditions[0,0,0], batch_initial_conditions[0,0,1], color="red", marker="x")
+            # plt.scatter(x_best[0,0], x_best[0,1], color="red")
+            #
+            #
+            # plt.scatter(x_GP_rec[:,0], x_GP_rec[:,1], color="magenta")
+            # plt.show()
+            #
+
+
 
         if self.optional["OPTIMIZER"] == "Adam":
             initial_conditions = gen_batch_initial_conditions(

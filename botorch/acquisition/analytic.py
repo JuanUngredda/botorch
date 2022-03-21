@@ -130,7 +130,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         return kgvals
 
     @staticmethod
-    def kgcb(a: Tensor, b: Tensor) -> Tensor:
+    def kgcb(a: Tensor, b: Tensor, plot=False) -> Tensor:
         r"""
         Calculates the linear epigraph, i.e. the boundary of the set of points
         in 2D lying above a collection of straight lines y=a+bx.
@@ -148,6 +148,8 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         a = a.squeeze()
         b = b.squeeze()
+        a_old = a
+        b_old = b
         assert len(a) > 0, "must provide slopes"
         assert len(a) == len(b), f"#intercepts != #slopes, {len(a)}, {len(b)}"
 
@@ -210,12 +212,44 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         kg = torch.sum(a * (cdf[1:] - cdf[:-1]) + b * (pdf[:-1] - pdf[1:]))
         kg -= maxa
+
+        if plot:
+            steps=20
+            X = torch.linspace(start=-4.16 , end=4.16 , steps=steps, dtype=torch.double).unsqueeze(dim=-2)
+
+
+            X_dims_adapted = torch.repeat_interleave(X, len(a_old), dim=0)
+            b_old_plot = torch.repeat_interleave(b_old.unsqueeze(-1), steps, dim=1)
+            a_old_plot = torch.repeat_interleave(a_old.unsqueeze(-1),steps, dim=1 )
+            vals_old =  a_old_plot + b_old_plot * X_dims_adapted
+            #
+            import matplotlib.pyplot as plt
+            plt.plot(X_dims_adapted.detach().numpy().T, vals_old.detach().numpy().T, color="grey", alpha=0.6)
+
+
+            X_dims_adapted = torch.repeat_interleave(X, len(a), dim=0)
+            b_plot = torch.repeat_interleave(b.unsqueeze(-1), steps, dim=1)
+            a_plot = torch.repeat_interleave(a.unsqueeze(-1),steps, dim=1 )
+
+            vals =  a_plot + b_plot * X_dims_adapted
+            vals = torch.max(vals, dim=0).values
+
+
+            if len(a_old)>60:
+                plt.plot(X.detach().squeeze().numpy(), vals.detach().numpy(), label="X discrete")
+            else:
+                plt.plot(X.detach().squeeze().numpy(), vals.detach().numpy(), label="X optimised")
+
+            plt.legend()
+            # plt.show()
+
+
         return kg
 
     @staticmethod
     def compute_discrete_kg(
-             model: Model, xnew: Tensor, optimal_discretisation: Tensor
-    ) -> Tensor:
+             model: Model, xnew: Tensor, optimal_discretisation: Tensor,
+    plot=False, test=False) -> Tensor:
         """
 
         Args:
@@ -224,6 +258,25 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
             optimal_discretisation: num_fantasies x d Tensor. Optimal X values for each z in zvalues.
 
         """
+        if test:
+
+            DiscreteKnowledgeGradient.compute_discrete_kg(model=model, xnew=xnew,
+                                                          optimal_discretisation=optimal_discretisation,
+                                                          plot=True, test=False)
+
+            dim = xnew.shape[-1]
+            bounds_normalized = torch.vstack(
+                [torch.zeros((1, dim)), torch.ones((1, dim))]
+            )
+            X_random_discretisation = draw_sobol_samples(
+                bounds=bounds_normalized, n=100, q=1
+            ).squeeze()
+            xnew = torch.atleast_2d(xnew.squeeze())
+            DiscreteKnowledgeGradient.compute_discrete_kg(model=model, xnew=xnew, optimal_discretisation=X_random_discretisation,
+                                                          plot=True, test=False)
+
+            import matplotlib.pyplot as plt
+            plt.show()
         # Augment the discretisation with the designs.
         concatenated_xnew_discretisation = torch.cat(
             [xnew, optimal_discretisation], dim=0
@@ -253,7 +306,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         )
         # initialise empty kgvals torch.tensor
 
-        kgval = DiscreteKnowledgeGradient.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
+        kgval = DiscreteKnowledgeGradient.kgcb(a=full_posterior_mean, b=full_predictive_covariance, plot=plot)
         return kgval
 
 class ExpectedImprovement(AnalyticAcquisitionFunction):

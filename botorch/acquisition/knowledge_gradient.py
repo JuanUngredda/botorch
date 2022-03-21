@@ -539,6 +539,7 @@ class HybridOneShotKnowledgeGradient(qKnowledgeGradient):
             self,
             model: Model,
             num_fantasies: Optional[int] = None,
+            x_optimiser: Optional[Tensor] = None,
             **kwargs: Any,
     ) -> None:
         r"""q-Knowledge Gradient (one-shot optimization).
@@ -558,7 +559,7 @@ class HybridOneShotKnowledgeGradient(qKnowledgeGradient):
         super(HybridOneShotKnowledgeGradient, self).__init__(model=model)
 
         self.num_fantasies = num_fantasies
-
+        self.x_optimiser = x_optimiser
     @t_batch_mode_transform()
     def forward(self, X: Tensor) -> Tensor:
         r"""Evaluate HybridOneShotKnowledgeGradient on the candidate set `X`.
@@ -589,14 +590,31 @@ class HybridOneShotKnowledgeGradient(qKnowledgeGradient):
         X_actual, X_fantasies = _split_fantasy_points(X=X, n_f=self.num_fantasies)
 
         # make sure to propagate gradients to the fantasy model train inputs
-        with settings.propagate_grads(True):
-            for x_i, xnew in enumerate(X_actual):
-                X_discretisation = X_fantasies[:, x_i, ...]
-                xnew = xnew.unsqueeze(0)
-                kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
-                                                                       xnew=xnew,
-                                                                       optimal_discretisation=X_discretisation)
+        for x_i, xnew in enumerate(X_actual):
+            X_discretisation = X_fantasies[:, x_i, ...].squeeze()
 
+            if self.x_optimiser is not None:
+
+                X_discretisation = torch.cat([X_discretisation, self.x_optimiser])
+
+            kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
+                                                                   xnew=xnew,
+                                                                   optimal_discretisation=X_discretisation)
+        return kgvals
+
+    def evaluate_discrete_kg(self, X: Tensor, test=False) -> Tensor:
+        kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+        X_actual, X_fantasies = _split_fantasy_points(X=X, n_f=self.num_fantasies)
+        # make sure to propagate gradients to the fantasy model train inputs
+        for x_i, xnew in enumerate(X_actual):
+            X_discretisation = X_fantasies[:, x_i, ...]
+            xnew = torch.atleast_2d(xnew.squeeze())
+            X_discretisation = X_discretisation.squeeze()
+
+            kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
+                                                                   xnew=xnew,
+                                                                   optimal_discretisation=X_discretisation,
+                                                                    test=test)
         return kgvals
 
     def get_augmented_q_batch_size(self, q: int) -> int:

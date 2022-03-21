@@ -106,7 +106,7 @@ class Optimizer(BaseBOOptimizer):
                     covar_module=self.covar_module,
                     train_Yvar=NOISE_VAR.expand_as(Y_train_standarized),
                 )
-
+                raise
             mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)
             fit_gpytorch_model(mll)
 
@@ -157,7 +157,9 @@ class Optimizer(BaseBOOptimizer):
 
     def get_next_point(self):
         self._update_model(self.x_train, self.y_train)
-        acquisition_function = self.acquisition_fun(self.model)
+
+        x_GP_rec = self.policy()
+        acquisition_function = self.acquisition_fun(self.model, x_optimiser= x_GP_rec)
         x_new = self._sgd_optimize_aqc_fun(
             acquisition_function, log_time=self.method_time
         )

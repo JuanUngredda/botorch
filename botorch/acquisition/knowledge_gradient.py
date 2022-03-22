@@ -47,15 +47,14 @@ from botorch.acquisition.objective import (
     MCAcquisitionObjective,
     ScalarizedObjective,
 )
-from botorch.exceptions.errors import UnsupportedError
 from botorch.models.model import Model
 from botorch.sampling.samplers import MCSampler, SobolQMCNormalSampler
-from botorch.utils.sampling import draw_sobol_normal_samples
 from botorch.utils.transforms import (
     concatenate_pending_points,
     match_batch_shape,
     t_batch_mode_transform,
 )
+from botorch.utils.sampling import draw_sobol_normal_samples
 
 
 class MCKnowledgeGradient(DiscreteKnowledgeGradient):
@@ -557,9 +556,9 @@ class HybridOneShotKnowledgeGradient(qKnowledgeGradient):
             )
 
         super(HybridOneShotKnowledgeGradient, self).__init__(model=model)
-
         self.num_fantasies = num_fantasies
         self.x_optimiser = x_optimiser
+
     @t_batch_mode_transform()
     def forward(self, X: Tensor) -> Tensor:
         r"""Evaluate HybridOneShotKnowledgeGradient on the candidate set `X`.
@@ -594,12 +593,11 @@ class HybridOneShotKnowledgeGradient(qKnowledgeGradient):
             X_discretisation = X_fantasies[:, x_i, ...].squeeze()
 
             if self.x_optimiser is not None:
-
                 X_discretisation = torch.cat([X_discretisation, self.x_optimiser])
 
             kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
-                                                                   xnew=xnew,
-                                                                   optimal_discretisation=X_discretisation)
+                                                                        xnew=xnew,
+                                                                        optimal_discretisation=X_discretisation)
         return kgvals
 
     def evaluate_discrete_kg(self, X: Tensor, test=False) -> Tensor:
@@ -612,10 +610,18 @@ class HybridOneShotKnowledgeGradient(qKnowledgeGradient):
             X_discretisation = X_discretisation.squeeze()
 
             kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
-                                                                   xnew=xnew,
-                                                                   optimal_discretisation=X_discretisation,
-                                                                    test=test)
+                                                                        xnew=xnew,
+                                                                        optimal_discretisation=X_discretisation,
+                                                                        test=test)
         return kgvals
+
+    def construct_z_vals(self, nz: int, device: Optional[torch.device] = None) -> Tensor:
+        """make nz equally quantile-spaced z values"""
+
+        quantiles_z = (torch.arange(nz) + 0.5) * (1 / nz)
+        normal = torch.distributions.Normal(0, 1)
+        z_vals = normal.icdf(quantiles_z)
+        return z_vals.to(device=device)
 
     def get_augmented_q_batch_size(self, q: int) -> int:
         r"""Get augmented q batch size for one-shot optimization.
@@ -895,3 +901,42 @@ def _split_fantasy_points(X: Tensor, n_f: int) -> Tuple[Tensor, Tensor]:
     # num_fantasies x b x 1 x d
     X_fantasies = X_fantasies.unsqueeze(dim=-2)
     return X_actual, X_fantasies
+
+
+def _check_shape_changed(
+        base_samples: Optional[Tensor], batch_range: Tuple[int, int], shape: torch.Size
+) -> bool:
+    r"""Check if the base samples shape matches a given shape in non batch dims.
+
+    Args:
+        base_samples: The Posterior for which to generate base samples.
+        batch_range: The range t-batch dimensions to ignore for shape check.
+        shape: The base sample shape to compare.
+
+    Returns:
+        A bool indicating whether the shape changed.
+    """
+    if base_samples is None:
+        return True
+    batch_start, batch_end = batch_range
+    b_sample_shape, b_base_sample_shape = split_shapes(base_samples.shape)
+    sample_shape, base_sample_shape = split_shapes(shape)
+    return (
+            b_sample_shape != sample_shape
+            or b_base_sample_shape[batch_end:] != base_sample_shape[batch_end:]
+            or b_base_sample_shape[:batch_start] != base_sample_shape[:batch_start]
+    )
+
+
+def split_shapes(
+        base_sample_shape: torch.Size,
+) -> Tuple[torch.Size, torch.Size]:
+    r"""Split a base sample shape into sample and base sample shapes.
+
+    Args:
+        base_sample_shape: The base sample shape.
+
+    Returns:
+        A tuple containing the sample and base sample shape.
+    """
+    return base_sample_shape[:1], base_sample_shape[1:]

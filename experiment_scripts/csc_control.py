@@ -50,15 +50,15 @@ def run(args):
     seed = 0
     while True:
         experiment_names = [
-            "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.1",
-            "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.4",
-            "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.1",
-            "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.4",
+            "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1",
+            "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.4",
+            "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.1",
+            "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.4",
                             ]
         # experiment_names = ["DISCKG_Hartmann_2"]
         for exp_name in experiment_names:
 
-            if args.k + seed>99:
+            if args.k + seed > 99:
                 raise
 
             experiment_manager.main(exp_names=exp_name, seed=args.k + seed)

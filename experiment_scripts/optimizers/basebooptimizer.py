@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 from botorch.generation import gen_candidates_torch
@@ -10,6 +10,7 @@ from torch import Tensor
 from botorch.generation.gen import gen_candidates_scipy
 from .baseoptimizer import BaseOptimizer
 from .utils import timeit
+from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG
 
 LOG_FORMAT = (
     "%(asctime)s - %(name)s:%(funcName)s:%(lineno)s - %(levelname)s:  %(message)s"
@@ -72,6 +73,87 @@ class BaseBOOptimizer(BaseOptimizer):
         else:
             X_initial_conditions_raw = bacth_initial_points
 
+        if isinstance(acq_fun, MultiAttributeConstrainedKG):
+
+            num_xnew = self.optional["NUM_RESTARTS"]
+            num_xstar = acq_fun.X_discretisation_size
+            input_dim = self.dim
+
+            perm = torch.randperm(X_initial_conditions_raw.shape[0])
+            idx = perm[:num_xnew]
+            xnew_samples = X_initial_conditions_raw[idx]
+
+            batch_initial_conditions = torch.zeros((num_xnew, num_xstar + 1, input_dim), dtype=torch.double)
+            for xnew_idx, xnew in enumerate(xnew_samples):
+
+                perm = torch.randperm(X_initial_conditions_raw.shape[0])
+                idx = perm[:num_xstar]
+                xstar = X_initial_conditions_raw[idx].squeeze(dim=-2)
+
+                idx_ics = torch.cat([xnew, xstar]).unsqueeze(dim=0)
+                batch_initial_conditions[xnew_idx, ...] = idx_ics
+
+            x_best_concat, _ = optimize_acqf(
+                acq_function=acq_fun,
+                bounds=bounds_normalized,
+                q=1,
+                num_restarts=self.optional["NUM_RESTARTS"],
+                batch_initial_conditions=batch_initial_conditions,
+                return_full_tree=False
+            )
+            x_best = acq_fun.extract_candidates(X_full=x_best_concat)
+
+            # # print("X_initial_conditions", X_initial_conditions, "x_best",x_best, "_")
+            # # posterior_best = self.model.posterior(x_best)
+            # # mean_best = posterior_best.mean.squeeze().detach().numpy()
+            # # print("mean_best",mean_best, "_", _)
+            # # raise
+            # #################################################
+            # plot_X = torch.rand((1000, 1, 3))
+            #
+            # from botorch.fit import fit_gpytorch_model
+            # from botorch.models import SingleTaskGP
+            # from botorch.models.model_list_gp_regression import ModelListGP
+            # from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
+            # from botorch.utils import standardize
+            #
+            # Y_train_standarized = standardize(self.y_train)
+            # train_joint_YC = torch.cat([Y_train_standarized, self.c_train], dim=-1)
+            #
+            # models = []
+            # for i in range(train_joint_YC.shape[-1]):
+            #     models.append(
+            #         SingleTaskGP(self.x_train, train_joint_YC[..., i: i + 1])
+            #     )
+            # model = ModelListGP(*models)
+            # mll = SumMarginalLogLikelihood(model.likelihood, model)
+            # fit_gpytorch_model(mll)
+            #
+            # with torch.no_grad():
+            #     posterior = model.posterior(plot_X)
+            #     mean = posterior.mean.squeeze().detach().numpy()
+            #     is_feas = (mean[..., -1] <= 0)
+            #     import matplotlib.pyplot as plt
+            #     posterior_best = model.posterior(x_best)
+            #     mean_best = posterior_best.mean.squeeze().detach().numpy()
+            #     plt.scatter(mean[is_feas, 0], mean[is_feas, 1])  # , c=mean[is_feas, 2])
+            #     plt.scatter(mean_best[0], mean_best[1], color="red")
+            #     plt.show()
+            #     plt.savefig(
+            #         "/home/juan/Documents/repos_data/macKG/diagnostics/image_diag_{}.pdf".format(self.x_train.shape[0]))
+            #     plt.cla()
+            #     # acq_vals = acq_fun.forward(plot_X).squeeze().detach().numpy()
+            #     # posterior_best = model.posterior(x_best)
+            #     # mean_best = posterior_best.mean.squeeze().detach().numpy()
+            #     # print("mean_best", mean_best)
+            #     # plt.scatter(mean[:, 0], mean[:, 1], c=acq_vals)
+            #     # plt.scatter(mean_best[0], mean_best[1], color="red")
+            #     # plt.show()
+            #     # raise
+            # print("x_best", x_best, "value", _)
+
+            return x_best
+
         with torch.no_grad(): #torch.enable_grad():#torch.no_grad():
             mu_val_initial_conditions_raw = acq_fun.forward(X_initial_conditions_raw)
 
@@ -98,51 +180,5 @@ class BaseBOOptimizer(BaseOptimizer):
                 upper_bounds=torch.ones(self.dim)
             )
 
-        # print("X_initial_conditions", X_initial_conditions, "x_best",x_best, "_")
-        # posterior_best = self.model.posterior(x_best)
-        # mean_best = posterior_best.mean.squeeze().detach().numpy()
-        # print("mean_best",mean_best, "_", _)
-        # raise
-        #################################################
-        plot_X = torch.rand((1000, 1, 3))
-
-        from botorch.fit import fit_gpytorch_model
-        from botorch.models import SingleTaskGP
-        from botorch.models.model_list_gp_regression import ModelListGP
-        from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
-        from botorch.utils import standardize
-
-        Y_train_standarized = standardize(self.y_train)
-        train_joint_YC = torch.cat([Y_train_standarized, self.c_train], dim=-1)
-
-        models = []
-        for i in range(train_joint_YC.shape[-1]):
-            models.append(
-                SingleTaskGP(self.x_train, train_joint_YC[..., i: i + 1])
-            )
-        model = ModelListGP(*models)
-        mll = SumMarginalLogLikelihood(model.likelihood, model)
-        fit_gpytorch_model(mll)
-
-        with torch.no_grad():
-            posterior = model.posterior(plot_X)
-            mean = posterior.mean.squeeze().detach().numpy()
-            is_feas = (mean[..., -1] <= 0)
-            import matplotlib.pyplot as plt
-            posterior_best = model.posterior(x_best)
-            mean_best = posterior_best.mean.squeeze().detach().numpy()
-            plt.scatter(mean[is_feas, 0], mean[is_feas, 1])#, c=mean[is_feas, 2])
-            plt.scatter(mean_best[0], mean_best[1], color="red")
-            # plt.show()
-            plt.savefig("/home/juan/Documents/repos_data/macKG/diagnostics/image_diag_{}.pdf".format(self.x_train.shape[0]))
-            plt.cla()
-            # acq_vals = acq_fun.forward(plot_X).squeeze().detach().numpy()
-            # posterior_best = model.posterior(x_best)
-            # mean_best = posterior_best.mean.squeeze().detach().numpy()
-            # print("mean_best", mean_best)
-            # plt.scatter(mean[:, 0], mean[:, 1], c=acq_vals)
-            # plt.scatter(mean_best[0], mean_best[1], color="red")
-            # plt.show()
-            # raise
-        print("x_best", x_best, "value", _)
         return x_best.squeeze(dim=-2).detach()
+

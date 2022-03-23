@@ -17,6 +17,8 @@ from gpytorch.kernels import RBFKernel, ScaleKernel
 from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
 from torch import Tensor
 from botorch.utils import standardize
+from botorch.utils.sampling import (
+    draw_sobol_samples)
 
 from .basebooptimizer import BaseBOOptimizer
 from .utils import timeit, ParetoFrontApproximation, _compute_expected_utility
@@ -74,8 +76,8 @@ class Optimizer(BaseBOOptimizer):
             self.utility_model = get_linear_scalarization
 
         self.weights = sample_simplex(
-            n=self.num_scalarisations, d=self.f.num_objectives
-        ).squeeze()
+            n=self.num_scalarisations, d=self.f.num_objectives,
+        qmc=True).squeeze()
 
 
 
@@ -95,9 +97,7 @@ class Optimizer(BaseBOOptimizer):
     def _update_model(self, X_train: Tensor, Y_train: Tensor, C_train: Tensor):
 
         self.weights = sample_simplex(
-            n=self.num_scalarisations, d=self.f.num_objectives
-        ).squeeze()
-
+            n=self.num_scalarisations, d=self.f.num_objectives, qmc=True).squeeze()
 
         NOISE_VAR = torch.Tensor([1e-4])
         models = []
@@ -169,7 +169,8 @@ class Optimizer(BaseBOOptimizer):
         X_initial_conditions_raw, _ = self.best_model_posterior_mean(model=self.model, weights=self.weights)
         acquisition_function = self.acquisition_fun(self.model,
                                                     fixed_scalarizations=self.weights,
-                                                    X_pending = X_initial_conditions_raw)
+                                                    current_global_optimiser=X_initial_conditions_raw,
+                                                    X_pending = None)
         x_new = self._sgd_optimize_aqc_fun(
             acquisition_function,
             bacth_initial_points= X_initial_conditions_raw,

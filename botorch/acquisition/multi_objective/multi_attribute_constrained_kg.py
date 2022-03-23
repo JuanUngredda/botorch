@@ -39,8 +39,10 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
                  bounds: Tensor,
                  utility_model: Callable,
                  num_objectives: int,
-                 num_fantasies: int,
+                 num_fantasies_constraints: int,
+                 X_discretisation_size: int,
                  num_scalarisations: int,
+                 current_global_optimiser = Tensor,
                  sampler: Optional[MCSampler] = None,
                  fixed_scalarizations: Optional[Tensor] = None,
                  objective: Optional[MCMultiOutputObjective] = None,
@@ -53,11 +55,12 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
                          X_pending=X_pending)
 
         self.utility_model = utility_model
-        self.num_fantasies = num_fantasies
+        self.num_fantasies_constraints = num_fantasies_constraints
         self.input_dim = model.train_inputs[0][0].shape[1]
         self.num_outputs = model.num_outputs
         self.num_objectives = fixed_scalarizations.shape[0]
         self.num_constraints = model.num_outputs - self.num_objectives
+        self.X_discretisation_size = X_discretisation_size
         self.num_scalarisations = num_scalarisations
         self.num_X_observations = None
         self.bounds = bounds
@@ -67,6 +70,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         self.raw_samples = kwargs.get("raw_samples", 100)
         self.optional = {"num_restarts": self.num_restarts, "raw_samples": self.raw_samples}
         self.X_discretisation = draw_sobol_samples(bounds=bounds, n=100, q=1)
+        self.current_global_optimiser = current_global_optimiser.squeeze(dim=-2)
         if self.X_pending is not None:
             self.X_discretisation = torch.concat([self.X_discretisation, self.X_pending]).squeeze()
         # convert to batched MO model
@@ -85,7 +89,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         )
         self._preprocess_constraint_bounds(constraints=constraints)
 
-    @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
+    @t_batch_mode_transform()
     def forward(self, X: Tensor, **kwargs) -> Tensor:
         r"""Evaluate the multi-output objective on the samples.
 
@@ -99,27 +103,30 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
         This method is usually not called directly, but via the objectives
         """
+        X_actual, X_fantasies = _split_fantasy_points(X=X, n_f=self.X_discretisation_size)
+
         zvalues = self._initialize_maKG_parameters(model=self.model)
         kgvals = torch.zeros(X.shape[0], dtype=torch.double)
 
-        for xnew_idx, xnew in enumerate(X):
-
-            kgvals[xnew_idx] = self._compute_mackg(model=self.model,
-                                                   xnew=xnew,
-                                                   weights=self.fixed_scalarizations,
-                                                   zvalues=zvalues)
+        for x_i, xnew in enumerate(X_actual):
+            X_discretisation = X_fantasies[:, x_i, ...].squeeze()
+            X_discretisation = torch.cat([X_discretisation, self.current_global_optimiser])
+            kgvals[x_i] = self._compute_mackg(
+                xnew=xnew,
+                weights=self.fixed_scalarizations,
+                zvalues=zvalues,
+                optimal_discretisation=X_discretisation)
 
         return kgvals
 
-
     def _compute_mackg(self,
-                       model: Model,
                        xnew: Tensor,
                        weights: Tensor,
-                       zvalues: Tensor) -> tuple[Tensor, Tensor]:
+                       zvalues: Tensor,
+                       optimal_discretisation: Tensor) -> tuple[Tensor, Tensor]:
 
         # Loop over xnew points
-        fantasy_opt_val = torch.zeros((self.num_scalarisations, self.num_fantasies))  # 1 x num_fantasies
+        fantasy_opt_val = torch.zeros((self.num_scalarisations, self.num_fantasies_constraints))  # 1 x num_fantasies
 
         for w_idx, w_i in enumerate(weights):
 
@@ -128,8 +135,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
             )
 
             # loop over number of GP fantasised mean realisations
-
-            for fantasy_idx in range(self.num_fantasies):
+            for fantasy_idx in range(self.num_fantasies_constraints):
                 # construct one realisation of the fantasy model by adding xnew. We rewrite the internal variable
                 # base samples, such that the samples are taken from the quantile.
                 zval = zvalues[fantasy_idx].view(1, 1, self.num_constraints)
@@ -147,7 +153,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
                 discKG = self.compute_discrete_kg(xnew=xnew,
                                                   model_obj=model_obj,
                                                   model_cs=model_cs,
-                                                  optimal_discretisation=self.X_discretisation)
+                                                  optimal_discretisation=optimal_discretisation)
 
                 fantasy_opt_val[w_idx, fantasy_idx] = discKG
 
@@ -163,20 +169,15 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
         if current_number_of_observations != self.num_X_observations:
 
-            z_vals_objectives = torch.zeros((self.num_fantasies, self.num_objectives))
-
-            # nz_constraints = 7
             num_constraints = self.num_outputs - self.num_objectives
-            constraint_base_zvals = construct_z_vals(nz=self.num_fantasies)
+            constraint_base_zvals = construct_z_vals(nz=self.num_fantasies_constraints)
 
-            idx = torch.randint(low=0, high=len(constraint_base_zvals), size=(self.num_fantasies, num_constraints))
+            idx = torch.randint(low=0, high=len(constraint_base_zvals), size=(self.num_fantasies_constraints, num_constraints))
             z_vals_constraints = constraint_base_zvals[idx]
-            # print("constraint_base_zvals",constraint_base_zvals)
-            # print(z_vals_objectives, z_vals_constraints, z_vals_objectives.shape, z_vals_constraints.shape)
-            z_vals = z_vals_constraints #torch.hstack([z_vals_objectives, z_vals_constraints])
+
+            z_vals = z_vals_constraints
             self.z_vals = z_vals
             self.num_X_observations = current_number_of_observations
-
 
         else:
 
@@ -403,11 +404,54 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
         return kg
 
+    def extract_candidates(self, X_full: Tensor) -> Tensor:
+        r"""We only return X as the set of candidates post-optimization.
+
+        Args:
+            X_full: A `b x (q + num_fantasies) x d`-dim Tensor with `b`
+                t-batches of `q + num_fantasies` design points each.
+
+        Returns:
+            A `b x q x d`-dim Tensor with `b` t-batches of `q` design points each.
+        """
+        return X_full[..., : -self.X_discretisation_size, :]
+
+
 
 def construct_z_vals(nz: int, device: Optional[torch.device] = None) -> Tensor:
     """make nz equally quantile-spaced z values"""
 
-    quantiles_z = (torch.arange(nz) + 0.5) * (1 / nz)
+    quantiles_z = torch.linspace(start=0.001, end=0.999, steps=nz)
     normal = torch.distributions.Normal(0, 1)
     z_vals = normal.icdf(quantiles_z)
     return z_vals.to(device=device)
+
+
+def _split_fantasy_points(X: Tensor, n_f: int) -> Tuple[Tensor, Tensor]:
+    r"""Split a one-shot optimization input into actual and fantasy points
+
+    Args:
+        X: A `batch_shape x (q + n_f) x d`-dim tensor of actual and fantasy
+            points
+
+    Returns:
+        2-element tuple containing
+
+        - A `batch_shape x q x d`-dim tensor `X_actual` of input candidates.
+        - A `n_f x batch_shape x 1 x d`-dim tensor `X_fantasies` of fantasy
+            points, where `X_fantasies[i, batch_idx]` is the i-th fantasy point
+            associated with the batch indexed by `batch_idx`.
+    """
+    if n_f > X.size(-2):
+        raise ValueError(
+            f"n_f ({n_f}) must be less than the q-batch dimension of X ({X.size(-2)})"
+        )
+    split_sizes = [X.size(-2) - n_f, n_f]
+    X_actual, X_fantasies = torch.split(X, split_sizes, dim=-2)
+    # X_fantasies is b x num_fantasies x d, needs to be num_fantasies x b x 1 x d
+    # for batch mode evaluation with batch shape num_fantasies x b.
+    # b x num_fantasies x d --> num_fantasies x b x d
+    X_fantasies = X_fantasies.permute(-2, *range(X_fantasies.dim() - 2), -1)
+    # num_fantasies x b x 1 x d
+    X_fantasies = X_fantasies.unsqueeze(dim=-2)
+    return X_actual, X_fantasies

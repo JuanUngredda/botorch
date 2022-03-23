@@ -110,7 +110,7 @@ def run_experiment(
 
     acquisition_function = mo_acq_wrapper(method=method, bounds=bounds_normalized,
                                           utility_model_name=CONFIG_UTILITY_MODEL,
-                                          num_fantasies=CONFIG_NUMBER_FANTASIES,
+                                          MC_size=CONFIG_NUMBER_FANTASIES,
                                           num_objectives=testfun.num_objectives,
                                           num_scalarizations=CONFIG_NUMBER_OF_SCALARIZATIONS,
                                           num_discrete_points=CONFIG_NUMBER_DISCRETE_POINTS,

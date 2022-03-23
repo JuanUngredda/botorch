@@ -85,7 +85,7 @@ def mo_acq_wrapper(
         num_objectives: int,
         utility_model_name=str,
         bounds: Optional[Tensor] = None,
-        num_fantasies: Optional[int] = None,
+        MC_size: Optional[int] = None,
         num_scalarizations: Optional[int] = None,
         num_discrete_points: Optional[int] = None,
         num_restarts: Optional[int] = None,
@@ -99,16 +99,19 @@ def mo_acq_wrapper(
 
     def acquisition_function(model: method,
                              fixed_scalarizations: Tensor,
+                             current_global_optimiser: Tensor,
                              X_pending: Optional[Tensor]=None):
         if method == "macKG":
             KG_acq_fun = MultiAttributeConstrainedKG(
                 model=model,
                 bounds=bounds,
+                X_discretisation_size= num_discrete_points,
                 utility_model= utility_model,
                 num_objectives= num_objectives,
-                num_fantasies=num_fantasies,
+                num_fantasies_constraints=MC_size ,
                 fixed_scalarizations=fixed_scalarizations,
                 num_scalarisations=num_scalarizations,
+                current_global_optimiser = current_global_optimiser,
                 X_pending=X_pending)
 
         elif method == "SMSEGO":

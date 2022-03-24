@@ -39,21 +39,23 @@ for f in Function.keys():
         stats_methods[m] = stats_disc_size
 
 best_performance = stats_methods["DISCKG"]['5000']
+
 import numpy as np
 for i, m in enumerate(methods):
     discretisation_sizes = stats_methods[m].keys()
     OCvals = []
     X_plot = []
     for dsize in discretisation_sizes:
-        if dsize != "5000":
-            X_plot.append(int(dsize))
-            mc_values = stats_methods[m][dsize]
-            if len(mc_values)< len(best_performance):
-                OC = torch.mean((best_performance[:len(mc_values)] - mc_values) ** 2.0)
-            else:
-                OC = torch.mean((best_performance - mc_values[:len(best_performance)])**2.0)
-            OCvals.append(OC)
+        # if dsize != "5000":
+        X_plot.append(int(dsize))
+        mc_values = stats_methods[m][dsize]
+        # OC = torch.mean(mc_values)
+        if len(mc_values)< len(best_performance):
+            OC = torch.sum(torch.abs((best_performance[:len(mc_values)] - mc_values)))
+        else:
+            OC = torch.sum(torch.abs(best_performance - mc_values[:len(best_performance)]))
+        OCvals.append(OC)
 
     plt.scatter(np.array(X_plot).reshape(-1), np.array(OCvals).reshape(-1))
-    plt.yscale("log")
+    # plt.yscale("log")
     plt.show()

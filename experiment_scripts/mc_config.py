@@ -23,7 +23,7 @@ CONFIG_DICT = {"DISCKG_GP_synthetic_dim2_l0.1": {
     "method": ["DISCKG"],
     "num_samples_initial_design": [6],
     "num_max_evaluatations": [100],
-    "num_discrete_points": [2000, 3000, 4000],
+    "num_discrete_points": [6000, 7000, 8000],
     "num_fantasies": [0],
     "num_restarts_inner_optimizer": [1],
     "raw_samples_inner_optimizer": [100],

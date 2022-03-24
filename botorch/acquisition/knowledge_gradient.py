@@ -288,7 +288,7 @@ class HybridKnowledgeGradient(MCKnowledgeGradient):
 
             # Compute value of discrete Knowledge Gradient using the generated discretisation
             kgvals[xnew_idx] = self.compute_discrete_kg(
-                xnew=xnew, optimal_discretisation=x_star
+                model=self.model, xnew=xnew, optimal_discretisation=x_star
             )
 
         return kgvals

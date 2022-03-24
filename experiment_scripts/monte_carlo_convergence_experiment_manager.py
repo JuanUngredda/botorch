@@ -178,7 +178,7 @@ def run_experiment(
         "HOSTNAME": HOSTNAME,
         "GIT_ROOT": GIT_ROOT,
     }
-
+    print(savefile + "/" + str(base_seed) + ".pkl")
     if os.path.isdir(savefile) == False:
         os.makedirs(savefile)
 

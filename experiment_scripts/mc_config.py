@@ -16,15 +16,15 @@ import torch
 
 # 2, 5, 10, 20, 50,  100, 200
 
-CONFIG_DICT = {"HYBRIDKG_GP_synthetic_dim2_l0.1": {
+CONFIG_DICT = {"ONESHOTKG_GP_synthetic_dim2_l0.1": {
     "problems": ["GP_synthetic"],
     "num_input_dim": [2],
     "lengthscale": [0.1],
-    "method": ["HYBRIDKG"],
+    "method": ["ONESHOTKG"],
     "num_samples_initial_design": [6],
     "num_max_evaluatations": [100],
     "num_discrete_points": [0],
-    "num_fantasies": [2, 5, 10, 20, 50],
+    "num_fantasies": [2, 5, 10, 20, 50, 100, 200],
     "num_restarts_inner_optimizer": [1],
     "raw_samples_inner_optimizer": [100],
     "acquisition_optimizer": [

@@ -42,26 +42,20 @@ def run(args):
     hostname = sp.check_output(["hostname"], shell=True).decode()[:-1]
 
     # IMPORT AND RUN MODULES
-    import experiment_manager
+    import monte_carlo_convergence_experiment_manager
     from forking_CSC.fork0_to_csc import U
 
     number_of_csc_machines = len(U)
-    # print(number_of_csc_machines)
+
     seed = 0
     while True:
-        experiment_names = [
-            "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1",
-            "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.4",
-            "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.1",
-            "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.4",
-                            ]
-        # experiment_names = ["DISCKG_Hartmann_2"]
+        experiment_names = ["DISCKG_GP_synthetic_dim2_l0.1"]
         for exp_name in experiment_names:
 
-            if args.k + seed > 99:
+            if args.k + seed > 39:
                 raise
 
-            experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            monte_carlo_convergence_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             # print(args.k + seed, exp_name)
         seed += number_of_csc_machines
 

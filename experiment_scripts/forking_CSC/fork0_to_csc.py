@@ -127,13 +127,7 @@ ALL_CSC_NAMES = [
     "het4",
 ]
 
-# default list uses all computers, but some may need to be removed.
-# working with names is a bitch, instead use numbers (tmux panes).
-# U = [0]
-# U = [0,2,3,4,5,6,7,8]
-# python fork0_to_csc.py /home/rawsys/matjiu/BOPL_Cornell-Warwick/experiments/control.py 14 --first_fork kumeta --basedir /home/rawsys/matjiu/RESULTS_BOPL --conda BOPL
-
-U = [0 , 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8]#[0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11] #'[2,3,6,7,10,11]#range(len(ALL_CSC_NAMES)) #[3, 5, 6, 7]#[3,6,7]##[1, 2, 3, 6] #[0, 4, 5, 7, 8]  # range(len(ALL_CSC_NAMES)) #[3,4, 9, 10, 11]#
+U = [ 1, 2 , 4 , 5 , 6 , 7 , 8]
 
 CSC_NAMES = [ALL_CSC_NAMES[i] for i in U]
 

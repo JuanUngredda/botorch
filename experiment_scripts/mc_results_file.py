@@ -38,7 +38,7 @@ for f in Function.keys():
             stats_disc_size[dsize] = torch.Tensor(KGVALS).squeeze()
         stats_methods[m] = stats_disc_size
 
-best_performance = stats_methods["DISCKG"]['5000']
+best_performance = stats_methods["DISCKG"]['8000']
 
 import numpy as np
 for i, m in enumerate(methods):
@@ -57,5 +57,5 @@ for i, m in enumerate(methods):
         OCvals.append(OC)
 
     plt.scatter(np.array(X_plot).reshape(-1), np.array(OCvals).reshape(-1))
-    # plt.yscale("log")
+    plt.yscale("log")
     plt.show()

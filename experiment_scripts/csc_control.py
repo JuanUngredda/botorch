@@ -49,7 +49,12 @@ def run(args):
 
     seed = 0
     while True:
-        experiment_names = ["ONESHOTKG_GP_synthetic_dim2_l0.1"]
+        experiment_names = ["t_ONESHOTKG_GP_synthetic_dim2_l0.1",
+                            "t_HYBRIDKG_GP_synthetic_dim2_l0.1",
+                            "t_ONESHOTHYBRIDKG_GP_synthetic_dim2_l0.1",
+                            "t_MCKG_GP_synthetic_dim2_l0.1",
+                            "t_DISCKG_GP_synthetic_dim2_l0.1"]
+
         for exp_name in experiment_names:
 
             if args.k + seed > 39:

@@ -244,6 +244,9 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                 with settings.propagate_grads(True):
                     x_top_val = value_function(X=x_top)
 
+                if self.current_value is not None:
+                    x_top_val = x_top_val - self.current_value
+
                 fantasy_opt_val[:, fantasy_idx] = x_top_val
                 xstar_inner_optimisation[fantasy_idx, :] = x_top.squeeze()
 

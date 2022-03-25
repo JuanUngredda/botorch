@@ -103,6 +103,7 @@ class BaseOptimizer(ABC):
             stop = time.time()
             print("acq: ", stop-start)
             start = time.time()
+            print("xnew", x_new)
             y_new = self.evaluate_objective(x_new)
             stop = time.time()
             print("fx: ", stop - start)

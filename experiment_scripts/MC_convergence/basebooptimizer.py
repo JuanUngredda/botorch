@@ -95,6 +95,7 @@ class BaseBOOptimizer(BaseOptimizer):
                 _ = acq_fun.forward(batch_initial_conditions)
                 te = time.time()
                 self.evaluation_time.append([te-ts])
+                return batch_initial_conditions[:,0,:], _
 
             x_best, _ = optimize_acqf(
                 acq_function=acq_fun,
@@ -108,6 +109,7 @@ class BaseBOOptimizer(BaseOptimizer):
 
         # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
         if isinstance(acq_fun, qKnowledgeGradient):
+            print(acq_fun.num_fantasies)
 
             batch_initial_conditions = gen_one_shot_kg_initial_conditions(
                 acq_function=acq_fun,
@@ -118,10 +120,15 @@ class BaseBOOptimizer(BaseOptimizer):
             )
 
             if "record_evaluation_time" in kwargs:
+                print("init_conds", batch_initial_conditions.shape)
                 ts = time.time()
                 _ = acq_fun.forward(batch_initial_conditions)
                 te = time.time()
                 self.evaluation_time.append([te-ts])
+                print("qKnowledgeGradient")
+                print(batch_initial_conditions[:,0,:], _)
+
+                return batch_initial_conditions[:,0,:], _
 
             x_best, _ = optimize_acqf(
                 acq_function=acq_fun,
@@ -148,6 +155,7 @@ class BaseBOOptimizer(BaseOptimizer):
                 _ = acq_fun.forward(initial_conditions)
                 te = time.time()
                 self.evaluation_time.append([te-ts])
+                return initial_conditions, _
 
             x_best, X_optimised_vals = gen_candidates_torch(
                 initial_conditions=initial_conditions,
@@ -159,7 +167,19 @@ class BaseBOOptimizer(BaseOptimizer):
         else:
 
             X_random_initial_conditions_raw = torch.rand((self.optional["RAW_SAMPLES"], self.dim))
-            x_GP_rec = self.policy()
+
+
+            if "record_evaluation_time" in kwargs:
+                X_initial_conditions = torch.atleast_2d(X_random_initial_conditions_raw[0, :])
+                ts = time.time()
+                _ = acq_fun.forward(X_initial_conditions)
+                te = time.time()
+                self.evaluation_time.append([te-ts])
+                print("hybrid")
+                print("X_initial_conditions", X_initial_conditions, _)
+                return X_initial_conditions, _
+
+            x_GP_rec, _ = self.policy()
             X_sampled = self.x_train
 
             # print(x_GP_rec.shape, X_random_initial_conditions_raw.shape, X_sampled.shape)
@@ -171,11 +191,6 @@ class BaseBOOptimizer(BaseOptimizer):
             best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:self.optional["NUM_RESTARTS"]]
             X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
 
-            if "record_evaluation_time" in kwargs:
-                ts = time.time()
-                _ = acq_fun.forward(X_initial_conditions)
-                te = time.time()
-                self.evaluation_time.append([te-ts])
 
             X_optimised, X_optimised_vals = gen_candidates_scipy(
                 acquisition_function=acq_fun,

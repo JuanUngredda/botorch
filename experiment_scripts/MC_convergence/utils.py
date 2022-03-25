@@ -117,7 +117,8 @@ def KG_wrapper(
                 bounds=bounds,
                 num_fantasies=num_fantasies,
                 num_restarts=num_restarts if num_restarts is not None else 4,
-                raw_samples=raw_samples if raw_samples is not None else 80,
+                raw_samples=raw_samples if raw_samples is not None else 80
+                , current_value=current_value
             )
         elif method == "HYBRIDKG":
             KG_acq_fun = HybridKnowledgeGradient(

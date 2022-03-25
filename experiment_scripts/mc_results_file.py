@@ -9,7 +9,7 @@ from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock, 
 from experiment_scripts.optimizers.test_functions.gp_synthetic_test_function import GP_synthetic
 
 Function = { "GP_synthetic": GP_synthetic}
-methods = ["DISCKG"]  # ["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
+methods = ["ONESHOTKG"]  # ["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
 
 performance_comparison = {}
 for f in Function.keys():
@@ -19,7 +19,7 @@ for f in Function.keys():
     for i, m in enumerate(methods):
         experiment_path = "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/"+m +"_"+f+"_dim2_l0.1/"+f+"/"+ m+"/"
         discretisation_sizes = os.listdir(experiment_path)
-        discretisation_sizes.remove("0")
+
 
         stats_disc_size = {}
         for dsize in discretisation_sizes:

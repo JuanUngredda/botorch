@@ -114,8 +114,9 @@ class Optimizer(BaseBOOptimizer):
     def policy(self):
 
         self._update_model(self.x_train, self.y_train)
-        x_rec = self.best_model_posterior_mean(model=self.model)
-        return x_rec
+        x_rec, x_rec_val = self.best_model_posterior_mean(model=self.model)
+
+        return x_rec, x_rec_val
 
     def best_model_posterior_mean(self, model):
         """find the highest predicted x to return to the user"""
@@ -153,13 +154,13 @@ class Optimizer(BaseBOOptimizer):
 
         x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
 
-        return torch.atleast_2d(x_best)
+        return torch.atleast_2d(x_best), torch.max(X_optimised_vals.squeeze())
 
     def get_next_point(self):
         self._update_model(self.x_train, self.y_train)
 
-        x_GP_rec = self.policy()
-        acquisition_function = self.acquisition_fun(self.model, x_optimiser= x_GP_rec)
+        x_GP_rec, x_GP_rec_val = self.policy()
+        acquisition_function = self.acquisition_fun(self.model, x_optimiser= x_GP_rec, current_value=x_GP_rec_val)
         x_new, _ = self._sgd_optimize_aqc_fun(
             acquisition_function, log_time=self.method_time, log_acq_vals= self.acq_vals
         )

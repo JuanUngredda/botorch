@@ -8,7 +8,7 @@ from botorch.test_functions import EggHolder, Branin, SixHumpCamel, Rosenbrock, 
 from experiment_scripts.optimizers.test_functions.gp_synthetic_test_function import GP_synthetic
 
 Function = { "GP_synthetic": GP_synthetic}
-methods = ["RANDOMKG"]#["DISCKG"]  # ["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
+methods = ["ONESHOTKG"]#["RANDOMKG"]#["DISCKG"]  # ["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
 
 performance_comparison = {}
 for f in Function.keys():

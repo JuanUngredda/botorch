@@ -142,7 +142,7 @@ class BaseOptimizer(ABC):
         """
 
     def test(self):
-        x_rec = self.policy()
+        x_rec, _ = self.policy()
         y_true = self.evaluate_objective(x=x_rec, log_time=self.method_time)
         n = len(self.y_train) * 1.0
 

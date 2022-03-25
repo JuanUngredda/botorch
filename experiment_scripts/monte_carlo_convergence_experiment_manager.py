@@ -205,7 +205,7 @@ def main(exp_names, seed):
             1] + "/" + str(EXPERIMENTS[idx][2]) +"/" + str(EXPERIMENTS[idx][3]) + "/" + str(seed) + ".pkl"
 
 
-        if os.path.isfile(file_name) == False:
+        if True:#os.path.isfile(file_name) == False:
             run_experiment(
                 experiment_name=EXPERIMENT_NAME,
                 experiment_tag=0,

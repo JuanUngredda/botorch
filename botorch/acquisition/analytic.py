@@ -118,7 +118,9 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         super(AnalyticAcquisitionFunction, self).__init__(model=model)
 
         self.X_discretisation = X_discretisation
-        self.current_optimiser = current_optimiser.squeeze()
+        if current_optimiser is not None:
+            self.current_optimiser = current_optimiser.squeeze()
+
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
     def forward(self, X: Tensor) -> Tensor:
         kgvals = torch.zeros(X.shape[0], dtype=torch.double)

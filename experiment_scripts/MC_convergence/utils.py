@@ -79,7 +79,6 @@ def acq_values_recorder(method):
         result = method(*args, **kw)
         if "log_acq_vals" in kw:
             kw["log_acq_vals"].append(result[-1])
-
         return result
     return output_recorderd
 

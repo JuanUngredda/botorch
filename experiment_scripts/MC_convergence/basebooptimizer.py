@@ -1,21 +1,24 @@
 import logging
 import sys
+import time
 from typing import Optional, Tuple
 
 import torch
-from botorch.generation import gen_candidates_torch
-from botorch.optim import gen_batch_initial_conditions
-from botorch.optim import optimize_acqf
 from torch import Tensor
+
+from botorch.acquisition.knowledge_gradient import (qKnowledgeGradient,
+                                                    HybridOneShotKnowledgeGradient,
+                                                    DiscreteKnowledgeGradient,
+                                                    HybridKnowledgeGradient,
+                                                    _split_fantasy_points)
+from botorch.generation import gen_candidates_torch
 from botorch.generation.gen import gen_candidates_scipy
-from botorch.utils.transforms import unnormalize, normalize
-from botorch.acquisition.knowledge_gradient import (qKnowledgeGradient, HybridOneShotKnowledgeGradient)
+from botorch.optim import optimize_acqf
 from botorch.optim.initializers import (
     gen_batch_initial_conditions,
     gen_one_shot_kg_initial_conditions,
     gen_hybrid_one_shot_kg_initial_conditions,
 )
-import time
 from .baseoptimizer import BaseOptimizer
 from .utils import timeit, acq_values_recorder, RandomSample
 
@@ -28,14 +31,14 @@ logger = logging.getLogger(__name__)
 
 class BaseBOOptimizer(BaseOptimizer):
     def __init__(
-        self,
-        testfun,
-        acquisitionfun,
-        lb: Tensor,
-        ub: Tensor,
-        n_max: int,
-        n_init: int = 20,
-        optional: Optional[dict[str, int]] = None,
+            self,
+            testfun,
+            acquisitionfun,
+            lb: Tensor,
+            ub: Tensor,
+            n_max: int,
+            n_init: int = 20,
+            optional: Optional[dict[str, int]] = None,
     ):
         """
         kernel_str: string, SE or Matern
@@ -94,8 +97,8 @@ class BaseBOOptimizer(BaseOptimizer):
                 ts = time.time()
                 _ = acq_fun.forward(batch_initial_conditions)
                 te = time.time()
-                self.evaluation_time.append([te-ts])
-                return batch_initial_conditions[:,0,:], _
+                self.evaluation_time.append([te - ts])
+                return batch_initial_conditions[:, 0, :], _
 
             x_best, _ = optimize_acqf(
                 acq_function=acq_fun,
@@ -103,14 +106,13 @@ class BaseBOOptimizer(BaseOptimizer):
                 q=1,
                 num_restarts=self.optional["NUM_RESTARTS"],
                 batch_initial_conditions=batch_initial_conditions,
-                return_full_tree=False
+                return_full_tree=True
             )
+
             return x_best, _
 
         # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
         if isinstance(acq_fun, qKnowledgeGradient):
-            print(acq_fun.num_fantasies)
-
             batch_initial_conditions = gen_one_shot_kg_initial_conditions(
                 acq_function=acq_fun,
                 bounds=bounds_normalized,
@@ -118,28 +120,32 @@ class BaseBOOptimizer(BaseOptimizer):
                 num_restarts=self.optional["NUM_RESTARTS"],
                 raw_samples=self.optional["RAW_SAMPLES"]
             )
-
             if "record_evaluation_time" in kwargs:
                 print("init_conds", batch_initial_conditions.shape)
                 ts = time.time()
                 _ = acq_fun.forward(batch_initial_conditions)
                 te = time.time()
-                self.evaluation_time.append([te-ts])
-                print("qKnowledgeGradient")
-                print(batch_initial_conditions[:,0,:], _)
-
-                return batch_initial_conditions[:,0,:], _
+                self.evaluation_time.append([te - ts])
+                return batch_initial_conditions[:, 0, :], _
 
             x_best, _ = optimize_acqf(
                 acq_function=acq_fun,
                 bounds=bounds_normalized,
                 q=1,
                 num_restarts=self.optional["NUM_RESTARTS"],
-                raw_samples=self.optional["RAW_SAMPLES"]
+                raw_samples=self.optional["RAW_SAMPLES"],
+                return_full_tree=True
             )
 
-            return x_best, _
 
+            x_GP_rec, _ = self.policy()
+            xnew, X_discretisation = _split_fantasy_points(X=x_best, n_f=acq_fun.num_fantasies)
+
+            X_discretisation = torch.cat([X_discretisation.squeeze(), x_GP_rec])
+            _ = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model, xnew=xnew,
+                                                          optimal_discretisation=X_discretisation)
+            x_best = xnew
+            return x_best, _
 
         if self.optional["OPTIMIZER"] == "Adam":
             initial_conditions = gen_batch_initial_conditions(
@@ -154,7 +160,7 @@ class BaseBOOptimizer(BaseOptimizer):
                 ts = time.time()
                 _ = acq_fun.forward(initial_conditions)
                 te = time.time()
-                self.evaluation_time.append([te-ts])
+                self.evaluation_time.append([te - ts])
                 return initial_conditions, _
 
             x_best, X_optimised_vals = gen_candidates_torch(
@@ -168,13 +174,12 @@ class BaseBOOptimizer(BaseOptimizer):
 
             X_random_initial_conditions_raw = torch.rand((self.optional["RAW_SAMPLES"], self.dim))
 
-
             if "record_evaluation_time" in kwargs:
                 X_initial_conditions = torch.atleast_2d(X_random_initial_conditions_raw[0, :])
                 ts = time.time()
                 _ = acq_fun.forward(X_initial_conditions)
                 te = time.time()
-                self.evaluation_time.append([te-ts])
+                self.evaluation_time.append([te - ts])
                 print("hybrid")
                 print("X_initial_conditions", X_initial_conditions, _)
                 return X_initial_conditions, _
@@ -188,9 +193,9 @@ class BaseBOOptimizer(BaseOptimizer):
             with torch.no_grad():
                 mu_val_initial_conditions_raw = acq_fun.forward(X=X_initial_conditions_raw).squeeze()
 
-            best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:self.optional["NUM_RESTARTS"]]
+            best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
+                             :self.optional["NUM_RESTARTS"]]
             X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
-
 
             X_optimised, X_optimised_vals = gen_candidates_scipy(
                 acquisition_function=acq_fun,
@@ -201,5 +206,13 @@ class BaseBOOptimizer(BaseOptimizer):
 
             x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
 
+            #evaluate in discKG vals
+            zvalues =  acq_fun.construct_z_vals(nz=acq_fun.num_fantasies, )
+            X_discretisation, _ = acq_fun.compute_mc_kg(xnew=x_best, zvalues=zvalues)
 
+            X_discretisation = torch.cat([X_discretisation.squeeze(), x_GP_rec])
+            X_optimised_vals = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model, xnew=x_best,
+                                                          optimal_discretisation=X_discretisation)
+            # print("X_optimised vals", X_optimised_vals)
+            # raise
         return x_best, X_optimised_vals

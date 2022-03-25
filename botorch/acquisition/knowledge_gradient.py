@@ -296,6 +296,7 @@ class HybridKnowledgeGradient(MCKnowledgeGradient):
 
         return kgvals
 
+
     def construct_z_vals(self, nz: int, device: Optional[torch.device] = None) -> Tensor:
         """make nz equally quantile-spaced z values"""
 

@@ -12,7 +12,7 @@ from botorch.utils.transforms import unnormalize
 from mc_config import CONFIG_DICT
 from experiment_scripts.optimizers.test_functions.gp_synthetic_test_function import GP_synthetic
 from MC_convergence.mc_convergence import Optimizer
-from optimizers.utils import KG_wrapper
+from MC_convergence.utils import KG_wrapper
 
 logger = logging.getLogger(__name__)
 

@@ -100,7 +100,8 @@ def KG_wrapper(
     num_restarts: Optional[int] = None,
     raw_samples: Optional[int] = None
 ):
-    def acquisition_function(model: method, x_optimiser: Optional[Tensor]=None):
+    def acquisition_function(model: method, x_optimiser: Optional[Tensor]=None, current_value: Optional[Tensor]=None):
+
         if method == "DISCKG":
 
             KG_acq_fun = DiscreteKnowledgeGradient(
@@ -127,7 +128,7 @@ def KG_wrapper(
                 raw_samples=raw_samples if raw_samples is not None else 80,
             )
         elif method == "ONESHOTKG":
-            KG_acq_fun = qKnowledgeGradient(model, num_fantasies=num_fantasies)
+            KG_acq_fun = qKnowledgeGradient(model, num_fantasies=num_fantasies, current_value= current_value)
 
         elif method =="RANDOMKG":
             KG_acq_fun = RandomSample(dim=bounds.shape[1])

@@ -119,6 +119,7 @@ def KG_wrapper(
                 raw_samples=raw_samples if raw_samples is not None else 80,
             )
         elif method == "ONESHOTKG":
+
             KG_acq_fun = qKnowledgeGradient(model,
                                             num_fantasies=num_fantasies,
                                             current_value=current_value)

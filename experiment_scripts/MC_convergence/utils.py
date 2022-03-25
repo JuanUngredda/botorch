@@ -104,11 +104,14 @@ def KG_wrapper(
 
         if method == "DISCKG":
 
+            X_discretisation = torch.rand(size=(num_discrete_points, 1, bounds.shape[1]))
+
             KG_acq_fun = DiscreteKnowledgeGradient(
                 model=model,
                 bounds=bounds,
                 num_discrete_points=num_discrete_points,
-                X_discretisation=None,
+                X_discretisation=X_discretisation,
+                current_optimiser = x_optimiser
             )
         elif method == "MCKG":
 

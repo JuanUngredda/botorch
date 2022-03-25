@@ -91,6 +91,7 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
             bounds: Optional[Tensor] = None,
             num_discrete_points: Optional[int] = None,
             X_discretisation: Optional[Tensor] = None,
+            current_optimiser: Optional[Tensor] = None,
     ) -> None:
         r"""
         Discrete Knowledge Gradient
@@ -117,13 +118,17 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         super(AnalyticAcquisitionFunction, self).__init__(model=model)
 
         self.X_discretisation = X_discretisation
-
+        self.current_optimiser = current_optimiser.squeeze()
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
     def forward(self, X: Tensor) -> Tensor:
         kgvals = torch.zeros(X.shape[0], dtype=torch.double)
 
         for xnew_idx, xnew in enumerate(X):
             xnew = xnew.unsqueeze(0)
+            if self.current_optimiser is not None:
+                self.current_optimiser = torch.atleast_2d(self.current_optimiser)
+                self.X_discretisation = torch.cat([self.X_discretisation, self.current_optimiser.unsqueeze(dim=0)])
+
             kgvals[xnew_idx] = self.compute_discrete_kg(
                 model=self.model, xnew=xnew, optimal_discretisation=self.X_discretisation
             )

@@ -163,8 +163,7 @@ class Optimizer(BaseBOOptimizer):
         acquisition_function = self.acquisition_fun(self.model, x_optimiser= x_GP_rec, current_value=x_GP_rec_val)
         print(acquisition_function)
         x_new, _ = self._sgd_optimize_aqc_fun(
-            acquisition_function, log_time=self.method_time, log_acq_vals= self.acq_vals,
-        record_evaluation_time=self.evaluation_time)
+            acquisition_function, log_time=self.method_time, log_acq_vals= self.acq_vals)
 
         return x_new
 

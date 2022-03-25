@@ -201,4 +201,5 @@ class BaseBOOptimizer(BaseOptimizer):
 
             x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
 
+
         return x_best, X_optimised_vals

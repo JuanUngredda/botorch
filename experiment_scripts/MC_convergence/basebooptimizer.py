@@ -15,7 +15,7 @@ from botorch.optim.initializers import (
     gen_one_shot_kg_initial_conditions,
     gen_hybrid_one_shot_kg_initial_conditions,
 )
-
+import time
 from .baseoptimizer import BaseOptimizer
 from .utils import timeit, acq_values_recorder, RandomSample
 
@@ -90,6 +90,12 @@ class BaseBOOptimizer(BaseOptimizer):
                 raw_samples=self.optional["RAW_SAMPLES"]
             )
 
+            if "record_evaluation_time" in kwargs:
+                ts = time.time()
+                _ = acq_fun.forward(batch_initial_conditions)
+                te = time.time()
+                self.evaluation_time.append([te-ts])
+
             x_best, _ = optimize_acqf(
                 acq_function=acq_fun,
                 bounds=bounds_normalized,
@@ -102,6 +108,21 @@ class BaseBOOptimizer(BaseOptimizer):
 
         # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
         if isinstance(acq_fun, qKnowledgeGradient):
+
+            batch_initial_conditions = gen_one_shot_kg_initial_conditions(
+                acq_function=acq_fun,
+                bounds=bounds_normalized,
+                q=1,
+                num_restarts=self.optional["NUM_RESTARTS"],
+                raw_samples=self.optional["RAW_SAMPLES"]
+            )
+
+            if "record_evaluation_time" in kwargs:
+                ts = time.time()
+                _ = acq_fun.forward(batch_initial_conditions)
+                te = time.time()
+                self.evaluation_time.append([te-ts])
+
             x_best, _ = optimize_acqf(
                 acq_function=acq_fun,
                 bounds=bounds_normalized,
@@ -121,6 +142,13 @@ class BaseBOOptimizer(BaseOptimizer):
                 num_restarts=self.optional["NUM_RESTARTS"],
                 raw_samples=self.optional["RAW_SAMPLES"],
             )
+
+            if "record_evaluation_time" in kwargs:
+                ts = time.time()
+                _ = acq_fun.forward(initial_conditions)
+                te = time.time()
+                self.evaluation_time.append([te-ts])
+
             x_best, X_optimised_vals = gen_candidates_torch(
                 initial_conditions=initial_conditions,
                 acquisition_function=acq_fun,
@@ -143,6 +171,11 @@ class BaseBOOptimizer(BaseOptimizer):
             best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:self.optional["NUM_RESTARTS"]]
             X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
 
+            if "record_evaluation_time" in kwargs:
+                ts = time.time()
+                _ = acq_fun.forward(X_initial_conditions)
+                te = time.time()
+                self.evaluation_time.append([te-ts])
 
             X_optimised, X_optimised_vals = gen_candidates_scipy(
                 acquisition_function=acq_fun,

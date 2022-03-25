@@ -71,6 +71,7 @@ class BaseOptimizer(ABC):
         self.performance = torch.zeros((0, 2))
         self.method_time = {}
         self.acq_vals = []
+        self.evaluation_time = []
         self.gp_likelihood_noise = torch.Tensor([])
         self.gp_lengthscales = torch.Tensor([])
         # no need to test every step, 30 points will be enough for a results plot.

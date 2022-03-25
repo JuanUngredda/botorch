@@ -162,6 +162,7 @@ def run_experiment(
         "number_of_raw_samples_inner_optimizer": CONFIG_NUMBER_RAW_SAMPLES_INNER_OPT,
         "number_of_restarts_acq_optimizer": CONFIG_NUMBER_RESTARTS_ACQ_OPT,
         "number_of_raw_samples_acq_optimizer": CONFIG_NUMBER_RAW_SAMPLES_ACQ_OPT,
+        "evaluation_time": optimizer.evaluation_time,
         "base_seed": base_seed,
         "acquisition_optimizer": CONFIG_ACQ_OPTIMIZER,
         "kernel": optimizer.kernel_name,

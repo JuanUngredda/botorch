@@ -162,8 +162,8 @@ class Optimizer(BaseBOOptimizer):
         x_GP_rec, x_GP_rec_val = self.policy()
         acquisition_function = self.acquisition_fun(self.model, x_optimiser= x_GP_rec, current_value=x_GP_rec_val)
         x_new, _ = self._sgd_optimize_aqc_fun(
-            acquisition_function, log_time=self.method_time, log_acq_vals= self.acq_vals
-        )
+            acquisition_function, log_time=self.method_time, log_acq_vals= self.acq_vals,
+        record_evaluation_time=self.evaluation_time)
 
         return x_new
 
@@ -187,6 +187,7 @@ class Optimizer(BaseBOOptimizer):
             "OC": self.performance,
             "optimum": self.optimal_value,
             "x": unnormalize(self.x_train, self.bounds),
+            "evaluation_time": self.evaluation_time,
             "y": self.y_train,
             "kernel": self.kernel_name,
             "gp_lik_noise": self.gp_likelihood_noise,

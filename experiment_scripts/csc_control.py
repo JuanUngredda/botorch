@@ -57,7 +57,7 @@ def run(args):
 
         for exp_name in experiment_names:
 
-            if args.k + seed > 39:
+            if args.k + seed > 99:
                 raise
 
             monte_carlo_convergence_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)

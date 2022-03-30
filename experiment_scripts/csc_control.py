@@ -45,15 +45,18 @@ def run(args):
     import monte_carlo_convergence_experiment_manager
     from forking_CSC.fork0_to_csc import U
 
-    number_of_csc_machines = len(U)
+    number_of_csc_machines = 1#len(U)
 
     seed = 0
     while True:
-        experiment_names = ["ONESHOTKG_GP_synthetic_dim2_l0.1", "MCKG_GP_synthetic_dim2_l0.1"]
+        experiment_names = ["best_GP_vals_GP_synthetic_dim2_l0.1",
+                            "best_GP_vals_GP_synthetic_dim4_l0.1",
+                            "best_GP_vals_GP_synthetic_dim2_l0.4",
+                            "best_GP_vals_GP_synthetic_dim4_l0.4"]
 
         for exp_name in experiment_names:
 
-            if args.k + seed > 39:
+            if args.k + seed > 99:
                 raise
 
             monte_carlo_convergence_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)

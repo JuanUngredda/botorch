@@ -106,30 +106,33 @@ RETURNS
             [torch.zeros((1, self.dim)), torch.ones((1, self.dim))]
         )
 
-        X_initial_conditions_raw = torch.rand((500,  self.dim)).to(dtype=dtype)
+        X_initial_conditions_raw = torch.rand((100000,  self.dim)).to(dtype=dtype)
         X_initial_conditions_raw = torch.concat([X_initial_conditions_raw, bounds])
         mu_val_initial_conditions_raw = self.forward(X_initial_conditions_raw).squeeze()
-        best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:1]
+        best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:5]
 
         X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
 
+        self.best_val = 9999
         def wrapped_evaluate_true_fun(X):
             X = torch.atleast_2d(torch.Tensor(X).to(dtype=dtype))
-            ub_condition = X <= bounds[1]
-            lb_condition = X >= bounds[0]
+            ub_condition = X <= bounds[1] + 1e-4
+            lb_condition = X >= bounds[0] - 1e-4
             overall_condition = torch.prod(ub_condition * lb_condition, dtype=bool)
             if overall_condition:
-                return -self.forward(X).to(dtype=dtype).squeeze().detach().numpy()
+                val = -self.forward(X).to(dtype=dtype).squeeze().detach().numpy()
+                if val < self.best_val:
+                    self.best_val = val
+                return val
             else:
                 return (torch.ones((X.shape[0]))*999).numpy()
 
 
-        res = minimize(wrapped_evaluate_true_fun,
-                       x0=X_initial_conditions, method='Nelder-Mead', tol=1e-6)
-        x_best = res["x"]
-        x_best_val = res["fun"]
+        res = [minimize(wrapped_evaluate_true_fun, x0=x0, method='nelder-mead', tol=1e-9) for x0 in X_initial_conditions]
+        x_best = res[0]["x"]
+        # x_best_val = res["fun"]
 
-        return list(x_best), x_best_val
+        return list(x_best), self.best_val
 
     def evaluate_true(self, X: Tensor) -> Tensor:
 

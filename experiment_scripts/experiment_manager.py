@@ -64,6 +64,7 @@ def run_experiment(
         "GP_synthetic": GP_synthetic
     }
 
+
     if "GP_synthetic" == problem:
         CONFIG_INPUT_DIM = CONFIG_DICT[experiment_name]["num_input_dim"][experiment_tag]
         CONFIG_LENGTHSCALE = CONFIG_DICT[experiment_name]["lengthscale"][experiment_tag]

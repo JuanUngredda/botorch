@@ -11,7 +11,7 @@ methods = ["macKG"]
 
 for i, m in enumerate(methods):
     pkl_file = open(
-        "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/C2DTLZ2/"
+        "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/C2DTLZ2_experiments/C2DTLZ2/"
         + m
         + "/Tche/28.pkl",
         "rb",

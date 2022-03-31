@@ -282,6 +282,164 @@ class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
         return prob_feas
 
 
+class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction):
+    r"""Constrained Posterior Mean (feasibility-weighted).
+
+    Computes the analytic Posterior Mean for a Normal posterior
+    distribution, weighted by a probability of feasibility. The objective and
+    constraints are assumed to be independent and have Gaussian posterior
+    distributions. Only supports the case `q=1`. The model should be
+    multi-outcome, with the index of the objective and constraints passed to
+    the constructor.
+    """
+
+    def __init__(
+            self,
+            model: Model,
+            objective_index: int,
+            num_constraints: int,
+            num_objectives: int
+    ) -> None:
+        r"""Analytic Constrained Expected Improvement.
+
+        Args:
+            model: A fitted single-outcome model.
+            best_f: Either a scalar or a `b`-dim Tensor (batch mode) representing
+                the best feasible function value observed so far (assumed noiseless).
+            objective_index: The index of the objective.
+            constraints: A dictionary of the form `{i: [lower, upper]}`, where
+                `i` is the output index, and `lower` and `upper` are lower and upper
+                bounds on that output (resp. interpreted as -Inf / Inf if None)
+            maximize: If True, consider the problem a maximization problem.
+        """
+        # use AcquisitionFunction constructor to avoid check for objective
+        super(AnalyticAcquisitionFunction, self).__init__(model=model)
+        self.objective = None
+        self.objective_index = objective_index
+        self.num_objectives = num_objectives
+        self.constraints_index = num_constraints
+
+        self.model_obj = self.model.subset_output(idcs=range(self.objective_index, self.objective_index + 1))
+        self.model_cs = self.model.subset_output(idcs=range(self.num_objectives, model.num_outputs))
+        default_value = (None, 0)
+        constraints = dict.fromkeys(
+            range(model.num_outputs - self.num_objectives), default_value
+        )
+        self._preprocess_constraint_bounds(constraints=constraints)
+
+    @t_batch_mode_transform(expected_q=1)
+    def forward(self, X: Tensor) -> Tensor:
+        r"""Evaluate Constrained Expected Improvement on the candidate set X.
+
+        Args:
+            X: A `(b) x 1 x d`-dim Tensor of `(b)` t-batches of `d`-dim design
+                points each.
+
+        Returns:
+            A `(b)`-dim Tensor of Expected Improvement values at the given
+            design points `X`.
+        """
+        X = X.to(dtype=torch.double)
+        posterior_obj = self.model_obj.posterior(X=X)
+        mean_obj = posterior_obj.mean.squeeze(dim=-2)  # (b) x m
+
+        posterior_cs = self.model_cs.posterior(X=X)
+        mean_constraints = posterior_cs.mean.squeeze(dim=-2)  # (b) x m
+        sigma_constraints = posterior_cs.variance.squeeze(dim=-2).sqrt().clamp_min(1e-9)  # (b) x m
+
+
+        prob_feas = self._compute_prob_feas(
+            X=X.squeeze(dim=-2),
+            means=mean_constraints.squeeze(dim=-2),
+            sigmas=sigma_constraints.squeeze(dim=-2),
+        ).double()
+        indicator = (prob_feas.squeeze() > 0.20) *1.0
+
+        constrained_posterior_mean = mean_obj.squeeze() * indicator.squeeze()
+
+        return constrained_posterior_mean.squeeze(dim=-1).double()
+
+    def _preprocess_constraint_bounds(
+            self, constraints: Dict[int, Tuple[Optional[float], Optional[float]]]
+    ) -> None:
+        r"""Set up constraint bounds.
+
+        Args:
+            constraints: A dictionary of the form `{i: [lower, upper]}`, where
+                `i` is the output index, and `lower` and `upper` are lower and upper
+                bounds on that output (resp. interpreted as -Inf / Inf if None)
+        """
+        con_lower, con_lower_inds = [], []
+        con_upper, con_upper_inds = [], []
+        con_both, con_both_inds = [], []
+        con_indices = list(constraints.keys())
+        if len(con_indices) == 0:
+            raise ValueError("There must be at least one constraint.")
+
+        if self.num_objectives in con_indices:
+            raise ValueError(
+                "Output corresponding to objective should not be a constraint."
+            )
+        for k in con_indices:
+            if constraints[k][0] is not None and constraints[k][1] is not None:
+                if constraints[k][1] <= constraints[k][0]:
+                    raise ValueError("Upper bound is less than the lower bound.")
+                con_both_inds.append(k)
+                con_both.append([constraints[k][0], constraints[k][1]])
+            elif constraints[k][0] is not None:
+                con_lower_inds.append(k)
+                con_lower.append(constraints[k][0])
+            elif constraints[k][1] is not None:
+                con_upper_inds.append(k)
+                con_upper.append(constraints[k][1])
+        # tensor-based indexing is much faster than list-based advanced indexing
+        self.register_buffer("con_lower_inds", torch.tensor(con_lower_inds))
+        self.register_buffer("con_upper_inds", torch.tensor(con_upper_inds))
+        self.register_buffer("con_both_inds", torch.tensor(con_both_inds))
+        # tensor indexing
+        self.register_buffer("con_both", torch.tensor(con_both, dtype=torch.float))
+        self.register_buffer("con_lower", torch.tensor(con_lower, dtype=torch.float))
+        self.register_buffer("con_upper", torch.tensor(con_upper, dtype=torch.float))
+
+    def _compute_prob_feas(self, X: Tensor, means: Tensor, sigmas: Tensor) -> Tensor:
+        r"""Compute feasibility probability for each batch of X.
+
+        Args:
+            X: A `(b) x 1 x d`-dim Tensor of `(b)` t-batches of `d`-dim design
+                points each.
+            means: A `(b) x m`-dim Tensor of means.
+            sigmas: A `(b) x m`-dim Tensor of standard deviations.
+        Returns:
+            A `(b) x 1`-dim tensor of feasibility probabilities
+
+        Note: This function does case-work for upper bound, lower bound, and both-sided
+        bounds. Another way to do it would be to use 'inf' and -'inf' for the
+        one-sided bounds and use the logic for the both-sided case. But this
+        causes an issue with autograd since we get 0 * inf.
+        TODO: Investigate further.
+        """
+        output_shape = X.shape[:-2] + torch.Size([1])
+        prob_feas = torch.ones(output_shape, device=X.device, dtype=X.dtype)
+
+        if len(self.con_lower_inds) > 0:
+            self.con_lower_inds = self.con_lower_inds.to(device=X.device)
+            normal_lower = _construct_dist(means, sigmas, self.con_lower_inds)
+            prob_l = 1 - normal_lower.cdf(self.con_lower)
+            prob_feas = prob_feas.mul(torch.prod(prob_l, dim=-1, keepdim=True))
+        if len(self.con_upper_inds) > 0:
+            self.con_upper_inds = self.con_upper_inds.to(device=X.device)
+            normal_upper = _construct_dist(means, sigmas, self.con_upper_inds)
+            prob_u = normal_upper.cdf(self.con_upper)
+            prob_feas = prob_feas.mul(torch.prod(prob_u, dim=-1, keepdim=True))
+        if len(self.con_both_inds) > 0:
+            self.con_both_inds = self.con_both_inds.to(device=X.device)
+            normal_both = _construct_dist(means, sigmas, self.con_both_inds)
+            prob_u = normal_both.cdf(self.con_both[:, 1])
+            prob_l = normal_both.cdf(self.con_both[:, 0])
+            prob_feas = prob_feas.mul(torch.prod(prob_u - prob_l, dim=-1, keepdim=True))
+        return prob_feas
+
+
 
 class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
     r"""Constrained Posterior Mean (feasibility-weighted).
@@ -445,6 +603,95 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
             prob_feas = prob_feas.mul(torch.prod(prob_u - prob_l, dim=-1, keepdim=True))
         return prob_feas
 
+def ParetoFrontApproximation_xstar(
+        model: Model,
+        input_dim: int,
+        objective_dim: int,
+        scalatization_fun: Callable,
+        bounds: Tensor,
+        y_train: Tensor,
+        x_train: Tensor,
+        c_train: Tensor,
+        weights: Tensor,
+        num_objectives: int,
+        num_constraints: int,
+        optional: Optional[dict[str, int]] = None,
+) -> tuple[Tensor, Tensor]:
+
+    X_pareto_solutions = []
+    X_pmean = []
+
+    for idx, w in enumerate(weights):
+
+        constrained_model = ConstrainedPosteriorMean_individual_threshold(
+            model=model,
+            objective_index=idx,
+            num_objectives= num_objectives,
+            num_constraints = num_constraints
+        )
+
+        X_initial_conditions_raw = torch.rand((1000, 1, 1, input_dim))
+
+        mu_val_initial_conditions_raw = constrained_model.forward(
+            X_initial_conditions_raw
+        )
+
+        best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
+                         : 1
+                         ]
+        X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :].double()
+
+        top_x_initial_means, value_initial_means = gen_candidates_scipy(
+            initial_conditions=X_initial_conditions,
+            acquisition_function=constrained_model,
+            lower_bounds=torch.zeros(input_dim),
+            upper_bounds=torch.ones(input_dim))
+
+        top_x = top_x_initial_means[torch.argmax(value_initial_means), ...]
+        X_pareto_solutions.append(top_x)
+        X_pmean.append(torch.max(value_initial_means))
+
+    X_pareto_solutions = torch.vstack(X_pareto_solutions)
+    X_pmean = torch.vstack(X_pmean)
+
+    #########################################################
+    # plot_X = torch.rand((1000,3))
+    #
+    # from botorch.fit import fit_gpytorch_model
+    # from botorch.models import SingleTaskGP
+    # from botorch.models.model_list_gp_regression import ModelListGP
+    # from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
+    #
+    # Y_train_standarized = standardize(y_train)
+    # train_joint_YC = torch.cat([Y_train_standarized, c_train], dim=-1)
+    #
+    # models = []
+    # for i in range(train_joint_YC.shape[-1]):
+    #     models.append(
+    #         SingleTaskGP(x_train, train_joint_YC[..., i: i + 1])
+    #     )
+    # model = ModelListGP(*models)
+    # mll = SumMarginalLogLikelihood(model.likelihood, model)
+    # fit_gpytorch_model(mll)
+    #
+    # posterior = model.posterior(plot_X)
+    # mean = posterior.mean.detach().numpy()
+    # is_feas = (mean[:,2] <= 0)
+    # print("weights", weights)
+    # mu_val_initial_conditions_raw = constrained_model.forward(plot_X.unsqueeze(dim=-2)).detach().numpy()
+    #
+    # import matplotlib.pyplot as plt
+    # plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mu_val_initial_conditions_raw.squeeze()[is_feas])
+    #
+    # Y_pareto_posterior = model.posterior(X_pareto_solutions)
+    # Y_pareto_mean = Y_pareto_posterior.mean.detach().numpy()
+    # print(Y_pareto_mean.shape)
+    # plt.scatter(Y_pareto_mean[...,0], Y_pareto_mean[...,1], color="red")
+    #
+    # plt.show()
+    # raise
+
+    return X_pareto_solutions, X_pmean
 
 def ParetoFrontApproximation(
         model: Model,
@@ -465,7 +712,10 @@ def ParetoFrontApproximation(
     X_pmean = []
 
     for idx, w in enumerate(weights):
-        print("weight", idx)
+        # print("idx", idx)
+        # print("num_obj", num_objectives)
+        # print("num_const", num_constraints)
+        # print("model outpus", model.num_outputs)
         constrained_model = ConstrainedPosteriorMean_individual(
             model=model,
             objective_index=idx,
@@ -497,7 +747,7 @@ def ParetoFrontApproximation(
     X_pareto_solutions = torch.vstack(X_pareto_solutions)
     X_pmean = torch.vstack(X_pmean)
 
-    ##########################################################
+    #########################################################
     # plot_X = torch.rand((1000,3))
     #
     # from botorch.fit import fit_gpytorch_model
@@ -520,9 +770,11 @@ def ParetoFrontApproximation(
     # posterior = model.posterior(plot_X)
     # mean = posterior.mean.detach().numpy()
     # is_feas = (mean[:,2] <= 0)
-    # print("mean", mean.shape)
+    # print("weights", weights)
+    # mu_val_initial_conditions_raw = constrained_model.forward(plot_X.unsqueeze(dim=-2)).detach().numpy()
+    #
     # import matplotlib.pyplot as plt
-    # plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mean[is_feas,2])
+    # plt.scatter(mean[is_feas,0], mean[is_feas,1], c=mu_val_initial_conditions_raw.squeeze()[is_feas])
     #
     # Y_pareto_posterior = model.posterior(X_pareto_solutions)
     # Y_pareto_mean = Y_pareto_posterior.mean.detach().numpy()

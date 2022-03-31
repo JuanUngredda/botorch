@@ -42,7 +42,7 @@ def run(args):
     hostname = sp.check_output(["hostname"], shell=True).decode()[:-1]
 
     # IMPORT AND RUN MODULES
-    import monte_carlo_convergence_experiment_manager
+    import mo_experiment_manager#monte_carlo_convergence_experiment_manager
     from forking_CSC.fork0_to_csc import U
 
     number_of_csc_machines = len(U)
@@ -55,7 +55,7 @@ def run(args):
             if args.k + seed > 29:
                 raise
 
-            monte_carlo_convergence_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             # print(args.k + seed, exp_name)
         seed += number_of_csc_machines
 

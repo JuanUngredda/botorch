@@ -189,19 +189,26 @@ def main(exp_names, seed):
 
     # run that badboy
     for idx, _ in enumerate(EXPERIMENTS):
-        run_experiment(
-            experiment_name=EXPERIMENT_NAME,
-            problem=EXPERIMENTS[idx][0],
-            method=EXPERIMENTS[idx][1],
-            utility_model_str=EXPERIMENTS[idx][2],
-            savefile=script_dir
-                     + "/results/"
-                     + EXPERIMENTS[idx][0]
-                     + "/"
-                     + EXPERIMENTS[idx][1] + "/"
-                     + EXPERIMENTS[idx][2],
-            base_seed=seed,
-        )
+
+        file_name = script_dir + "/results/" + EXPERIMENT_NAME + "/" + EXPERIMENTS[idx][0] + "/" + EXPERIMENTS[idx][
+            1] + "/" + EXPERIMENTS[idx][2]+ "/" + str(seed) + ".pkl"
+
+        if os.path.isfile(file_name) == False:
+
+            run_experiment(
+                experiment_name=EXPERIMENT_NAME,
+                problem=EXPERIMENTS[idx][0],
+                method=EXPERIMENTS[idx][1],
+                utility_model_str=EXPERIMENTS[idx][2],
+                savefile=script_dir
+                         + "/results/"+
+                         EXPERIMENT_NAME+"/"
+                         + EXPERIMENTS[idx][0]
+                         + "/"
+                         + EXPERIMENTS[idx][1] + "/"
+                         + EXPERIMENTS[idx][2],
+                base_seed=seed,
+            )
 
 
 if __name__ == "__main__":

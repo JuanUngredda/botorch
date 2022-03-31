@@ -25,7 +25,7 @@ from torch import Tensor
 
 
 def get_chebyshev_scalarization(
-    weights: Tensor, Y: Tensor, alpha: float = 0
+    weights: Tensor, Y: Tensor, alpha: float = 0.001
 ) -> Callable[[Tensor, Optional[Tensor]], Tensor]:
     r"""Construct an augmented Chebyshev scalarization.
 
@@ -91,6 +91,7 @@ def get_chebyshev_scalarization(
     def obj(Y: Tensor, X: Optional[Tensor] = None) -> Tensor:
         # scale to [0,1]
         Y_normalized = normalize(Y, bounds=Y_bounds)
+
         # If minimizing an objective, convert Y_normalized values to [-1,0],
         # such that min(w*y) makes sense, we want all w*y's to be positive
         Y_normalized[..., minimize] = Y_normalized[..., minimize] - 1

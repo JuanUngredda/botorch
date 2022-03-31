@@ -131,9 +131,9 @@ ALL_CSC_NAMES = [
 # working with names is a bitch, instead use numbers (tmux panes).
 # U = [0]
 # U = [0,2,3,4,5,6,7,8]
-# python fork0_to_csc.py /home/rawsys/matjiu/BOPL_Cornell-Warwick/experiments/control.py 14 --first_fork kumeta --basedir /home/rawsys/matjiu/RESULTS_BOPL --conda BOPL
+#python fork0_to_csc.py /home/rawsys/matjiu/botorch/experiment_scripts/csc_control.py 7 --basedir /home/rawsys/matjiu/RESULTS_mc_botorch --conda hybridkgenv
 
-U = [9,10,11]
+U = [0,1,2,4,5,7,8,10,11]#range(len(ALL_CSC_NAMES))
 
 CSC_NAMES = [ALL_CSC_NAMES[i] for i in U]
 

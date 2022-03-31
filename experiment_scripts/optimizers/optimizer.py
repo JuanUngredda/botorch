@@ -102,8 +102,7 @@ class Optimizer(BaseBOOptimizer):
         "Include data to find best posterior mean"
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
-        print(bounds_normalized)
-        raise
+
         # generate initialisation points
         batch_initial_conditions = gen_batch_initial_conditions(
             acq_function=PosteriorMean(model),

@@ -11,6 +11,7 @@ from botorch.generation.gen import gen_candidates_scipy
 from .baseoptimizer import BaseOptimizer
 from .utils import timeit
 from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG
+from botorch.utils.sampling import sample_simplex
 
 LOG_FORMAT = (
     "%(asctime)s - %(name)s:%(funcName)s:%(lineno)s - %(levelname)s:  %(message)s"
@@ -61,6 +62,46 @@ class BaseBOOptimizer(BaseOptimizer):
 
             self.optional = optional
 
+    def plot_points_on_objective(self, points, cval, scalarizations):
+        plot_X = torch.rand((1000, 1, 3))
+
+        from botorch.fit import fit_gpytorch_model
+        from botorch.models import SingleTaskGP
+        from botorch.models.model_list_gp_regression import ModelListGP
+        from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
+        from botorch.utils import standardize
+        import matplotlib.pyplot as plt
+        from botorch.utils.transforms import unnormalize
+
+        Y_train_standarized = self.y_train#standardize(self.y_train)
+        train_joint_YC = torch.cat([Y_train_standarized, self.c_train], dim=-1)
+
+        models = []
+        for i in range(train_joint_YC.shape[-1]):
+            models.append(
+                SingleTaskGP(self.x_train, train_joint_YC[..., i: i + 1])
+            )
+        model = ModelListGP(*models)
+        mll = SumMarginalLogLikelihood(model.likelihood, model)
+        fit_gpytorch_model(mll)
+        print("scalarizations", scalarizations)
+        print("points", points)
+        with torch.no_grad():
+            bounds = torch.vstack([self.lb, self.ub])
+            x = unnormalize(X=plot_X, bounds=bounds)
+            objective_best_vals = torch.vstack([self.f(x_i) for x_i in points]).to(dtype=torch.double)
+            print("objective_best_vals ",objective_best_vals )
+            objective = torch.vstack([self.f(x_i) for x_i in x]).to(dtype=torch.double)
+            constraints = -torch.vstack([self.f.evaluate_slack(x_i) for x_i in x]).to(dtype=torch.double)
+            is_feas = (constraints.squeeze() <= 0)
+
+            plt.scatter(objective[:, 0], objective[:, 1], color="grey")
+            plt.scatter(objective[is_feas, 0], objective[is_feas, 1], color="green")
+            plt.scatter(Y_train_standarized.squeeze()[:,0],Y_train_standarized.squeeze()[:,1], color="orange", marker="x")
+            plt.scatter(objective_best_vals[:,0], objective_best_vals[:,1], c=cval)
+            plt.show()
+
+
     @timeit
     def _sgd_optimize_aqc_fun(self, acq_fun: callable,
                               bacth_initial_points: Optional[Tensor]=None, **kwargs) -> Tensor:
@@ -68,117 +109,55 @@ class BaseBOOptimizer(BaseOptimizer):
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
-        if bacth_initial_points is None:
-            X_initial_conditions_raw = self.best_model_posterior_mean(model=self.model, weights=self.weights)
-        else:
-            X_initial_conditions_raw = bacth_initial_points
+        num_xnew = self.optional["RAW_SAMPLES"]
+        num_xstar = acq_fun.X_discretisation_size
+        input_dim = self.dim
+        print("gen xnew")
+        xnew_weights = sample_simplex(n=num_xnew, d=self.f.num_objectives, qmc=True).squeeze()
+        xnew_samples, _ = self.gen_xstar_values(model=self.model, weights=xnew_weights)
 
-        if isinstance(acq_fun, MultiAttributeConstrainedKG):
+        batch_initial_conditions = torch.zeros((num_xnew, num_xstar + 1, input_dim), dtype=torch.double)
+        print("gen xstar")
+        xstar_weights = sample_simplex(n=num_xstar, d=self.f.num_objectives, qmc=True).squeeze()
+        xstar, _ = self.gen_xstar_values(model=self.model, weights=xstar_weights)
+        xstar = xstar.squeeze(dim=-2)
+        # xstar = torch.rand((num_xstar, input_dim))
 
-            num_xnew = self.optional["NUM_RESTARTS"]
-            num_xstar = acq_fun.X_discretisation_size
-            input_dim = self.dim
+        for xnew_idx, xnew in enumerate(xnew_samples):
 
-            perm = torch.randperm(X_initial_conditions_raw.shape[0])
-            idx = perm[:num_xnew]
-            xnew_samples = X_initial_conditions_raw[idx]
+            idx_ics = torch.cat([xnew, xstar]).unsqueeze(dim=0)
+            batch_initial_conditions[xnew_idx, ...] = idx_ics
 
-            batch_initial_conditions = torch.zeros((num_xnew, num_xstar + 1, input_dim), dtype=torch.double)
-            for xnew_idx, xnew in enumerate(xnew_samples):
+        # print(batch_initial_conditions)
+        with torch.no_grad():
+            mu_val_initial_conditions_raw = acq_fun.forward(batch_initial_conditions)
 
-                perm = torch.randperm(X_initial_conditions_raw.shape[0])
-                idx = perm[:num_xstar]
-                xstar = X_initial_conditions_raw[idx].squeeze(dim=-2)
-
-                idx_ics = torch.cat([xnew, xstar]).unsqueeze(dim=0)
-                batch_initial_conditions[xnew_idx, ...] = idx_ics
-
-            x_best_concat, _ = optimize_acqf(
-                acq_function=acq_fun,
-                bounds=bounds_normalized,
-                q=1,
-                num_restarts=self.optional["NUM_RESTARTS"],
-                batch_initial_conditions=batch_initial_conditions,
-                return_full_tree=False
-            )
-            x_best = acq_fun.extract_candidates(X_full=x_best_concat)
-
-            # # print("X_initial_conditions", X_initial_conditions, "x_best",x_best, "_")
-            # # posterior_best = self.model.posterior(x_best)
-            # # mean_best = posterior_best.mean.squeeze().detach().numpy()
-            # # print("mean_best",mean_best, "_", _)
-            # # raise
-            # #################################################
-            # plot_X = torch.rand((1000, 1, 3))
-            #
-            # from botorch.fit import fit_gpytorch_model
-            # from botorch.models import SingleTaskGP
-            # from botorch.models.model_list_gp_regression import ModelListGP
-            # from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
-            # from botorch.utils import standardize
-            #
-            # Y_train_standarized = standardize(self.y_train)
-            # train_joint_YC = torch.cat([Y_train_standarized, self.c_train], dim=-1)
-            #
-            # models = []
-            # for i in range(train_joint_YC.shape[-1]):
-            #     models.append(
-            #         SingleTaskGP(self.x_train, train_joint_YC[..., i: i + 1])
-            #     )
-            # model = ModelListGP(*models)
-            # mll = SumMarginalLogLikelihood(model.likelihood, model)
-            # fit_gpytorch_model(mll)
-            #
-            # with torch.no_grad():
-            #     posterior = model.posterior(plot_X)
-            #     mean = posterior.mean.squeeze().detach().numpy()
-            #     is_feas = (mean[..., -1] <= 0)
-            #     import matplotlib.pyplot as plt
-            #     posterior_best = model.posterior(x_best)
-            #     mean_best = posterior_best.mean.squeeze().detach().numpy()
-            #     plt.scatter(mean[is_feas, 0], mean[is_feas, 1])  # , c=mean[is_feas, 2])
-            #     plt.scatter(mean_best[0], mean_best[1], color="red")
-            #     plt.show()
-            #     plt.savefig(
-            #         "/home/juan/Documents/repos_data/macKG/diagnostics/image_diag_{}.pdf".format(self.x_train.shape[0]))
-            #     plt.cla()
-            #     # acq_vals = acq_fun.forward(plot_X).squeeze().detach().numpy()
-            #     # posterior_best = model.posterior(x_best)
-            #     # mean_best = posterior_best.mean.squeeze().detach().numpy()
-            #     # print("mean_best", mean_best)
-            #     # plt.scatter(mean[:, 0], mean[:, 1], c=acq_vals)
-            #     # plt.scatter(mean_best[0], mean_best[1], color="red")
-            #     # plt.show()
-            #     # raise
-            # print("x_best", x_best, "value", _)
-
-            return x_best
-
-        with torch.no_grad(): #torch.enable_grad():#torch.no_grad():
-            mu_val_initial_conditions_raw = acq_fun.forward(X_initial_conditions_raw)
-
-            best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
+            best_k_indeces = torch.argsort(mu_val_initial_conditions_raw.squeeze(), descending=True)[
                              : self.optional["NUM_RESTARTS"]
                              ].squeeze()
 
-            X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
+            batch_initial_conditions = batch_initial_conditions[best_k_indeces:best_k_indeces+1, :, :]
 
-        # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
-        if self.optional["OPTIMIZER"] == "Adam":
-            x_best, _ = gen_candidates_torch(
-                initial_conditions=X_initial_conditions.unsqueeze(dim=-2),
-                acquisition_function=acq_fun,
-                lower_bounds=bounds_normalized[0, :],
-                upper_bounds=bounds_normalized[1, :],
-                optimizer=torch.optim.Adam,
-            )
-        else:
-            x_best, _ = gen_candidates_scipy(
-                acquisition_function=acq_fun,
-                initial_conditions=X_initial_conditions.unsqueeze(dim=-2),
-                lower_bounds=torch.zeros(self.dim),
-                upper_bounds=torch.ones(self.dim)
-            )
+        # self.plot_points_on_objective(points=xnew_samples.squeeze(), cval=mu_val_initial_conditions_raw,scalarizations=xnew_weights)
+        print("batch_initial_conditions ",batch_initial_conditions )
+        x_best_concat, _ = optimize_acqf(
+            acq_function=acq_fun,
+            bounds=bounds_normalized,
+            q=1,
+            num_restarts=self.optional["NUM_RESTARTS"],
+            batch_initial_conditions=batch_initial_conditions,
+            return_full_tree=False
+        )
+        x_best = acq_fun.extract_candidates(X_full=x_best_concat)
+        # print("xbest", x_best)
+        # self.plot_points_on_objective(points=torch.atleast_2d(x_best), cval=_,scalarizations=xnew_weights)
+        # print("plot on x_best_concat")
+        # acq_fun._plot(X=x_best_concat,
+        #               X_train=self.x_train,
+        #               Y_train=self.y_train,
+        #               C_train=self.c_train,
+        #               true_fun=self.f)
 
-        return x_best.squeeze(dim=-2).detach()
+        return x_best
+
 

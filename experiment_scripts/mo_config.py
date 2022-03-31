@@ -23,14 +23,14 @@ CONFIG_DICT = {
         "num_samples_initial_design": 8,
         "num_max_evaluatations": 100,
         "utility_model": [ "Tche"],
-        "num_discrete_points": 3,
+        "num_discrete_points": 5,
         "num_fantasies": 5,
         "num_restarts_inner_optimizer": 1 ,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":
             "L-BFGS-B",  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": 1,
-        "raw_samples_acq_optimizer": 100,
+        "raw_samples_acq_optimizer": 20,
     },
     "BraninCurrin_experiments": {
         "problems": ["ConstrainedBraninCurrin"],

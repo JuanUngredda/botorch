@@ -149,7 +149,7 @@ class Optimizer(BaseBOOptimizer):
         for w in weights:
             scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
             utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-            # utility_values = standardize(utility_values)
+            utility_values = standardize(utility_values)
             models.append(
                 FixedNoiseGP(self.x_train, utility_values,
                              train_Yvar=NOISE_VAR.expand_as(utility_values)
@@ -197,7 +197,7 @@ class Optimizer(BaseBOOptimizer):
         for w in weights:
             scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
             utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-            # utility_values = standardize(utility_values)
+            utility_values = standardize(utility_values)
 
             models_xstar.append(
                 FixedNoiseGP(self.x_train, utility_values,

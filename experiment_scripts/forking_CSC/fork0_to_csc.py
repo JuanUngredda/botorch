@@ -133,7 +133,7 @@ ALL_CSC_NAMES = [
 # U = [0,2,3,4,5,6,7,8]
 #python fork0_to_csc.py /home/rawsys/matjiu/botorch/experiment_scripts/csc_control.py 7 --basedir /home/rawsys/matjiu/RESULTS_mc_botorch --conda hybridkgenv
 
-U = range(len(ALL_CSC_NAMES))
+U = [8,9, 11]#range(len(ALL_CSC_NAMES))
 
 CSC_NAMES = [ALL_CSC_NAMES[i] for i in U]
 

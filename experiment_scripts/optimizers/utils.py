@@ -15,7 +15,7 @@ from botorch.utils.multi_objective.scalarization import (
     get_chebyshev_scalarization,
     get_linear_scalarization,
 )
-
+from botorch import settings
 dtype = torch.double
 
 #################################################################
@@ -284,7 +284,6 @@ class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
 
 class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction):
     r"""Constrained Posterior Mean (feasibility-weighted).
-
     Computes the analytic Posterior Mean for a Normal posterior
     distribution, weighted by a probability of feasibility. The objective and
     constraints are assumed to be independent and have Gaussian posterior
@@ -301,7 +300,6 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
             num_objectives: int
     ) -> None:
         r"""Analytic Constrained Expected Improvement.
-
         Args:
             model: A fitted single-outcome model.
             best_f: Either a scalar or a `b`-dim Tensor (batch mode) representing
@@ -330,11 +328,9 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
     @t_batch_mode_transform(expected_q=1)
     def forward(self, X: Tensor) -> Tensor:
         r"""Evaluate Constrained Expected Improvement on the candidate set X.
-
         Args:
             X: A `(b) x 1 x d`-dim Tensor of `(b)` t-batches of `d`-dim design
                 points each.
-
         Returns:
             A `(b)`-dim Tensor of Expected Improvement values at the given
             design points `X`.
@@ -353,9 +349,10 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
             means=mean_constraints.squeeze(dim=-2),
             sigmas=sigma_constraints.squeeze(dim=-2),
         ).double()
-        indicator = (prob_feas.squeeze() > 0.20) *1.0
 
-        constrained_posterior_mean = mean_obj.squeeze() * indicator.squeeze()
+        # indicator = (prob_feas.squeeze() > (0.49)** self.constraints_index)*1.0
+
+        constrained_posterior_mean = mean_obj.squeeze() * prob_feas.squeeze()#indicator.squeeze()
 
         return constrained_posterior_mean.squeeze(dim=-1).double()
 
@@ -363,7 +360,6 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
             self, constraints: Dict[int, Tuple[Optional[float], Optional[float]]]
     ) -> None:
         r"""Set up constraint bounds.
-
         Args:
             constraints: A dictionary of the form `{i: [lower, upper]}`, where
                 `i` is the output index, and `lower` and `upper` are lower and upper
@@ -375,11 +371,11 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
         con_indices = list(constraints.keys())
         if len(con_indices) == 0:
             raise ValueError("There must be at least one constraint.")
-
-        if self.num_objectives in con_indices:
-            raise ValueError(
-                "Output corresponding to objective should not be a constraint."
-            )
+        #
+        # if self.num_objectives in con_indices:
+        #     raise ValueError(
+        #         "Output corresponding to objective should not be a constraint."
+        #     )
         for k in con_indices:
             if constraints[k][0] is not None and constraints[k][1] is not None:
                 if constraints[k][1] <= constraints[k][0]:
@@ -403,7 +399,6 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
 
     def _compute_prob_feas(self, X: Tensor, means: Tensor, sigmas: Tensor) -> Tensor:
         r"""Compute feasibility probability for each batch of X.
-
         Args:
             X: A `(b) x 1 x d`-dim Tensor of `(b)` t-batches of `d`-dim design
                 points each.
@@ -411,7 +406,6 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
             sigmas: A `(b) x m`-dim Tensor of standard deviations.
         Returns:
             A `(b) x 1`-dim tensor of feasibility probabilities
-
         Note: This function does case-work for upper bound, lower bound, and both-sided
         bounds. Another way to do it would be to use 'inf' and -'inf' for the
         one-sided bounds and use the logic for the both-sided case. But this
@@ -622,25 +616,26 @@ def ParetoFrontApproximation_xstar(
     X_pmean = []
 
     for idx, w in enumerate(weights):
-
         constrained_model = ConstrainedPosteriorMean_individual_threshold(
             model=model,
             objective_index=idx,
-            num_objectives= num_objectives,
-            num_constraints = num_constraints
+            num_objectives=num_objectives,
+            num_constraints=num_constraints
         )
 
         X_initial_conditions_raw = torch.rand((1000, 1, 1, input_dim))
 
-        mu_val_initial_conditions_raw = constrained_model.forward(
-            X_initial_conditions_raw
-        )
+        with torch.no_grad():
+            mu_val_initial_conditions_raw = constrained_model.forward(
+                X_initial_conditions_raw
+            )
 
         best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
                          : 1
                          ]
         X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :].double()
-
+        # print("exited")
+        # print("entered opt")
         top_x_initial_means, value_initial_means = gen_candidates_scipy(
             initial_conditions=X_initial_conditions,
             acquisition_function=constrained_model,
@@ -802,12 +797,16 @@ def _compute_expected_utility(
         utility[idx, :] = utility_values
 
     is_feas =  (c_values <= 0).squeeze()
-
-    if is_feas.sum() == 0:
+    if len(is_feas.shape)==1:
+        is_feas = is_feas.unsqueeze(dim=-1)
+    # print(is_feas.shape)
+    aggregated_is_feas = torch.prod(is_feas, dim=1, dtype=bool)
+    # print(aggregated_is_feas, aggregated_is_feas.shape)
+    if aggregated_is_feas.sum() == 0:
         expected_utility = torch.Tensor([-100])
         return expected_utility
     else:
-        utility_feas = utility[:, is_feas]
+        utility_feas = utility[:, aggregated_is_feas]
         best_utility = torch.max(utility_feas , dim=1).values
         expected_utility = best_utility.mean()
 

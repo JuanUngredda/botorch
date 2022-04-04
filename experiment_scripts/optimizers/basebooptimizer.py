@@ -63,7 +63,7 @@ class BaseBOOptimizer(BaseOptimizer):
             self.optional = optional
 
     def plot_points_on_objective(self, points, cval, scalarizations):
-        plot_X = torch.rand((1000, 1, 3))
+        plot_X = torch.rand((1000, 1, self.f.dim))
 
         from botorch.fit import fit_gpytorch_model
         from botorch.models import SingleTaskGP
@@ -94,9 +94,11 @@ class BaseBOOptimizer(BaseOptimizer):
             objective = torch.vstack([self.f(x_i) for x_i in x]).to(dtype=torch.double)
             constraints = -torch.vstack([self.f.evaluate_slack(x_i) for x_i in x]).to(dtype=torch.double)
             is_feas = (constraints.squeeze() <= 0)
-
+            if len(is_feas.shape) == 1:
+                is_feas = is_feas.unsqueeze(dim=-1)
+            aggregated_is_feas = torch.prod(is_feas, dim=-1, dtype=bool)
             plt.scatter(objective[:, 0], objective[:, 1], color="grey")
-            plt.scatter(objective[is_feas, 0], objective[is_feas, 1], color="green")
+            plt.scatter(objective[aggregated_is_feas, 0], objective[aggregated_is_feas, 1], color="green")
             plt.scatter(Y_train_standarized.squeeze()[:,0],Y_train_standarized.squeeze()[:,1], color="orange", marker="x")
             plt.scatter(objective_best_vals[:,0], objective_best_vals[:,1], c=cval)
             plt.show()
@@ -115,8 +117,10 @@ class BaseBOOptimizer(BaseOptimizer):
         print("gen xnew")
         xnew_weights = sample_simplex(n=num_xnew, d=self.f.num_objectives, qmc=True).squeeze()
         xnew_samples, _ = self.gen_xstar_values(model=self.model, weights=xnew_weights)
+        xnew_samples_rd = torch.rand((30 , 1, input_dim))
+        xnew_samples = torch.vstack([xnew_samples, xnew_samples_rd])
 
-        batch_initial_conditions = torch.zeros((num_xnew, num_xstar + 1, input_dim), dtype=torch.double)
+        batch_initial_conditions = torch.zeros((num_xnew + 30, num_xstar + 1, input_dim), dtype=torch.double)
         print("gen xstar")
         xstar_weights = sample_simplex(n=num_xstar, d=self.f.num_objectives, qmc=True).squeeze()
         xstar, _ = self.gen_xstar_values(model=self.model, weights=xstar_weights)
@@ -138,21 +142,35 @@ class BaseBOOptimizer(BaseOptimizer):
 
             batch_initial_conditions = batch_initial_conditions[best_k_indeces:best_k_indeces+1, :, :]
 
-        # self.plot_points_on_objective(points=xnew_samples.squeeze(), cval=mu_val_initial_conditions_raw,scalarizations=xnew_weights)
+        # self.plot_points_on_objective(points=xnew_samples.squeeze(),
+        #                               cval=mu_val_initial_conditions_raw,
+        #                               scalarizations=xnew_weights)
         print("batch_initial_conditions ",batch_initial_conditions )
+        # acq_fun._plot(X=batch_initial_conditions,
+        #               lb = self.lb,
+        #               ub = self.ub,
+        #               X_train=self.x_train,
+        #               Y_train=self.y_train,
+        #               C_train=self.c_train,
+        #               true_fun=self.f)
+        # print("optimising acq")
         x_best_concat, _ = optimize_acqf(
             acq_function=acq_fun,
             bounds=bounds_normalized,
             q=1,
             num_restarts=self.optional["NUM_RESTARTS"],
             batch_initial_conditions=batch_initial_conditions,
+            # optimizer=torch.optim.Adam,
             return_full_tree=False
         )
+        # print("finished optimising acq")
         x_best = acq_fun.extract_candidates(X_full=x_best_concat)
         # print("xbest", x_best)
         # self.plot_points_on_objective(points=torch.atleast_2d(x_best), cval=_,scalarizations=xnew_weights)
         # print("plot on x_best_concat")
         # acq_fun._plot(X=x_best_concat,
+        #               lb = self.lb,
+        #               ub = self.ub,
         #               X_train=self.x_train,
         #               Y_train=self.y_train,
         #               C_train=self.c_train,

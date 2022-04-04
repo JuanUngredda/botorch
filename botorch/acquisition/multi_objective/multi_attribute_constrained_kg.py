@@ -29,6 +29,52 @@ from botorch.models.model_list_gp_regression import ModelListGP
 from botorch.sampling.samplers import MCSampler, SobolQMCNormalSampler
 from botorch.utils.sampling import draw_sobol_samples
 from botorch.utils.transforms import t_batch_mode_transform
+from botorch.utils.sampling import draw_sobol_normal_samples, manual_seed
+
+#################################################################
+#                                                               #
+#                           LHC SAMPLERS                        #
+#                                                               #
+#################################################################
+
+
+def lhc(
+        n: int,
+        dim: Optional[int] = None,
+        lb: Optional[Tensor] = None,
+        ub: Optional[Tensor] = None,
+) -> Tensor:
+    """
+    Parameters
+    ----------
+    n: sample size
+    dim: optional, dimenions of the cube
+    lb: lower bound, Tensor
+    ub: upper bound, Tensor
+    Returns
+    -------
+    x: Tensor, shape (n, dim)
+    """
+
+    if dim is not None:
+        assert (lb is None) and (ub is None), "give dim OR bounds"
+        lb = torch.zeros(dim)
+        ub = torch.ones(dim)
+
+    else:
+        assert (lb is not None) and (ub is not None), "give dim OR bounds"
+        lb = lb.squeeze()
+        ub = ub.squeeze()
+        dim = len(lb)
+        assert len(lb) == len(ub), f"bounds are not same shape:{len(lb)}!={len(ub)}"
+
+    x = torch.zeros((n, dim))
+    if n > 0:
+        for d in range(dim):
+            x[:, d] = (torch.randperm(n) + torch.rand(n)) * (1 / n)
+            x[:, d] = (ub[d] - lb[d]) * x[:, d] + lb[d]
+
+    return x
 
 
 class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
@@ -103,28 +149,47 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
         This method is usually not called directly, but via the objectives
         """
+        # print("X", X.shape)
         X_actual, X_fantasies = _split_fantasy_points(X=X, n_f=self.X_discretisation_size)
-
-        zvalues = self._initialize_maKG_parameters(model=self.model)
+        # print("X_actual", X_actual.shape)
+        # print("X_fantasies", X_fantasies.shape)
+        # raise
+        zvalues, lik_noise = self._initialize_maKG_parameters(model=self.model)
         kgvals = torch.zeros(X.shape[0], dtype=torch.double)
-
+        
+        # X_discretisation = torch.rand(1000,  self.input_dim)
+        # kg_unboosted_vals = []
         for x_i, xnew in enumerate(X_actual):
             X_discretisation = X_fantasies[:, x_i, ...].squeeze()
             X_discretisation = torch.cat([X_discretisation, self.current_global_optimiser])
-            kgvals[x_i] = self._compute_mackg(
-                xnew=xnew,
-                weights=self.fixed_scalarizations,
-                zvalues=zvalues,
-                optimal_discretisation=X_discretisation)
+            # kg_unboosted = self._compute_mackg_unboosted(
+            #     xnew=xnew,
+            #     weights=self.fixed_scalarizations,
+            #     zvalues=zvalues,
+            #     optimal_discretisation=X_discretisation)
 
+            # kg_unboosted_vals.append(kg_unboosted)
+            kg_boosted = self._compute_mackg_boosted(
+            xnew=xnew,
+            weights=self.fixed_scalarizations,
+            zvalues=zvalues,
+            optimal_discretisation=X_discretisation,
+            lik_noise=lik_noise)
+
+
+            kgvals[x_i] = kg_boosted
+
+        # print("kgboosted", kgvals)
+        # print("kg_unboosted", kg_unboosted_vals)
+        # raise
         return kgvals
 
-    def _compute_mackg(self,
+
+    def _compute_mackg_unboosted(self,
                        xnew: Tensor,
                        weights: Tensor,
                        zvalues: Tensor,
                        optimal_discretisation: Tensor) -> tuple[Tensor, Tensor]:
-
         # Loop over xnew points
 
         fantasy_opt_val = torch.zeros((self.num_scalarisations, self.num_fantasies_constraints))  # 1 x num_fantasies
@@ -137,7 +202,6 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
             # loop over number of GP fantasised mean realisations
             for fantasy_idx in range(zvalues.shape[0]):
-
                 # construct one realisation of the fantasy model by adding xnew. We rewrite the internal variable
                 # base samples, such that the samples are taken from the quantile.
                 zval = zvalues[fantasy_idx, :].view(1, 1, self.num_constraints)
@@ -150,7 +214,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
                 model_obj = self.model_obj.subset_output(idcs=[w_idx])
 
-                discKG = self.compute_discrete_kg(xnew=xnew,
+                discKG = self.compute_discrete_kg_unboosted(xnew=xnew,
                                                   model_obj=model_obj,
                                                   model_cs=fantasy_model_cs,
                                                   optimal_discretisation=optimal_discretisation)
@@ -159,42 +223,15 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
         return fantasy_opt_val.mean()
 
-    def _initialize_maKG_parameters(self, model: Model):
 
-        current_number_of_observations = self.model.train_inputs[0][0].shape[0]
-
-        # Z values are only updated if new data is included in the model.
-        # This ensures that we can use a deterministic optimizer.
-        bounds_normalized = torch.vstack([torch.zeros(self.input_dim), torch.ones(self.input_dim)])
-
-        if current_number_of_observations != self.num_X_observations:
-
-            num_constraints = self.num_outputs - self.num_objectives
-            constraint_base_zvals = construct_z_vals(nz=self.num_fantasies_constraints)
-
-            z_vals = torch.atleast_2d(constraint_base_zvals).T
-
-            self.z_vals = z_vals
-            self.num_X_observations = current_number_of_observations
-
-            assert z_vals.shape[0] == self.num_fantasies_constraints, "num of z vals is not the same as num of fantasies"
-            assert z_vals.shape[1] == self.num_constraints, "there should be a zval per dimension"
-        else:
-
-            z_vals = self.z_vals
-
-        return z_vals
-
-    def compute_discrete_kg(
+    def compute_discrete_kg_unboosted(
             self, xnew: Tensor, model_obj: Model, model_cs: Model, optimal_discretisation: Tensor
     ) -> Tensor:
         """
-
         Args:
         xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
             `d` dimensions.
             optimal_discretisation: num_fantasies x d Tensor. Optimal X values for each z in zvalues.
-
         """
 
         # Augment the discretisation with the designs.
@@ -228,19 +265,211 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         posterior_cs = model_cs.posterior(X=concatenated_xnew_discretisation)
         mean_constraints = posterior_cs.mean.squeeze(dim=-2)  # (b) x m
         sigma_constraints = posterior_cs.variance.squeeze(dim=-2).sqrt().clamp_min(1e-9)  # (b) x m
-
+        print("##############prob_feas###########")
+        print("mean_constraints",mean_constraints)
+        print("sigma_constraints",sigma_constraints)
         prob_feas = self._compute_prob_feas(
             X=concatenated_xnew_discretisation.squeeze(dim=-2),
             means=mean_constraints.squeeze(dim=-2),
             sigmas=sigma_constraints.squeeze(dim=-2),
         ).double().squeeze()
+        print("prob_feas", prob_feas)
+        print("unboosted")
+        print("mean", full_posterior_mean)
+        print("var", full_predictive_covariance)
 
         # initialise empty kgvals torch.tensor
         kgval = self.kgcb(a=full_posterior_mean * prob_feas, b=full_predictive_covariance * prob_feas)
 
         return kgval
 
+    def _compute_mackg_boosted(self,
+                       xnew: Tensor,
+                       weights: Tensor,
+                       zvalues: Tensor,
+                       optimal_discretisation: Tensor,
+                       lik_noise: list) -> tuple[Tensor, Tensor]:
+
+
+
+        fantasy_opt_val = torch.zeros((self.num_scalarisations, self.num_fantasies_constraints))  # 1 x num_fantasies
+
+        prob_feas = self._prob_feas_precomp(zvalues=zvalues, xnew=xnew, optimal_discretisation=optimal_discretisation)
+        # print("zvalues", zvalues)
+        # print("prob_feas", prob_feas)
+        model_obj_posteriors = self._posterior_mean_cov_precomp(model=self.model_obj,
+                                         xnew=xnew,
+                                         weights=weights,
+                                         optimal_discretisation=optimal_discretisation)
+        # print("model_obj",model_obj_posteriors)
+
+        for fantasy_idx in range(zvalues.shape[0]):
+            prob_feas_idx = prob_feas[fantasy_idx]
+
+            for w_idx, _ in enumerate(weights):
+
+                discKG = self.compute_discrete_kg(xnew=xnew,
+                                                  model_obj_posterior=model_obj_posteriors[w_idx],
+                                                  prob_feas=prob_feas_idx ,
+                                                  optimal_discretisation=optimal_discretisation,
+                                                  lik_noise = lik_noise[w_idx])
+
+                fantasy_opt_val[w_idx, fantasy_idx] = discKG
+
+        return fantasy_opt_val.mean()
+
+    def _posterior_mean_cov_precomp(self, model: Model, weights:Tensor, xnew:Tensor, optimal_discretisation: Tensor):
+        # Augment the discretisation with the designs.
+        assert weights.shape[0] == self.num_objectives, "issue with num of outputs"
+
+        concatenated_xnew_discretisation = torch.cat(
+            [xnew, optimal_discretisation], dim=0
+        ).squeeze()  # (m + num_X_disc, d)
+
+        # Compute posterior mean, variance, and covariance.
+        posteriors_lst = []
+        for w_idx, _ in enumerate(weights):
+            model_obj = self.model_obj.subset_output(idcs=[w_idx])
+            full_posterior = model_obj.posterior(
+                concatenated_xnew_discretisation, observation_noise=False
+            )
+
+            posteriors_lst.append(full_posterior)
+        return posteriors_lst
+
+    def _prob_feas_precomp(self, zvalues: Tensor, xnew:Tensor, optimal_discretisation: Tensor):
+
+        sampler = SobolQMCNormalSampler(
+            num_samples=self.num_fantasies_constraints, resample=False, collapse_batch_dims=True
+        )
+        sampler.base_samples = zvalues.view(self.num_fantasies_constraints, 1, self.num_constraints)
+        # fantasize the model
+        fantasy_model_cs = self.mo_cs_model.fantasize(
+            X=xnew, sampler=sampler, observation_noise=True
+        )
+
+        overall_prob_feas = []
+        for idx in range(zvalues.shape[0]):
+
+            # Augment the discretisation with the designs.
+            concatenated_xnew_discretisation = torch.cat(
+                [xnew, optimal_discretisation], dim=0
+            ).squeeze()  # (m + num_X_disc, d)
+
+            posterior_cs = fantasy_model_cs.posterior(X=concatenated_xnew_discretisation)
+            mean_constraints = posterior_cs.mean.squeeze(dim=-2)  # (b) x m
+            sigma_constraints = posterior_cs.variance.squeeze(dim=-2).sqrt().clamp_min(1e-9)  # (b) x m
+            # print("#########prob feas precomp############")
+            # print("concatenated_xnew_discretisation.unsqueeze(dim=-2)",concatenated_xnew_discretisation.unsqueeze(dim=-2))
+            # print("mean_constraints[idx].squeeze()",mean_constraints[idx].squeeze())
+            # print("sigma_constraints[idx].squeeze()",sigma_constraints[idx].squeeze())
+            prob_feas = self._compute_prob_feas(
+                X=concatenated_xnew_discretisation.squeeze(dim=-2),
+                means=mean_constraints[idx].squeeze(dim=-2),
+                sigmas=sigma_constraints[idx].squeeze(dim=-2),
+            ).double()  # (num_fantasies_constraints, optimal_disc+1 , 1)# .squeeze()
+            # print("prob_feas", prob_feas , prob_feas.shape)
+            overall_prob_feas.append(prob_feas)
+        # raise
+        return overall_prob_feas
+
+    def _initialize_maKG_parameters(self, model: Model):
+
+        current_number_of_observations = self.model.train_inputs[0][0].shape[0]
+
+        # Z values are only updated if new data is included in the model.
+        # This ensures that we can use a deterministic optimizer.
+        bounds_normalized = torch.vstack([torch.zeros(self.input_dim), torch.ones(self.input_dim)])
+
+        if current_number_of_observations != self.num_X_observations:
+
+            num_constraints = self.num_outputs - self.num_objectives
+            # constraint_base_zvals = construct_z_vals(nz=self.num_fantasies_constraints)
+
+            # quantiles_z = lhc(n=self.num_fantasies_constraints, dim=self.num_constraints).to(dtype=torch.double)
+            # quantile_lb = [0]*self.num_constraints
+            # quantile_ub = [1]*self.num_constraints
+            # quantiles_z = draw_sobol_samples(bounds=torch.Tensor([quantile_lb,quantile_ub]), n=self.num_fantasies_constraints, q=1).squeeze(dim=-2)
+
+            z_vals = draw_sobol_normal_samples(
+                d=self.num_constraints,
+                n=self.num_fantasies_constraints
+            )
+
+            # normal = torch.distributions.Normal(0, 1)
+            # z_vals = normal.icdf(quantiles_z)
+
+            # z_vals = torch.atleast_2d(constraint_base_zvals).T
+            # print("z_values", z_vals)
+            self.z_vals = z_vals
+            self.num_X_observations = current_number_of_observations
+
+            assert z_vals.shape[0] == self.num_fantasies_constraints, "num of z vals is not the same as num of fantasies"
+            assert z_vals.shape[1] == self.num_constraints, "there should be a zval per dimension"
+
+            noise_variance = []
+            for w_idx, _ in enumerate(self.fixed_scalarizations):
+                likelihood_noise = torch.unique(self.model_obj.subset_output(idcs=[w_idx]).likelihood.likelihoods[0].noise_covar.noise)
+                noise_variance.append(likelihood_noise)
+            self.noise_variance = noise_variance
+            # print("noise_variance", self.noise_variance)
+        else:
+
+            z_vals = self.z_vals
+            noise_variance = self.noise_variance
+        return z_vals, noise_variance
+
+
+    def compute_discrete_kg(
+            self, xnew: Tensor, model_obj_posterior: Callable, prob_feas: Tensor, optimal_discretisation: Tensor, lik_noise:float) -> Tensor:
+        """
+
+        Args:
+        xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
+            `d` dimensions.
+            optimal_discretisation: num_fantasies x d Tensor. Optimal X values for each z in zvalues.
+
+        """
+
+        # Compute posterior mean, variance, and covariance.
+        # full_posterior = model_obj.posterior(
+        #     concatenated_xnew_discretisation, observation_noise=False
+        # )
+        noise_variance = lik_noise#torch.unique(model_obj_posterior.likelihood.likelihoods[0].noise_covar.noise)
+        full_posterior_mean = model_obj_posterior.mean.squeeze()  # (1 + num_X_disc , 1)
+
+        # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
+        full_posterior_covariance = (
+            model_obj_posterior.mvn.covariance_matrix
+        )  # (1 + num_X_disc , 1 + num_X_disc )
+        posterior_cov_xnew_opt_disc = full_posterior_covariance[
+                                      : len(xnew), :
+                                      ].squeeze()  # ( 1 + num_X_disc,)
+        full_posterior_variance = (
+            model_obj_posterior.variance.squeeze()
+        )  # (1 + num_X_disc, )
+
+        full_predictive_covariance = (
+                posterior_cov_xnew_opt_disc
+                / (full_posterior_variance + noise_variance).sqrt()
+        ).squeeze()
+
+        # initialise empty kgvals torch.tensor
+        assert len(full_posterior_mean.squeeze())== len(prob_feas.squeeze()), "issue with prob feas and full post size"
+        assert len(full_predictive_covariance.squeeze())== len(prob_feas.squeeze()), "issue with prob feas and full post size"
+
+        # print("boosted")
+        # print("mean", full_posterior_mean)
+        # print("var", full_predictive_covariance)
+        # print("prob_feas", prob_feas)
+
+        kgval = self.kgcb(a=full_posterior_mean * prob_feas.squeeze(), b=full_predictive_covariance * prob_feas.squeeze())
+
+        return kgval
+
     def _plot(self, X,
+              lb,
+              ub,
               X_train,
               Y_train,
               C_train,
@@ -248,7 +477,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
         x_best, optimal_discretisation = _split_fantasy_points(X=X, n_f=self.X_discretisation_size)
 
-        plot_X = torch.rand((1000, 1, 3))
+        plot_X = torch.rand((1000, 1, self.input_dim))
 
         from botorch.fit import fit_gpytorch_model
         from botorch.models import SingleTaskGP
@@ -271,58 +500,54 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         fit_gpytorch_model(mll)
 
         with torch.no_grad():
+            bounds = torch.vstack([lb, ub])
+            x = unnormalize(X=plot_X, bounds=bounds)
 
-            x = unnormalize(X=plot_X, bounds=self.bounds)
             objective = torch.vstack([true_fun(x_i) for x_i in x]).to(dtype =torch.double)
             constraints = -torch.vstack([true_fun.evaluate_slack(x_i) for x_i in x]).to(dtype =torch.double)
             is_feas = (constraints.squeeze() <= 0)
+            aggregated_is_feas = torch.prod(is_feas, dim=-1, dtype=bool)
+
+            # plt.scatter(objective[:, 0], objective[:, 1], color="grey")
+            # plt.scatter(objective[aggregated_is_feas, 0], objective[aggregated_is_feas, 1], color="green")
+            # plt.show()
 
             posterior = model.posterior(plot_X)
-            mean = posterior.mean.squeeze().detach().numpy()
-            # is_feas = (mean[..., -1] <= 0)
+            mean = posterior.mean.squeeze()
+
+            # plt.scatter(mean[:, 0], mean[:, 1])
+            # plt.show()
 
             posterior_best = model.posterior(x_best)
             mean_best = posterior_best.mean.squeeze().detach().numpy()
 
-            # plt.scatter(mean[:, 0], mean[:, 1], color="magenta", alpha=0.3, s=20)
-            # plt.scatter(mean[is_feas, 0], mean[is_feas, 1], color="blue", alpha=0.3, s=20)  # , c=mean[is_feas, 2])
-            # plt.scatter(mean_best[0], mean_best[1], color="red")
-            # plt.scatter(Y_train_standarized.squeeze()[:,0],Y_train_standarized.squeeze()[:,1], color="orange")
-            # plt.show()
-            # plt.cla()
 
-            zvalues = self._initialize_maKG_parameters(model=self.model)
             kgvals = torch.zeros(plot_X.shape[0], dtype=torch.double)
 
-            # for zi in zvalues:
-            #
-            #     for x_i, xnew in enumerate(plot_X):
-            #         kgvals[x_i] = self._compute_mackg(
-            #             xnew=xnew,
-            #             weights=self.fixed_scalarizations,
-            #             zvalues=torch.atleast_2d(zi),
-            #             optimal_discretisation=optimal_discretisation.squeeze())
-            #
-            #     print("mean",torch.mean(kgvals),"max", torch.max(kgvals),"min", torch.min(kgvals))
-            #     plt.title(str(zi))
-            #     plt.scatter(mean[:, 0], mean[:, 1], c=kgvals)
-            #     plt.scatter(mean_best[0], mean_best[1], color="red")
-            #     plt.show()
 
             for x_i, xnew in enumerate(plot_X):
                 kgvals[x_i] = self._compute_mackg(
                     xnew=xnew,
                     weights=self.fixed_scalarizations,
-                    zvalues=zvalues,
+                    zvalues=self.z_vals,
+                    lik_noise=self.noise_variance,
                     optimal_discretisation=optimal_discretisation.squeeze())
 
+            plt.scatter(mean[:, 0], mean[:, 1], c=kgvals)
+            plt.scatter(mean_best[0], mean_best[1], color="red")
+            plt.show()
+
             print("mean", torch.mean(kgvals), "max", torch.max(kgvals), "min", torch.min(kgvals))
-            plt.scatter(objective[is_feas,0], objective[is_feas,1], color="green")
+            plt.scatter(objective[aggregated_is_feas ,0], objective[aggregated_is_feas ,1], color="green")
             plt.scatter(mean[:, 0], mean[:, 1], c=kgvals)
             plt.scatter(Y_train_standarized.squeeze()[:, 0], Y_train_standarized.squeeze()[:, 1], color="orange")
             plt.scatter(mean_best[0], mean_best[1], color="red")
             plt.show()
 
+            if self.input_dim==2:
+                plt.scatter(plot_X.squeeze()[:, 0], plot_X.squeeze()[:, 1], c=kgvals)
+                plt.scatter(x_best.squeeze()[0], x_best.squeeze()[1], color="red")
+                plt.show()
 
 
     def _compute_prob_feas(self, X: Tensor, means: Tensor, sigmas: Tensor) -> Tensor:
@@ -343,6 +568,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         TODO: Investigate further.
         """
         output_shape = X.shape[:-2] + torch.Size([1])
+
         prob_feas = torch.ones(output_shape, device=X.device, dtype=X.dtype)
 
         if len(self.con_lower_inds) > 0:
@@ -445,7 +671,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         diff_b = b[1:] - b[:-1]
         keep = diff_b > threshold
         keep = torch.cat([torch.Tensor([True]), keep])
-
+        maxa = torch.max(a)
         keep[torch.argmax(a)] = True
         keep = keep.bool()  # making sure 0 1's are transformed to booleans
 
@@ -458,10 +684,10 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         x = [-torch.inf]
 
         n_lines = len(a)
+
         # main loop TODO describe logic
         # TODO not pruning properly, e.g. a=[0,1,2], b=[-1,0,1]
         # returns x=[-inf, -1, -1, inf], shouldn't affect kgcb
-        maxa = torch.max(a)
         while i_last < n_lines - 1:
             i_mask = torch.arange(i_last + 1, n_lines)
             x_mask = -(a[i_last] - a[i_mask]) / (b[i_last] - b[i_mask])

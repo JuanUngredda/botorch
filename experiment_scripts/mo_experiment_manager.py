@@ -7,7 +7,7 @@ from itertools import product
 
 import torch
 
-from botorch.test_functions.multi_objective import C2DTLZ2, SRN , ConstrainedBraninCurrin
+from botorch.test_functions.multi_objective import C2DTLZ2, SRN , ConstrainedBraninCurrin, WeldedBeam, OSY
 from mo_config import CONFIG_DICT
 from optimizers.mo_optimizer import Optimizer
 from optimizers.utils import mo_acq_wrapper
@@ -55,7 +55,8 @@ def run_experiment(
     # instantiate the test problem
     testfun_dict = {
         "C2DTLZ2": C2DTLZ2,
-        "ConstrainedBraninCurrin": ConstrainedBraninCurrin
+        "ConstrainedBraninCurrin": ConstrainedBraninCurrin,
+        "OSY": OSY
     }
 
     CONFIG_NUMBER_FANTASIES = CONFIG_DICT[experiment_name]["num_fantasies"]
@@ -67,8 +68,7 @@ def run_experiment(
         "output_dim"
     ]
 
-    testfun = testfun_dict[problem]( dim= CONFIG_NUMBER_INPUT_DIM,
-        num_objectives = CONFIG_NUMBER_OUTPUT_DIM ,negate=True).to(
+    testfun = testfun_dict[problem]( negate=True).to(
         dtype=dtype
     )
     dim = testfun.dim

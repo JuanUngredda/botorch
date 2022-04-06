@@ -13,7 +13,7 @@ for i, m in enumerate(methods):
     pkl_file = open(
         "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/OSY_experiments/OSY/"
         + m
-        + "/Tche/0.pkl",
+        + "/Tche/3.pkl",
         "rb",
     )
     mydict2 = pickle.load(pkl_file)

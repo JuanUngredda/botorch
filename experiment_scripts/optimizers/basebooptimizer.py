@@ -110,29 +110,34 @@ class BaseBOOptimizer(BaseOptimizer):
         """Use multi-start Adam SGD over multiple seeds"""
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
-
+        import time
         num_xnew = self.optional["RAW_SAMPLES"]
         num_xstar = acq_fun.X_discretisation_size
         input_dim = self.dim
-        print("gen xnew")
+        ts = time.time()
         xnew_weights = sample_simplex(n=num_xnew, d=self.f.num_objectives, qmc=True).squeeze()
-        xnew_samples, _ = self.gen_xstar_values(model=self.model, weights=xnew_weights)
-        xnew_samples_rd = torch.rand((30 , 1, input_dim))
+        # xnew_samples, _ = self.gen_xstar_values(model=self.model, weights=xnew_weights)
+        xnew_samples = bacth_initial_points
+        xnew_samples_rd = torch.rand((100 , 1, input_dim))
         xnew_samples = torch.vstack([xnew_samples, xnew_samples_rd])
+        te = time.time()
+        print("gen xnew", ts-te)
+        batch_initial_conditions = torch.zeros((num_xnew + 100, num_xstar + 1, input_dim), dtype=torch.double)
 
-        batch_initial_conditions = torch.zeros((num_xnew + 30, num_xstar + 1, input_dim), dtype=torch.double)
-        print("gen xstar")
         xstar_weights = sample_simplex(n=num_xstar, d=self.f.num_objectives, qmc=True).squeeze()
+        ts = time.time()
         xstar, _ = self.gen_xstar_values(model=self.model, weights=xstar_weights)
         xstar = xstar.squeeze(dim=-2)
-        # xstar = torch.rand((num_xstar, input_dim))
+        te = time.time()
+        print("gen xnew", ts-te)
 
         for xnew_idx, xnew in enumerate(xnew_samples):
-
+            # xstar = torch.rand((num_xstar, input_dim))
             idx_ics = torch.cat([xnew, xstar]).unsqueeze(dim=0)
             batch_initial_conditions[xnew_idx, ...] = idx_ics
 
         # print(batch_initial_conditions)
+        ts = time.time()
         with torch.no_grad():
             mu_val_initial_conditions_raw = acq_fun.forward(batch_initial_conditions)
 
@@ -141,11 +146,11 @@ class BaseBOOptimizer(BaseOptimizer):
                              ].squeeze()
 
             batch_initial_conditions = batch_initial_conditions[best_k_indeces:best_k_indeces+1, :, :]
-
+        te = time.time()
         # self.plot_points_on_objective(points=xnew_samples.squeeze(),
         #                               cval=mu_val_initial_conditions_raw,
         #                               scalarizations=xnew_weights)
-        print("batch_initial_conditions ",batch_initial_conditions )
+        print("batch_initial_conditions ",batch_initial_conditions, te-ts )
         # acq_fun._plot(X=batch_initial_conditions,
         #               lb = self.lb,
         #               ub = self.ub,
@@ -154,15 +159,19 @@ class BaseBOOptimizer(BaseOptimizer):
         #               C_train=self.c_train,
         #               true_fun=self.f)
         # print("optimising acq")
+        import time
+        ts = time.time()
         x_best_concat, _ = optimize_acqf(
             acq_function=acq_fun,
             bounds=bounds_normalized,
             q=1,
             num_restarts=self.optional["NUM_RESTARTS"],
             batch_initial_conditions=batch_initial_conditions,
-            # optimizer=torch.optim.Adam,
+            optimizer=torch.optim.Adam,
             return_full_tree=False
         )
+        te = time.time()
+        print("opt time", te-ts)
         # print("finished optimising acq")
         x_best = acq_fun.extract_candidates(X_full=x_best_concat)
         # print("xbest", x_best)

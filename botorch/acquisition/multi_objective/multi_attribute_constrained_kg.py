@@ -653,9 +653,10 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         assert len(a) > 0, "must provide slopes"
         assert len(a) == len(b), f"#intercepts != #slopes, {len(a)}, {len(b)}"
 
-
+        #hacky way to not compute so much stuff. couldn't make work the return statement with zero kg value
         if torch.all(torch.abs(b) < 0.000000001):
-            return torch.Tensor([0])  # , np.zeros(a.shape), np.zeros(b.shape)
+            a = torch.atleast_1d(a[0])
+            b = torch.atleast_1d(b[0])
 
         # Order by ascending b and descending a. There should be an easier way to do this
         # but it seems that pytorch sorts everything as a 1D Tensor
@@ -713,7 +714,8 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
         kg = torch.sum(a * (cdf[1:] - cdf[:-1]) + b * (pdf[:-1] - pdf[1:]))
         kg -= maxa
-
+        # if torch.all(torch.abs(b) < 0.000000001):
+        #     print("kg_empty", kg)
         if kg<-1e-3:
             print("kg",kg)
             print("kavals", torch.sum(a * (cdf[1:] - cdf[:-1]) + b * (pdf[:-1] - pdf[1:])))

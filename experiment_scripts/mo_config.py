@@ -34,7 +34,7 @@ CONFIG_DICT = {
     },
     "SRN_experiments": {
         "problems": ["SRN"],
-        "method": ["ParEGO", "cEHI", "cParEGO"],
+        "method": ["EHI", "ParEGO",  "cEHI", "cParEGO"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,

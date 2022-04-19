@@ -24,7 +24,7 @@ from .basebooptimizer import BaseBOOptimizer
 from .utils import timeit, ParetoFrontApproximation, _compute_expected_utility, ParetoFrontApproximation_xstar
 
 
-class Optimizer(BaseBOOptimizer):
+class benchmarks_Optimizer(BaseBOOptimizer):
     def __init__(
         self,
         testfun,
@@ -96,30 +96,17 @@ class Optimizer(BaseBOOptimizer):
 
     def _update_model(self, X_train: Tensor, Y_train: Tensor, C_train: Tensor):
 
-        #self.weights = torch.Tensor([[0.9, 0.1]])
-        self.weights = sample_simplex(n=self.num_scalarisations, d=self.f.num_objectives, qmc=True).squeeze()
+        Y_train_standarized = standardize(Y_train)
+        train_joint_YC = torch.cat([Y_train_standarized, C_train], dim=-1)
 
-        NOISE_VAR = torch.Tensor([1e-4])
         models = []
-        for w in self.weights:
-            scalarization_fun = self.utility_model(weights=w, Y=Y_train)
-
-            utility_values = scalarization_fun(Y_train).unsqueeze(dim=-2).view(X_train.shape[0], 1)
-            utility_values = standardize(utility_values)
+        NOISE_VAR = torch.Tensor([1e-4])
+        for i in range(train_joint_YC.shape[-1]):
             models.append(
-                FixedNoiseGP(X_train, utility_values,
-                             train_Yvar=NOISE_VAR.expand_as(utility_values)
+                FixedNoiseGP(X_train, train_joint_YC[..., i : i + 1], train_Yvar=NOISE_VAR.expand_as(train_joint_YC[..., i : i + 1])
                              )
             )
-
-        for i in range(C_train.shape[-1]):
-            models.append(
-                FixedNoiseGP(X_train, C_train[..., i : i + 1],
-                train_Yvar=NOISE_VAR.expand_as(C_train[..., i : i + 1]),)
-            )
-
         self.model = ModelListGP(*models)
-
         mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
         fit_gpytorch_model(mll)
 
@@ -238,18 +225,16 @@ class Optimizer(BaseBOOptimizer):
             X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train
         )
 
-        X_initial_conditions_raw, _ = self.best_model_posterior_mean(model=self.model, weights=self.weights)
 
         acquisition_function = self.acquisition_fun(self.model,
                                                     train_x=self.x_train,
                                                     train_obj=self.y_train,
                                                     train_con=self.c_train,
                                                     fixed_scalarizations=self.weights,
-                                                    current_global_optimiser=X_initial_conditions_raw,
+                                                    current_global_optimiser=Tensor([]),
                                                     X_pending = None)
         x_new = self._sgd_optimize_aqc_fun(
             acquisition_function,
-            bacth_initial_points= X_initial_conditions_raw,
             log_time=self.method_time)
         return x_new
 

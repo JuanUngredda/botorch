@@ -3,18 +3,27 @@ from typing import Optional, Callable, Dict, Tuple
 
 import torch
 from torch import Tensor
-
+from botorch.acquisition.objective import GenericMCObjective
 from botorch.acquisition.analytic import AnalyticAcquisitionFunction, _construct_dist
 from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG
 from botorch.generation.gen import gen_candidates_scipy
 from botorch.models.model import Model
 from botorch.utils import standardize
 from botorch.utils.transforms import t_batch_mode_transform
-
+from botorch.utils.multi_objective.box_decompositions.non_dominated import FastNondominatedPartitioning
+from botorch.utils.transforms import unnormalize, normalize
+from botorch.acquisition.multi_objective.monte_carlo import qExpectedHypervolumeImprovement
+from botorch.sampling.samplers import SobolQMCNormalSampler
+from botorch.utils.sampling import sample_simplex
+from botorch.acquisition.monte_carlo import qExpectedImprovement
+from botorch.acquisition.analytic import ExpectedImprovement
+from botorch.acquisition.objective import ConstrainedMCObjective
+from botorch.acquisition.multi_objective.objective import IdentityMCMultiOutputObjective
 from botorch.utils.multi_objective.scalarization import (
     get_chebyshev_scalarization,
     get_linear_scalarization,
 )
+from botorch.acquisition.multi_objective.max_value_entropy_search import qMultiObjectiveMaxValueEntropy
 from botorch import settings
 dtype = torch.double
 
@@ -79,9 +88,37 @@ def timeit(method):
 
     return timed
 
+def test_function_handler(test_fun_str:str,
+                          test_fun_dict: dict,
+                          input_dim: int,
+                          output_dim: int):
+
+    if test_fun_str == "C2DTLZ2":
+        synthetic_fun = test_fun_dict[test_fun_str](dim=input_dim,
+                              num_objectives=output_dim,
+                              negate=True)
+    else:
+        synthetic_fun = test_fun_dict[test_fun_str](negate=True)
+
+    return synthetic_fun
+
+
+def get_constrained_mc_objective(train_obj, train_con, scalarization):
+    """Initialize a ConstrainedMCObjective for qParEGO"""
+    n_obj = train_obj.shape[-1]
+    # assume first outcomes of the model are the objectives, the rest constraints
+    def objective(Z):
+        return scalarization(Z[..., :n_obj])
+
+    constrained_obj = ConstrainedMCObjective(
+        objective=objective,
+        constraints=[lambda Z: Z[..., -1]],  # index the constraint
+    )
+    return constrained_obj
 
 def mo_acq_wrapper(
         method: str,
+        test_fun: Callable,
         num_objectives: int,
         utility_model_name=str,
         bounds: Optional[Tensor] = None,
@@ -98,11 +135,15 @@ def mo_acq_wrapper(
         utility_model = get_linear_scalarization
 
     def acquisition_function(model: method,
+                             train_x: Tensor,
+                             train_obj: Tensor,
+                             train_con: Tensor,
                              fixed_scalarizations: Tensor,
                              current_global_optimiser: Tensor,
                              X_pending: Optional[Tensor]=None):
+
         if method == "macKG":
-            KG_acq_fun = MultiAttributeConstrainedKG(
+            acq_fun = MultiAttributeConstrainedKG(
                 model=model,
                 bounds=bounds,
                 X_discretisation_size= num_discrete_points,
@@ -114,16 +155,89 @@ def mo_acq_wrapper(
                 current_global_optimiser = current_global_optimiser,
                 X_pending=X_pending)
 
-        elif method == "SMSEGO":
-            pass
+        elif method == "EHI":
+            with torch.no_grad():
+                model_obj = model.subset_output(idcs=range(num_objectives))
+                qehvi_sampler = SobolQMCNormalSampler(num_samples=MC_size) #128 samples.
+                pred = model_obj.posterior(train_x).mean
 
+                partitioning = FastNondominatedPartitioning(
+                    ref_point=test_fun.ref_point,
+                    Y=pred,
+                )
+                acq_fun = qExpectedHypervolumeImprovement(
+                    model=model,
+                    ref_point= test_fun.ref_point,
+                    partitioning=partitioning,
+                    # define an objective that specifies which outcomes are the objectives
+                    objective=IdentityMCMultiOutputObjective(outcomes=range(test_fun.num_objectives)),
+                    sampler=qehvi_sampler ,
+                )
+
+        elif method == "ParEGO":
+            model_obj = model.subset_output(idcs=range(num_objectives))
+            with torch.no_grad():
+                pred = model_obj.posterior(train_x).mean
+            qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size) #128 samples
+
+            weights = sample_simplex(d=test_fun.num_objectives, n=1).squeeze()
+
+            objective = GenericMCObjective(utility_model(weights=weights, Y=pred))
+
+            acq_fun = qExpectedImprovement(
+                model=model_obj,
+                objective=objective,
+                best_f=objective(train_obj).max(),
+                sampler=qparego_sampler,
+            )
+
+
+        elif method == "cEHI":
+            with torch.no_grad():
+                model_obj = model.subset_output(idcs=range(num_objectives))
+                num_constraints = test_fun.num_constraints
+                qehvi_sampler = SobolQMCNormalSampler(num_samples=MC_size) #128 samples.
+                pred = model_obj.posterior(train_x).mean
+                partitioning = FastNondominatedPartitioning(
+                    ref_point=test_fun.ref_point,
+                    Y=pred,
+                )
+
+                acq_fun = qExpectedHypervolumeImprovement(
+                    model=model,
+                    ref_point= test_fun.ref_point,
+                    partitioning=partitioning,
+                    sampler=qehvi_sampler ,
+                    # define an objective that specifies which outcomes are the objectives
+                    objective = IdentityMCMultiOutputObjective(outcomes=range(test_fun.num_objectives)),
+                    # specify that the constraint is on the last outcome
+                    constraints=[lambda Z: Z[..., -num_constraints]],
+
+                )
+        elif method == "cParEGO":
+            qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size) #128 samples
+
+            weights = sample_simplex(d=test_fun.num_objectives, n=1).squeeze()
+            # construct augmented Chebyshev scalarization
+            scalarization = get_chebyshev_scalarization(weights=weights, Y=train_obj)
+            # initialize ConstrainedMCObjective
+            constrained_objective = get_constrained_mc_objective(
+                train_obj=train_obj,
+                train_con=train_con,
+                scalarization=scalarization,
+            )
+            train_y = torch.cat([train_obj, train_con], dim=-1)
+            acq_fun = qExpectedImprovement(  # pyre-ignore: [28]
+                model=model,
+                objective=constrained_objective,
+                best_f=constrained_objective(train_y).max(),
+                sampler=qparego_sampler,
+            )
         else:
             raise Exception(
-                "method does not exist. Specify implemented method: DISCKG (Discrete KG), "
-                "MCKG (Monte Carlo KG), HYBRIDKG (Hybrid KG), and ONESHOTKG (One Shot KG)"
+                "method does not exist. Specify implemented method"
             )
-        return KG_acq_fun
-
+        return acq_fun
     return acquisition_function
 
 class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):

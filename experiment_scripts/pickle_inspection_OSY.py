@@ -6,14 +6,14 @@ import torch
 # read python dict back from the file
 from botorch.test_functions.multi_objective import OSY
 
-methods = ["macKG"]
+methods = ["EHI"]
 
 
 for i, m in enumerate(methods):
     pkl_file = open(
         "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/OSY_experiments/OSY/"
         + m
-        + "/Tche/3.pkl",
+        + "/Tche/0.pkl",
         "rb",
     )
     mydict2 = pickle.load(pkl_file)

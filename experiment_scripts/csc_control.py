@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 
+
 # This is a bare script that receives args, prints something, wastes some time,function_caller_test_func_2_TS
 # and saves something. Use this as a blank template to run experiments.
 # The sys.argv = [demo_infra_usage.py (time_stamped_folder) (integer)]
@@ -42,14 +43,16 @@ def run(args):
     hostname = sp.check_output(["hostname"], shell=True).decode()[:-1]
 
     # IMPORT AND RUN MODULES
-    import mo_experiment_manager#monte_carlo_convergence_experiment_manager
+    import mo_experiment_manager  # monte_carlo_convergence_experiment_manager
     from forking_CSC.fork0_to_csc import U
 
     number_of_csc_machines = len(U)
     # print(number_of_csc_machines)
     seed = 0
     while True:
-        experiment_names = ["OSY_experiments"]
+        experiment_names = ["BNH_experiments", "SRN_experiments", "CONSTR_experiments",
+                            "ConstrainedBraninCurrin_experiments", "C2DTLZ2_experiments",
+                            "OSY_experiments", "WeldedBeam_experiments"]
         for exp_name in experiment_names:
 
             if args.k + seed > 29:

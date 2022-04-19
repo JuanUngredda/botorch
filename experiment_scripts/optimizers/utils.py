@@ -98,13 +98,10 @@ def test_function_handler(test_fun_str: str,
     if test_fun_str == "C2DTLZ2":
         synthetic_fun = test_fun_dict[test_fun_str](dim=input_dim,
                                                     num_objectives=output_dim,
-                                                    noise_std=1e-4,
                                                     negate=True)
     else:
-        if test_fun_str == "SRN":
-            synthetic_fun = test_fun_dict[test_fun_str](noise_std=1e-2, negate=True)
-        else:
-            synthetic_fun = test_fun_dict[test_fun_str](noise_std=1e-4, negate=True)
+
+        synthetic_fun = test_fun_dict[test_fun_str](negate=True)
 
     return synthetic_fun
 

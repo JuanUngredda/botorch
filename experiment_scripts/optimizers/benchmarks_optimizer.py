@@ -99,18 +99,24 @@ class benchmarks_Optimizer(BaseBOOptimizer):
         Y_train_standarized = standardize(Y_train)
         train_joint_YC = torch.cat([Y_train_standarized, C_train], dim=-1)
 
-        models = []
         NOISE_VAR = torch.Tensor([1e-4])
-        for i in range(train_joint_YC.shape[-1]):
-            models.append(
-                FixedNoiseGP(X_train, train_joint_YC[..., i : i + 1], train_Yvar=NOISE_VAR.expand_as(train_joint_YC[..., i : i + 1])
-                             )
-            )
-        self.model = ModelListGP(*models)
-        mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
-        fit_gpytorch_model(mll)
+        while True:
+            try:
+                models = []
 
-
+                for i in range(train_joint_YC.shape[-1]):
+                    models.append(
+                        FixedNoiseGP(X_train, train_joint_YC[..., i : i + 1], train_Yvar=NOISE_VAR.expand_as(train_joint_YC[..., i : i + 1])
+                                     )
+                    )
+                self.model = ModelListGP(*models)
+                mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("update model: increased assumed fixed noise term")
+                NOISE_VAR += 1e-6
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
     def policy(self):
 
         # print(self.x_train, self.y_train, self.c_train)
@@ -132,27 +138,33 @@ class benchmarks_Optimizer(BaseBOOptimizer):
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
         NOISE_VAR = torch.Tensor([1e-4])
-        models = []
-        for w in weights:
-            scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
-            utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-            utility_values = standardize(utility_values)
-            models.append(
-                FixedNoiseGP(self.x_train, utility_values,
-                             train_Yvar=NOISE_VAR.expand_as(utility_values)
-                             )
-            )
+        while True:
+            try:
+                models = []
+                for w in weights:
+                    scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
+                    utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
+                    utility_values = standardize(utility_values)
+                    models.append(
+                        FixedNoiseGP(self.x_train, utility_values,
+                                     train_Yvar=NOISE_VAR.expand_as(utility_values)
+                                     )
+                    )
 
-        for i in range(self.c_train.shape[-1]):
-            models.append(
-                FixedNoiseGP(self.x_train, self.c_train[..., i: i + 1],
-                             train_Yvar=NOISE_VAR.expand_as(self.c_train[..., i: i + 1]), )
-            )
+                for i in range(self.c_train.shape[-1]):
+                    models.append(
+                        FixedNoiseGP(self.x_train, self.c_train[..., i: i + 1],
+                                     train_Yvar=NOISE_VAR.expand_as(self.c_train[..., i: i + 1]), )
+                    )
 
-        model = ModelListGP(*models)
-
-        mll = SumMarginalLogLikelihood(model.likelihood, model)
-        fit_gpytorch_model(mll)
+                model = ModelListGP(*models)
+                mll = SumMarginalLogLikelihood(model.likelihood, model)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("best gp mean: increased assumed fixed noise term")
+                NOISE_VAR += 1e-6
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
         X_pareto_solutions, _ = ParetoFrontApproximation(
             model=model,

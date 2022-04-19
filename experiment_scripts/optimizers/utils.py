@@ -101,7 +101,10 @@ def test_function_handler(test_fun_str: str,
                                                     noise_std=1e-4,
                                                     negate=True)
     else:
-        synthetic_fun = test_fun_dict[test_fun_str](noise_std=1e-4, negate=True)
+        if test_fun_str == "SRN":
+            synthetic_fun = test_fun_dict[test_fun_str](noise_std=1e-2, negate=True)
+        else:
+            synthetic_fun = test_fun_dict[test_fun_str](noise_std=1e-4, negate=True)
 
     return synthetic_fun
 

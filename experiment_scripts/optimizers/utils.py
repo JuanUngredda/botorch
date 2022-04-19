@@ -25,7 +25,9 @@ from botorch.utils.multi_objective.scalarization import (
 )
 from botorch.acquisition.multi_objective.max_value_entropy_search import qMultiObjectiveMaxValueEntropy
 from botorch import settings
+
 dtype = torch.double
+
 
 #################################################################
 #                                                               #
@@ -88,17 +90,18 @@ def timeit(method):
 
     return timed
 
-def test_function_handler(test_fun_str:str,
+
+def test_function_handler(test_fun_str: str,
                           test_fun_dict: dict,
                           input_dim: int,
                           output_dim: int):
-
     if test_fun_str == "C2DTLZ2":
         synthetic_fun = test_fun_dict[test_fun_str](dim=input_dim,
-                              num_objectives=output_dim,
-                              negate=True)
+                                                    num_objectives=output_dim,
+                                                    noise_std=1e-4,
+                                                    negate=True)
     else:
-        synthetic_fun = test_fun_dict[test_fun_str](negate=True)
+        synthetic_fun = test_fun_dict[test_fun_str](noise_std=1e-4, negate=True)
 
     return synthetic_fun
 
@@ -106,6 +109,7 @@ def test_function_handler(test_fun_str:str,
 def get_constrained_mc_objective(train_obj, train_con, scalarization):
     """Initialize a ConstrainedMCObjective for qParEGO"""
     n_obj = train_obj.shape[-1]
+
     # assume first outcomes of the model are the objectives, the rest constraints
     def objective(Z):
         return scalarization(Z[..., :n_obj])
@@ -115,6 +119,7 @@ def get_constrained_mc_objective(train_obj, train_con, scalarization):
         constraints=[lambda Z: Z[..., -1]],  # index the constraint
     )
     return constrained_obj
+
 
 def mo_acq_wrapper(
         method: str,
@@ -140,25 +145,25 @@ def mo_acq_wrapper(
                              train_con: Tensor,
                              fixed_scalarizations: Tensor,
                              current_global_optimiser: Tensor,
-                             X_pending: Optional[Tensor]=None):
+                             X_pending: Optional[Tensor] = None):
 
         if method == "macKG":
             acq_fun = MultiAttributeConstrainedKG(
                 model=model,
                 bounds=bounds,
-                X_discretisation_size= num_discrete_points,
-                utility_model= utility_model,
-                num_objectives= num_objectives,
-                num_fantasies_constraints=MC_size ,
+                X_discretisation_size=num_discrete_points,
+                utility_model=utility_model,
+                num_objectives=num_objectives,
+                num_fantasies_constraints=MC_size,
                 fixed_scalarizations=fixed_scalarizations,
                 num_scalarisations=num_scalarizations,
-                current_global_optimiser = current_global_optimiser,
+                current_global_optimiser=current_global_optimiser,
                 X_pending=X_pending)
 
         elif method == "EHI":
             with torch.no_grad():
                 model_obj = model.subset_output(idcs=range(num_objectives))
-                qehvi_sampler = SobolQMCNormalSampler(num_samples=MC_size) #128 samples.
+                qehvi_sampler = SobolQMCNormalSampler(num_samples=MC_size)  # 128 samples.
                 pred = model_obj.posterior(train_x).mean
 
                 partitioning = FastNondominatedPartitioning(
@@ -167,18 +172,18 @@ def mo_acq_wrapper(
                 )
                 acq_fun = qExpectedHypervolumeImprovement(
                     model=model,
-                    ref_point= test_fun.ref_point,
+                    ref_point=test_fun.ref_point,
                     partitioning=partitioning,
                     # define an objective that specifies which outcomes are the objectives
                     objective=IdentityMCMultiOutputObjective(outcomes=range(test_fun.num_objectives)),
-                    sampler=qehvi_sampler ,
+                    sampler=qehvi_sampler,
                 )
 
         elif method == "ParEGO":
             model_obj = model.subset_output(idcs=range(num_objectives))
             with torch.no_grad():
                 pred = model_obj.posterior(train_x).mean
-            qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size) #128 samples
+            qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size)  # 128 samples
 
             weights = sample_simplex(d=test_fun.num_objectives, n=1).squeeze()
 
@@ -196,7 +201,7 @@ def mo_acq_wrapper(
             with torch.no_grad():
                 model_obj = model.subset_output(idcs=range(num_objectives))
                 num_constraints = test_fun.num_constraints
-                qehvi_sampler = SobolQMCNormalSampler(num_samples=MC_size) #128 samples.
+                qehvi_sampler = SobolQMCNormalSampler(num_samples=MC_size)  # 128 samples.
                 pred = model_obj.posterior(train_x).mean
                 partitioning = FastNondominatedPartitioning(
                     ref_point=test_fun.ref_point,
@@ -205,17 +210,17 @@ def mo_acq_wrapper(
 
                 acq_fun = qExpectedHypervolumeImprovement(
                     model=model,
-                    ref_point= test_fun.ref_point,
+                    ref_point=test_fun.ref_point,
                     partitioning=partitioning,
-                    sampler=qehvi_sampler ,
+                    sampler=qehvi_sampler,
                     # define an objective that specifies which outcomes are the objectives
-                    objective = IdentityMCMultiOutputObjective(outcomes=range(test_fun.num_objectives)),
+                    objective=IdentityMCMultiOutputObjective(outcomes=range(test_fun.num_objectives)),
                     # specify that the constraint is on the last outcome
                     constraints=[lambda Z: Z[..., -num_constraints]],
 
                 )
         elif method == "cParEGO":
-            qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size) #128 samples
+            qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size)  # 128 samples
 
             weights = sample_simplex(d=test_fun.num_objectives, n=1).squeeze()
             # construct augmented Chebyshev scalarization
@@ -238,7 +243,9 @@ def mo_acq_wrapper(
                 "method does not exist. Specify implemented method"
             )
         return acq_fun
+
     return acquisition_function
+
 
 class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
     r"""Constrained Posterior Mean (feasibility-weighted).
@@ -304,7 +311,6 @@ class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
         posterior_cs = self.model_cs.posterior(X=X)
         mean_constraints = posterior_cs.mean.squeeze(dim=-2)  # (b) x m
         sigma_constraints = posterior_cs.variance.squeeze(dim=-2).sqrt().clamp_min(1e-9)  # (b) x m
-
 
         prob_feas = self._compute_prob_feas(
             X=X.squeeze(dim=-2),
@@ -457,7 +463,6 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
         mean_constraints = posterior_cs.mean.squeeze(dim=-2)  # (b) x m
         sigma_constraints = posterior_cs.variance.squeeze(dim=-2).sqrt().clamp_min(1e-9)  # (b) x m
 
-
         prob_feas = self._compute_prob_feas(
             X=X.squeeze(dim=-2),
             means=mean_constraints.squeeze(dim=-2),
@@ -466,7 +471,7 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
 
         # indicator = (prob_feas.squeeze() > (0.49)** self.constraints_index)*1.0
 
-        constrained_posterior_mean = mean_obj.squeeze() * prob_feas.squeeze()#indicator.squeeze()
+        constrained_posterior_mean = mean_obj.squeeze() * prob_feas.squeeze()  # indicator.squeeze()
 
         return constrained_posterior_mean.squeeze(dim=-1).double()
 
@@ -546,7 +551,6 @@ class ConstrainedPosteriorMean_individual_threshold(AnalyticAcquisitionFunction)
             prob_l = normal_both.cdf(self.con_both[:, 0])
             prob_feas = prob_feas.mul(torch.prod(prob_u - prob_l, dim=-1, keepdim=True))
         return prob_feas
-
 
 
 class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
@@ -711,6 +715,7 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
             prob_feas = prob_feas.mul(torch.prod(prob_u - prob_l, dim=-1, keepdim=True))
         return prob_feas
 
+
 def ParetoFrontApproximation_xstar(
         model: Model,
         input_dim: int,
@@ -725,7 +730,6 @@ def ParetoFrontApproximation_xstar(
         num_constraints: int,
         optional: Optional[dict[str, int]] = None,
 ) -> tuple[Tensor, Tensor]:
-
     X_pareto_solutions = []
     X_pmean = []
 
@@ -802,6 +806,7 @@ def ParetoFrontApproximation_xstar(
 
     return X_pareto_solutions, X_pmean
 
+
 def ParetoFrontApproximation(
         model: Model,
         input_dim: int,
@@ -816,7 +821,6 @@ def ParetoFrontApproximation(
         num_constraints: int,
         optional: Optional[dict[str, int]] = None,
 ) -> tuple[Tensor, Tensor]:
-
     X_pareto_solutions = []
     X_pmean = []
 
@@ -828,8 +832,8 @@ def ParetoFrontApproximation(
         constrained_model = ConstrainedPosteriorMean_individual(
             model=model,
             objective_index=idx,
-            num_objectives= num_objectives,
-            num_constraints = num_constraints
+            num_objectives=num_objectives,
+            num_constraints=num_constraints
         )
 
         X_initial_conditions_raw = torch.rand((optional["RAW_SAMPLES"], 1, 1, input_dim))
@@ -902,16 +906,15 @@ def _compute_expected_utility(
         c_values: Tensor,
         weights: Tensor,
 ) -> Tensor:
-
     utility = torch.zeros((weights.shape[0], y_values.shape[0]))
 
     for idx, w in enumerate(weights):
-        scalarization = scalatization_fun(weights=w, Y=torch.Tensor([]).view((0,y_values.shape[1])))
+        scalarization = scalatization_fun(weights=w, Y=torch.Tensor([]).view((0, y_values.shape[1])))
         utility_values = scalarization(y_values).squeeze()
         utility[idx, :] = utility_values
 
-    is_feas =  (c_values <= 0).squeeze()
-    if len(is_feas.shape)==1:
+    is_feas = (c_values <= 0).squeeze()
+    if len(is_feas.shape) == 1:
         is_feas = is_feas.unsqueeze(dim=-1)
     # print(is_feas.shape)
     aggregated_is_feas = torch.prod(is_feas, dim=1, dtype=bool)
@@ -921,7 +924,7 @@ def _compute_expected_utility(
         return expected_utility
     else:
         utility_feas = utility[:, aggregated_is_feas]
-        best_utility = torch.max(utility_feas , dim=1).values
+        best_utility = torch.max(utility_feas, dim=1).values
         expected_utility = best_utility.mean()
 
         return expected_utility

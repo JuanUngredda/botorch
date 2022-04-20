@@ -115,7 +115,7 @@ class benchmarks_Optimizer(BaseBOOptimizer):
                 break
             except:
                 print("update model: increased assumed fixed noise term")
-                NOISE_VAR += 1e-6
+                NOISE_VAR += 1e-4
                 print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
     def policy(self):
 
@@ -163,7 +163,7 @@ class benchmarks_Optimizer(BaseBOOptimizer):
                 break
             except:
                 print("best gp mean: increased assumed fixed noise term")
-                NOISE_VAR += 1e-6
+                NOISE_VAR += 1e-4
                 print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
         X_pareto_solutions, _ = ParetoFrontApproximation(

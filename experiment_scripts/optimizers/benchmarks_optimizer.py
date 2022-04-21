@@ -115,7 +115,7 @@ class benchmarks_Optimizer(BaseBOOptimizer):
                 break
             except:
                 print("update model: increased assumed fixed noise term")
-                NOISE_VAR += 1e-4
+                NOISE_VAR *= 10
                 print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
     def policy(self):
 

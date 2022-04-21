@@ -100,29 +100,35 @@ class Optimizer(BaseBOOptimizer):
         self.weights = sample_simplex(n=self.num_scalarisations, d=self.f.num_objectives, qmc=True).squeeze()
 
         NOISE_VAR = torch.Tensor([1e-4])
-        models = []
-        for w in self.weights:
-            scalarization_fun = self.utility_model(weights=w, Y=Y_train)
+        while True:
+            try:
+                models = []
+                for w in self.weights:
+                    scalarization_fun = self.utility_model(weights=w, Y=Y_train)
 
-            utility_values = scalarization_fun(Y_train).unsqueeze(dim=-2).view(X_train.shape[0], 1)
-            utility_values = standardize(utility_values)
-            models.append(
-                FixedNoiseGP(X_train, utility_values,
-                             train_Yvar=NOISE_VAR.expand_as(utility_values)
-                             )
-            )
+                    utility_values = scalarization_fun(Y_train).unsqueeze(dim=-2).view(X_train.shape[0], 1)
+                    utility_values = standardize(utility_values)
+                    models.append(
+                        FixedNoiseGP(X_train, utility_values,
+                                     train_Yvar=NOISE_VAR.expand_as(utility_values)
+                                     )
+                    )
 
-        for i in range(C_train.shape[-1]):
-            models.append(
-                FixedNoiseGP(X_train, C_train[..., i : i + 1],
-                train_Yvar=NOISE_VAR.expand_as(C_train[..., i : i + 1]),)
-            )
+                for i in range(C_train.shape[-1]):
+                    models.append(
+                        FixedNoiseGP(X_train, C_train[..., i : i + 1],
+                        train_Yvar=NOISE_VAR.expand_as(C_train[..., i : i + 1]),)
+                    )
 
-        self.model = ModelListGP(*models)
+                self.model = ModelListGP(*models)
 
-        mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
-        fit_gpytorch_model(mll)
-
+                mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("update model: increased assumed fixed noise term")
+                NOISE_VAR *= 10
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
     def policy(self):
 
@@ -145,27 +151,34 @@ class Optimizer(BaseBOOptimizer):
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
         NOISE_VAR = torch.Tensor([1e-4])
-        models = []
-        for w in weights:
-            scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
-            utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-            utility_values = standardize(utility_values)
-            models.append(
-                FixedNoiseGP(self.x_train, utility_values,
-                             train_Yvar=NOISE_VAR.expand_as(utility_values)
-                             )
-            )
+        while True:
+            try:
+                models = []
+                for w in weights:
+                    scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
+                    utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
+                    utility_values = standardize(utility_values)
+                    models.append(
+                        FixedNoiseGP(self.x_train, utility_values,
+                                     train_Yvar=NOISE_VAR.expand_as(utility_values)
+                                     )
+                    )
 
-        for i in range(self.c_train.shape[-1]):
-            models.append(
-                FixedNoiseGP(self.x_train, self.c_train[..., i: i + 1],
-                             train_Yvar=NOISE_VAR.expand_as(self.c_train[..., i: i + 1]), )
-            )
+                for i in range(self.c_train.shape[-1]):
+                    models.append(
+                        FixedNoiseGP(self.x_train, self.c_train[..., i: i + 1],
+                                     train_Yvar=NOISE_VAR.expand_as(self.c_train[..., i: i + 1]), )
+                    )
 
-        model = ModelListGP(*models)
+                model = ModelListGP(*models)
 
-        mll = SumMarginalLogLikelihood(model.likelihood, model)
-        fit_gpytorch_model(mll)
+                mll = SumMarginalLogLikelihood(model.likelihood, model)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("update model: increased assumed fixed noise term")
+                NOISE_VAR *= 10
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
         X_pareto_solutions, _ = ParetoFrontApproximation(
             model=model,
@@ -193,28 +206,36 @@ class Optimizer(BaseBOOptimizer):
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
         NOISE_VAR = torch.Tensor([1e-4])
-        models_xstar = []
-        for w in weights:
-            scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
-            utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-            utility_values = standardize(utility_values)
+        while True:
+            try:
+                models_xstar = []
+                for w in weights:
+                    scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
+                    utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
+                    utility_values = standardize(utility_values)
 
-            models_xstar.append(
-                FixedNoiseGP(self.x_train, utility_values,
-                             train_Yvar=NOISE_VAR.expand_as(utility_values)
-                             )
-            )
+                    models_xstar.append(
+                        FixedNoiseGP(self.x_train, utility_values,
+                                     train_Yvar=NOISE_VAR.expand_as(utility_values)
+                                     )
+                    )
 
-        for i in range(self.c_train.shape[-1]):
-            models_xstar.append(
-                FixedNoiseGP(self.x_train, self.c_train[..., i: i + 1],
-                             train_Yvar=NOISE_VAR.expand_as(self.c_train[..., i: i + 1]), )
-            )
+                for i in range(self.c_train.shape[-1]):
+                    models_xstar.append(
+                        FixedNoiseGP(self.x_train, self.c_train[..., i: i + 1],
+                                     train_Yvar=NOISE_VAR.expand_as(self.c_train[..., i: i + 1]), )
+                    )
 
-        model_xstar = ModelListGP(*models_xstar)
+                model_xstar = ModelListGP(*models_xstar)
 
-        mll = SumMarginalLogLikelihood(model.likelihood, model_xstar)
-        fit_gpytorch_model(mll)
+                mll = SumMarginalLogLikelihood(model.likelihood, model_xstar)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("update model: increased assumed fixed noise term")
+                NOISE_VAR *= 10
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
+
         # print("weights", weights.shape)
         X_pareto_solutions, _ = ParetoFrontApproximation_xstar(
             model=model_xstar,

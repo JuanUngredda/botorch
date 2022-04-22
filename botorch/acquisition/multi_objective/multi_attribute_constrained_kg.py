@@ -6,10 +6,12 @@
 
 from __future__ import annotations
 from __future__ import annotations
+import functools
 
 from typing import Callable, Optional
 from typing import Dict, Tuple, Any
 
+import time
 import torch
 from torch import Tensor
 from torch.distributions import Normal
@@ -158,30 +160,33 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         kgvals = torch.zeros(X.shape[0], dtype=torch.double)
         
         # X_discretisation = torch.rand(1000,  self.input_dim)
-        # kg_unboosted_vals = []
+        kg_unboosted_vals = []
         for x_i, xnew in enumerate(X_actual):
             X_discretisation = X_fantasies[:, x_i, ...].squeeze()
             X_discretisation = torch.cat([X_discretisation, self.current_global_optimiser])
+            # ts = time.time()
             # kg_unboosted = self._compute_mackg_unboosted(
             #     xnew=xnew,
             #     weights=self.fixed_scalarizations,
             #     zvalues=zvalues,
             #     optimal_discretisation=X_discretisation)
-
+            # te = time.time()
+            # print("unboosted", te - ts)
             # kg_unboosted_vals.append(kg_unboosted)
+            # ts = time.time()
             kg_boosted = self._compute_mackg_boosted(
             xnew=xnew,
             weights=self.fixed_scalarizations,
             zvalues=zvalues,
             optimal_discretisation=X_discretisation,
             lik_noise=lik_noise)
-
-
+            # te = time.time()
+            # print("boosted", te-ts)
             kgvals[x_i] = kg_boosted
 
         # print("kgboosted", kgvals)
         # print("kg_unboosted", kg_unboosted_vals)
-        # raise
+        # print("dif", torch.abs(kgvals-torch.Tensor(kg_unboosted_vals).squeeze()))
         return kgvals
 
 
@@ -265,18 +270,18 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         posterior_cs = model_cs.posterior(X=concatenated_xnew_discretisation)
         mean_constraints = posterior_cs.mean.squeeze(dim=-2)  # (b) x m
         sigma_constraints = posterior_cs.variance.squeeze(dim=-2).sqrt().clamp_min(1e-9)  # (b) x m
-        print("##############prob_feas###########")
-        print("mean_constraints",mean_constraints)
-        print("sigma_constraints",sigma_constraints)
+        # print("##############prob_feas###########")
+        # print("mean_constraints",mean_constraints)
+        # print("sigma_constraints",sigma_constraints)
         prob_feas = self._compute_prob_feas(
             X=concatenated_xnew_discretisation.squeeze(dim=-2),
             means=mean_constraints.squeeze(dim=-2),
             sigmas=sigma_constraints.squeeze(dim=-2),
         ).double().squeeze()
-        print("prob_feas", prob_feas)
-        print("unboosted")
-        print("mean", full_posterior_mean)
-        print("var", full_predictive_covariance)
+        # print("prob_feas", prob_feas)
+        # print("unboosted")
+        # print("mean", full_posterior_mean)
+        # print("var", full_predictive_covariance)
 
         # initialise empty kgvals torch.tensor
         kgval = self.kgcb(a=full_posterior_mean * prob_feas, b=full_predictive_covariance * prob_feas)
@@ -292,31 +297,83 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
 
 
-        fantasy_opt_val = torch.zeros((self.num_scalarisations, self.num_fantasies_constraints))  # 1 x num_fantasies
+
 
         prob_feas = self._prob_feas_precomp(zvalues=zvalues, xnew=xnew, optimal_discretisation=optimal_discretisation)
-        # print("zvalues", zvalues)
-        # print("prob_feas", prob_feas)
-        model_obj_posteriors = self._posterior_mean_cov_precomp(model=self.model_obj,
-                                         xnew=xnew,
-                                         weights=weights,
-                                         optimal_discretisation=optimal_discretisation)
-        # print("model_obj",model_obj_posteriors)
 
-        for fantasy_idx in range(zvalues.shape[0]):
-            prob_feas_idx = prob_feas[fantasy_idx]
+        #If all prob of feas is 0 then the marginalized KG is equal to zero.
+        if torch.sum(torch.vstack(prob_feas)) == 0:
+            return torch.sum(torch.vstack(prob_feas))
+        else:
+            stacked_prob_feas = torch.stack(prob_feas, dim=0)
+            X_samples_prob_feas_value = torch.prod(stacked_prob_feas, dim=1).squeeze() #self.num_fantasies_constraints
 
-            for w_idx, _ in enumerate(weights):
+            assert len(X_samples_prob_feas_value)==self.num_fantasies_constraints; "error in dimensions"
 
-                discKG = self.compute_discrete_kg(xnew=xnew,
-                                                  model_obj_posterior=model_obj_posteriors[w_idx],
-                                                  prob_feas=prob_feas_idx ,
-                                                  optimal_discretisation=optimal_discretisation,
-                                                  lik_noise = lik_noise[w_idx])
+            #precompute posterior model for the objective models
+            model_obj_posteriors = self._posterior_mean_cov_precomp(model=self.model_obj,
+                                             xnew=xnew,
+                                             weights=weights,
+                                             optimal_discretisation=optimal_discretisation)
 
-                fantasy_opt_val[w_idx, fantasy_idx] = discKG
+            # create mask to filter repeated prob of feas
+            bool_repeated_prob_feas = torch.zeros(len(X_samples_prob_feas_value), dtype=bool)
+            bool_repeated_prob_feas[X_samples_prob_feas_value == 1] = True
 
-        return fantasy_opt_val.mean()
+            if torch.prod(X_samples_prob_feas_value) == 1:
+
+                fantasy_opt_val = torch.zeros(
+                    (self.num_scalarisations, 1))  # 1 x num_fantasies
+                repeated_feas_idx_list = torch.Tensor([])
+                different_feas_idx_list = torch.Tensor([0])
+
+            else:
+                num_z_values = zvalues.shape[0]
+                repeated_feas_idx_list = torch.arange(start=0, end=num_z_values)[bool_repeated_prob_feas]
+                different_feas_idx_list = torch.arange(start=0, end=num_z_values)[torch.logical_not(bool_repeated_prob_feas)]
+
+                fantasy_opt_val = torch.zeros(
+                    (self.num_scalarisations, self.num_fantasies_constraints))  # 1 x num_fantasies
+
+            #computing just values of z with different probability of feasibility (1<)
+            for fantasy_idx in different_feas_idx_list:
+                prob_feas_idx = prob_feas[int(fantasy_idx)]
+
+                for w_idx, _ in enumerate(weights):
+                    if torch.sum(prob_feas_idx) == 0:
+                        fantasy_opt_val[w_idx, fantasy_idx] = torch.sum(prob_feas_idx)
+                    else:
+
+                        discKG = self.compute_discrete_kg(xnew=xnew,
+                                                          model_obj_posterior=model_obj_posteriors[w_idx],
+                                                          prob_feas=prob_feas_idx ,
+                                                          optimal_discretisation=optimal_discretisation,
+                                                          lik_noise = lik_noise[w_idx])
+
+                        fantasy_opt_val[w_idx, int(fantasy_idx)] = discKG
+
+            # computing just values of z with the same probability of feasibility (1)
+            compute_first_repeated = True
+            for fantasy_idx in repeated_feas_idx_list:
+                prob_feas_idx = prob_feas[int(fantasy_idx)]
+
+                for w_idx, _ in enumerate(weights):
+                    #compute KG just the first time. Then, just assign the value to other instances.
+                    if compute_first_repeated:
+                        discKG = self.compute_discrete_kg(xnew=xnew,
+                                                          model_obj_posterior=model_obj_posteriors[w_idx],
+                                                          prob_feas=prob_feas_idx ,
+                                                          optimal_discretisation=optimal_discretisation,
+                                                          lik_noise = lik_noise[w_idx])
+
+                        fantasy_opt_val[w_idx, int(fantasy_idx)] = discKG
+                    else:
+                        fantasy_opt_val[w_idx, int(fantasy_idx)] = fantasy_opt_val[w_idx, saved_fantasy_idx]
+
+                saved_fantasy_idx = int(fantasy_idx)
+                compute_first_repeated = False
+
+            return fantasy_opt_val.mean()
 
     def _posterior_mean_cov_precomp(self, model: Model, weights:Tensor, xnew:Tensor, optimal_discretisation: Tensor):
         # Augment the discretisation with the designs.
@@ -448,6 +505,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         full_posterior_variance = (
             model_obj_posterior.variance.squeeze()
         )  # (1 + num_X_disc, )
+
 
         full_predictive_covariance = (
                 posterior_cov_xnew_opt_disc
@@ -631,8 +689,9 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         self.register_buffer("con_lower", torch.tensor(con_lower, dtype=torch.float))
         self.register_buffer("con_upper", torch.tensor(con_upper, dtype=torch.float))
 
+    #
     @staticmethod
-    def kgcb(a: Tensor, b: Tensor) -> Tensor:
+    def kgcb( a: Tensor, b: Tensor) -> Tensor:
         r"""
         Calculates the linear epigraph, i.e. the boundary of the set of points
         in 2D lying above a collection of straight lines y=a+bx.

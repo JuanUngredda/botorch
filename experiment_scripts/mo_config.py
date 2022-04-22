@@ -24,7 +24,7 @@ CONFIG_DICT = {
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
         "num_discrete_points": 3,
-        "num_fantasies": 3,
+        "num_fantasies": 10,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":
@@ -42,7 +42,7 @@ CONFIG_DICT = {
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
         "num_discrete_points": 3,
-        "num_fantasies": 3,
+        "num_fantasies": 10,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":

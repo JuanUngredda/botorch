@@ -16,7 +16,7 @@
 CONFIG_DICT = {
     "BNH_experiments": {
         "problems": ["BNH"],
-        "method": ["macKG"],
+        "method": ["cEHI", "EHI"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -34,7 +34,7 @@ CONFIG_DICT = {
     },
     "SRN_experiments": {
         "problems": ["SRN"],
-        "method": ["macKG"],
+        "method": ["cEHI", "EHI"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,

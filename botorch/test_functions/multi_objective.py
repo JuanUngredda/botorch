@@ -871,7 +871,7 @@ class BNH(MultiObjectiveTestProblem, ConstrainedBaseTestProblem):
     num_objectives = 2
     num_constraints = 2
     _bounds = [(0.0, 5.0), (0.0, 3.0)]
-    _ref_point = [0.0, 0.0]  # TODO: Determine proper reference point
+    _ref_point = [200.0, 60.0]  # TODO: Determine proper reference point
 
     def evaluate_true(self, X: Tensor) -> Tensor:
         return torch.stack(
@@ -895,7 +895,7 @@ class SRN(MultiObjectiveTestProblem, ConstrainedBaseTestProblem):
     num_objectives = 2
     num_constraints = 2
     _bounds = [(-20.0, 20.0), (-20.0, 20.0)]
-    _ref_point = [0.0, 0.0]  # TODO: Determine proper reference point
+    _ref_point = [300.0, 100.0]  # TODO: Determine proper reference point
 
     def evaluate_true(self, X: Tensor) -> Tensor:
         obj1 = 2.0 + ((X - 2.0) ** 2).sum(dim=-1)

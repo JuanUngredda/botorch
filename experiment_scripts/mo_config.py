@@ -16,7 +16,7 @@
 CONFIG_DICT = {
     "BNH_experiments": {
         "problems": ["BNH"],
-        "method": ["cEHI", "EHI"],
+        "method": ["cEHI", "cParEGO"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -24,7 +24,7 @@ CONFIG_DICT = {
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
         "num_discrete_points": 3,
-        "num_fantasies": 10,
+        "num_fantasies": 128,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":
@@ -34,7 +34,7 @@ CONFIG_DICT = {
     },
     "SRN_experiments": {
         "problems": ["SRN"],
-        "method": ["cEHI", "EHI"],
+        "method": ["cEHI", "cParEGO"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -42,7 +42,7 @@ CONFIG_DICT = {
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
         "num_discrete_points": 3,
-        "num_fantasies": 10,
+        "num_fantasies": 128,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":
@@ -52,7 +52,7 @@ CONFIG_DICT = {
     },
     "CONSTR_experiments": {
         "problems": ["CONSTR"],
-        "method": ["macKG"],
+        "method": ["cEHI", "cParEGO"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -60,7 +60,7 @@ CONFIG_DICT = {
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
         "num_discrete_points": 3,
-        "num_fantasies": 3,
+        "num_fantasies": 128,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":
@@ -106,7 +106,7 @@ CONFIG_DICT = {
     },
     "OSY_experiments": {
         "problems": ["OSY"],
-        "method": ["macKG"],
+        "method": ["cEHI", "cParEGO"],
         "output_dim": 2,
         "input_dim": 6,
         "number_of_scalarizations": 10 ,
@@ -114,7 +114,7 @@ CONFIG_DICT = {
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
         "num_discrete_points": 3,
-        "num_fantasies": 3,
+        "num_fantasies": 128,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":

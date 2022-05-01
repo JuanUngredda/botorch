@@ -116,7 +116,7 @@ def get_constrained_mc_objective(train_obj, train_con, scalarization):
 
     constrained_obj = ConstrainedMCObjective(
         objective=objective,
-        constraints=[lambda Z: Z[..., -1]],  # index the constraint
+        constraints=[lambda Z: Z[..., n_obj:]],  # index the constraints
     )
     return constrained_obj
 
@@ -216,7 +216,7 @@ def mo_acq_wrapper(
                     # define an objective that specifies which outcomes are the objectives
                     objective=IdentityMCMultiOutputObjective(outcomes=range(test_fun.num_objectives)),
                     # specify that the constraint is on the last outcome
-                    constraints=[lambda Z: Z[..., -num_constraints]],
+                    constraints=[lambda Z: Z[..., num_objectives:]],
 
                 )
         elif method == "cParEGO":

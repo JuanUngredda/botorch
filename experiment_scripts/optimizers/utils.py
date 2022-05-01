@@ -106,7 +106,7 @@ def test_function_handler(test_fun_str: str,
     return synthetic_fun
 
 
-def get_constrained_mc_objective(train_obj, train_con, scalarization):
+def get_constrained_mc_objective(train_obj, train_con, scalarization, num_constraints):
     """Initialize a ConstrainedMCObjective for qParEGO"""
     n_obj = train_obj.shape[-1]
 
@@ -116,7 +116,7 @@ def get_constrained_mc_objective(train_obj, train_con, scalarization):
 
     constrained_obj = ConstrainedMCObjective(
         objective=objective,
-        constraints=[lambda Z: Z[..., n_obj:]],  # index the constraints
+        constraints=[lambda Z: Z[..., -(i+1)] for i in range(num_constraints)],  # index the constraints
     )
     return constrained_obj
 
@@ -216,12 +216,12 @@ def mo_acq_wrapper(
                     # define an objective that specifies which outcomes are the objectives
                     objective=IdentityMCMultiOutputObjective(outcomes=range(test_fun.num_objectives)),
                     # specify that the constraint is on the last outcome
-                    constraints=[lambda Z: Z[..., num_objectives:]],
+                    constraints=[lambda Z: Z[..., -(i+1)] for i in range(num_constraints)],
 
                 )
         elif method == "cParEGO":
             qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size)  # 128 samples
-
+            num_constraints = test_fun.num_constraints
             weights = sample_simplex(d=test_fun.num_objectives, n=1).squeeze()
             # construct augmented Chebyshev scalarization
             scalarization = get_chebyshev_scalarization(weights=weights, Y=train_obj)
@@ -230,6 +230,7 @@ def mo_acq_wrapper(
                 train_obj=train_obj,
                 train_con=train_con,
                 scalarization=scalarization,
+                num_constraints=num_constraints
             )
             train_y = torch.cat([train_obj, train_con], dim=-1)
             acq_fun = qExpectedImprovement(  # pyre-ignore: [28]

@@ -16,7 +16,7 @@
 CONFIG_DICT = {
     "BNH_experiments": {
         "problems": ["BNH"],
-        "method": ["cParEGO"],
+        "method": ["cEHI"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,

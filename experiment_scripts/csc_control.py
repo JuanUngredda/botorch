@@ -54,7 +54,7 @@ def run(args):
         #                     "ConstrainedBraninCurrin_experiments", "C2DTLZ2_experiments",
         #                     "OSY_experiments"]
 
-        experiment_names = ["BNH_experiments"]
+        experiment_names = ["BNH_experiments", "SRN_experiments", "CONSTR_experiments", "OSY_experiments"]
         for exp_name in experiment_names:
 
             if args.k + seed > 29:

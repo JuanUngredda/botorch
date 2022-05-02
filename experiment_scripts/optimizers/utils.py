@@ -929,6 +929,7 @@ def _compute_expected_utility(
         utility[idx, :] = utility_values
 
     is_feas = (c_values <= 0).squeeze()
+    is_feas = torch.atleast_1d(is_feas)
     if len(is_feas.shape) == 1:
         is_feas = is_feas.unsqueeze(dim=-2)
 

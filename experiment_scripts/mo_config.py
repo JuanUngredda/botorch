@@ -34,7 +34,7 @@ CONFIG_DICT = {
     },
     "SRN_1_scalar_experiments": {
         "problems": ["SRN"],
-        "method": ["pen-maKG", "macKG"],
+        "method": ["macKG"],#["pen-maKG", "macKG"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 1,

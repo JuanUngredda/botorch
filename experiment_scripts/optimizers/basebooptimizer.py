@@ -10,7 +10,7 @@ from torch import Tensor
 from botorch.generation.gen import gen_candidates_scipy
 from .baseoptimizer import BaseOptimizer
 from .utils import timeit
-from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG
+from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG, MultiAttributePenalizedKG
 from botorch.utils.sampling import sample_simplex
 
 LOG_FORMAT = (
@@ -109,7 +109,7 @@ class BaseBOOptimizer(BaseOptimizer):
                               bacth_initial_points: Optional[Tensor]=None, **kwargs) -> Tensor:
         """Use multi-start Adam SGD over multiple seeds"""
 
-        if isinstance(acq_fun, MultiAttributeConstrainedKG):
+        if isinstance(acq_fun, (MultiAttributeConstrainedKG, MultiAttributePenalizedKG)):
             bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
             import time
             num_xnew = self.optional["RAW_SAMPLES"]

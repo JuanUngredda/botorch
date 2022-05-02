@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 from botorch.acquisition.objective import GenericMCObjective
 from botorch.acquisition.analytic import AnalyticAcquisitionFunction, _construct_dist
-from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG
+from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG, MultiAttributePenalizedKG
 from botorch.generation.gen import gen_candidates_scipy
 from botorch.models.model import Model
 from botorch.utils import standardize
@@ -160,6 +160,19 @@ def mo_acq_wrapper(
                 current_global_optimiser=current_global_optimiser,
                 X_pending=X_pending)
 
+        elif method == "pen-maKG":
+            acq_fun = MultiAttributePenalizedKG(
+                model=model,
+                bounds=bounds,
+                X_discretisation_size=num_discrete_points,
+                utility_model=utility_model,
+                num_objectives=num_objectives,
+                num_fantasies_constraints=MC_size,
+                fixed_scalarizations=fixed_scalarizations,
+                num_scalarisations=num_scalarizations,
+                current_global_optimiser=current_global_optimiser,
+                X_pending=X_pending)
+
         elif method == "EHI":
             with torch.no_grad():
                 model_obj = model.subset_output(idcs=range(num_objectives))
@@ -291,6 +304,7 @@ class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
         constraints = dict.fromkeys(
             range(model.num_outputs - self.num_objectives), default_value
         )
+        print("constraints", constraints)
         self._preprocess_constraint_bounds(constraints=constraints)
 
     @t_batch_mode_transform(expected_q=1)
@@ -339,10 +353,10 @@ class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
         if len(con_indices) == 0:
             raise ValueError("There must be at least one constraint.")
 
-        if self.num_objectives in con_indices:
-            raise ValueError(
-                "Output corresponding to objective should not be a constraint."
-            )
+        # if self.num_objectives in con_indices:
+        #     raise ValueError(
+        #         "Output corresponding to objective should not be a constraint."
+        #     )
         for k in con_indices:
             if constraints[k][0] is not None and constraints[k][1] is not None:
                 if constraints[k][1] <= constraints[k][0]:
@@ -826,10 +840,10 @@ def ParetoFrontApproximation(
     X_pmean = []
 
     for idx, w in enumerate(weights):
-        # print("idx", idx)
-        # print("num_obj", num_objectives)
-        # print("num_const", num_constraints)
-        # print("model outpus", model.num_outputs)
+        print("idx", idx)
+        print("num_obj", num_objectives)
+        print("num_const", num_constraints)
+        print("model outpus", model.num_outputs)
         constrained_model = ConstrainedPosteriorMean_individual(
             model=model,
             objective_index=idx,
@@ -916,15 +930,16 @@ def _compute_expected_utility(
 
     is_feas = (c_values <= 0).squeeze()
     if len(is_feas.shape) == 1:
-        is_feas = is_feas.unsqueeze(dim=-1)
-    # print(is_feas.shape)
+        is_feas = is_feas.unsqueeze(dim=-2)
+
     aggregated_is_feas = torch.prod(is_feas, dim=1, dtype=bool)
-    # print(aggregated_is_feas, aggregated_is_feas.shape)
+
     if aggregated_is_feas.sum() == 0:
         expected_utility = torch.Tensor([-100])
         return expected_utility
     else:
         utility_feas = utility[:, aggregated_is_feas]
+
         best_utility = torch.max(utility_feas, dim=1).values
         expected_utility = best_utility.mean()
 

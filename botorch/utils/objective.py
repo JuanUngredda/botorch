@@ -85,11 +85,6 @@ def apply_constraints_nonnegative_soft(
     """
     obj = obj.clamp_min(0)  # Enforce non-negativity with constraints
     for constraint in constraints:
-        print("constraint",constraint)
-        print("samples", samples.shape)
-        print("soft_eval_constraint(constraint(samples), eta=eta)",soft_eval_constraint(constraint(samples), eta=eta).shape)
-        print("obj", obj.shape)
-        print("obj.mul(soft_eval_constraint(constraint(samples), eta=eta))",obj.mul(soft_eval_constraint(constraint(samples), eta=eta)).shape)
         obj = obj.mul(soft_eval_constraint(constraint(samples), eta=eta))
     return obj
 

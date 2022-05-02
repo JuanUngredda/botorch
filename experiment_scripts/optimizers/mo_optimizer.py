@@ -98,8 +98,9 @@ class Optimizer(BaseBOOptimizer):
 
         #self.weights = torch.Tensor([[0.9, 0.1]])
         self.weights = sample_simplex(n=self.num_scalarisations, d=self.f.num_objectives, qmc=True).squeeze()
-
+        self.weights = torch.atleast_2d(self.weights)
         NOISE_VAR = torch.Tensor([1e-4])
+
         while True:
             try:
                 models = []
@@ -232,7 +233,7 @@ class Optimizer(BaseBOOptimizer):
                 fit_gpytorch_model(mll)
                 break
             except:
-                print("update model: increased assumed fixed noise term")
+                print("xstar: increased assumed fixed noise term")
                 NOISE_VAR *= 10
                 print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 

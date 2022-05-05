@@ -932,7 +932,7 @@ def _compute_expected_utility(
     is_feas = torch.atleast_1d(is_feas)
 
     if len(is_feas.shape) == 1:
-        aggregated_is_feas = torch.atleast_1d(is_feas)
+        aggregated_is_feas = is_feas
     else:
         aggregated_is_feas = torch.prod(is_feas, dim=1, dtype=bool)
 

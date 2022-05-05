@@ -930,10 +930,11 @@ def _compute_expected_utility(
 
     is_feas = (c_values <= 0).squeeze()
     is_feas = torch.atleast_1d(is_feas)
-    if len(is_feas.shape) == 1:
-        is_feas = is_feas.unsqueeze(dim=-2)
 
-    aggregated_is_feas = torch.prod(is_feas, dim=1, dtype=bool)
+    if len(is_feas.shape) == 1:
+        aggregated_is_feas = torch.atleast_1d(is_feas)
+    else:
+        aggregated_is_feas = torch.prod(is_feas, dim=1, dtype=bool)
 
     if aggregated_is_feas.sum() == 0:
         expected_utility = torch.Tensor([-100])

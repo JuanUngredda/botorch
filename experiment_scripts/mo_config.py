@@ -14,6 +14,60 @@
 # "beale"
 
 CONFIG_DICT = {
+        "BNH_experiments": {
+        "problems": ["BNH"],
+        "method": ["macKG"],
+        "output_dim": 2,
+        "input_dim": 2,
+        "number_of_scalarizations": 10,
+        "num_samples_initial_design": 6,
+        "num_max_evaluatations": 100,
+        "utility_model": ["Tche"],
+        "num_discrete_points": 3,
+        "num_fantasies": 3,
+        "num_restarts_inner_optimizer": 1,
+        "raw_samples_inner_optimizer": 100,
+        "acquisition_optimizer":
+            "L-BFGS-B",  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": 1,
+        "raw_samples_acq_optimizer": 20,
+    },
+    "SRN_experiments": {
+        "problems": ["SRN"],
+        "method": ["macKG"],  # ["pen-maKG", "macKG"],
+        "output_dim": 2,
+        "input_dim": 2,
+        "number_of_scalarizations": 10,
+        "num_samples_initial_design": 6,
+        "num_max_evaluatations": 100,
+        "utility_model": ["Tche"],
+        "num_discrete_points": 3,
+        "num_fantasies": 3,
+        "num_restarts_inner_optimizer": 1,
+        "raw_samples_inner_optimizer": 100,
+        "acquisition_optimizer":
+            "L-BFGS-B",  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": 1,
+        "raw_samples_acq_optimizer": 20,
+    },
+    "ConstrainedBraninCurrin_experiments": {
+        "problems": ["ConstrainedBraninCurrin"],
+        "method": ["macKG"],
+        "output_dim": 2,
+        "input_dim": 2,
+        "number_of_scalarizations": 10,
+        "num_samples_initial_design": 6,
+        "num_max_evaluatations": 100,
+        "utility_model": ["Tche"],
+        "num_discrete_points": 3,
+        "num_fantasies": 3,
+        "num_restarts_inner_optimizer": 1,
+        "raw_samples_inner_optimizer": 100,
+        "acquisition_optimizer":
+            "L-BFGS-B",  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": 1,
+        "raw_samples_acq_optimizer": 20,
+    },
     "BNH_10_scalar_experiments": {
         "problems": ["BNH"],
         "method": ["pen-maKG"],

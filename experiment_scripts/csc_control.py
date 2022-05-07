@@ -55,14 +55,17 @@ def run(args):
                             "ConstrainedBraninCurrin_2_experiments", "C2DTLZ2_2_experiments",
                             "OSY_2_experiments"]
 
-        experiment_names = ["BNH_2_experiments"]
+        experiment_names = ["SRN_2_experiments"]
         # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]
         for exp_name in experiment_names:
 
             if args.k + seed > 29:
                 raise
 
-            mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            try:
+                mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            except:
+                print("not completed")
             # print(args.k + seed, exp_name)
         seed += number_of_csc_machines
 

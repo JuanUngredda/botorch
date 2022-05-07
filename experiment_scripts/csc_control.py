@@ -55,6 +55,7 @@ def run(args):
                             "ConstrainedBraninCurrin_2_experiments", "C2DTLZ2_2_experiments",
                             "OSY_2_experiments"]
 
+        experiment_names = ["BNH_2_experiments"]
         # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]
         for exp_name in experiment_names:
 

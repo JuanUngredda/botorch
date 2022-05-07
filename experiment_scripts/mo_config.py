@@ -14,7 +14,7 @@
 # "beale"
 
 CONFIG_DICT = {
-        "BNH_experiments": {
+        "BNH_2_experiments": {
         "problems": ["BNH"],
         "method": ["macKG"],
         "output_dim": 2,
@@ -32,7 +32,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "SRN_experiments": {
+    "SRN_2_experiments": {
         "problems": ["SRN"],
         "method": ["macKG"],  # ["pen-maKG", "macKG"],
         "output_dim": 2,
@@ -50,7 +50,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "ConstrainedBraninCurrin_experiments": {
+    "ConstrainedBraninCurrin_2_experiments": {
         "problems": ["ConstrainedBraninCurrin"],
         "method": ["macKG"],
         "output_dim": 2,
@@ -68,61 +68,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "BNH_10_scalar_experiments": {
-        "problems": ["BNH"],
-        "method": ["pen-maKG"],
-        "output_dim": 2,
-        "input_dim": 2,
-        "number_of_scalarizations": 10,
-        "num_samples_initial_design": 6,
-        "num_max_evaluatations": 100,
-        "utility_model": ["Tche"],
-        "num_discrete_points": 3,
-        "num_fantasies": 3,
-        "num_restarts_inner_optimizer": 1,
-        "raw_samples_inner_optimizer": 100,
-        "acquisition_optimizer":
-            "L-BFGS-B",  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": 1,
-        "raw_samples_acq_optimizer": 20,
-    },
-    "SRN_1_scalar_experiments": {
-        "problems": ["SRN"],
-        "method": ["pen-maKG"],  # ["pen-maKG", "macKG"],
-        "output_dim": 2,
-        "input_dim": 2,
-        "number_of_scalarizations": 1,
-        "num_samples_initial_design": 6,
-        "num_max_evaluatations": 100,
-        "utility_model": ["Tche"],
-        "num_discrete_points": 3,
-        "num_fantasies": 3,
-        "num_restarts_inner_optimizer": 1,
-        "raw_samples_inner_optimizer": 100,
-        "acquisition_optimizer":
-            "L-BFGS-B",  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": 1,
-        "raw_samples_acq_optimizer": 20,
-    },
-    "SRN_10_scalar_experiments": {
-        "problems": ["SRN"],
-        "method": ["pen-maKG"],#["pen-maKG", "macKG"],
-        "output_dim": 2,
-        "input_dim": 2,
-        "number_of_scalarizations": 10,
-        "num_samples_initial_design": 6,
-        "num_max_evaluatations": 100,
-        "utility_model": ["Tche"],
-        "num_discrete_points": 3,
-        "num_fantasies": 3,
-        "num_restarts_inner_optimizer": 1,
-        "raw_samples_inner_optimizer": 100,
-        "acquisition_optimizer":
-            "L-BFGS-B",  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": 1,
-        "raw_samples_acq_optimizer": 20,
-    },
-    "CONSTR_10_scalar_experiments": {
+    "CONSTR_2_experiments": {
         "problems": ["CONSTR"],
         "method": ["pen-maKG"],
         "output_dim": 2,
@@ -140,25 +86,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "ConstrainedBraninCurrin_10_scalar_experiments": {
-        "problems": ["ConstrainedBraninCurrin"],
-        "method": ["pen-maKG"],
-        "output_dim": 2,
-        "input_dim": 2,
-        "number_of_scalarizations": 10,
-        "num_samples_initial_design": 6,
-        "num_max_evaluatations": 100,
-        "utility_model": ["Tche"],
-        "num_discrete_points": 3,
-        "num_fantasies": 3,
-        "num_restarts_inner_optimizer": 1,
-        "raw_samples_inner_optimizer": 100,
-        "acquisition_optimizer":
-            "L-BFGS-B",  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": 1,
-        "raw_samples_acq_optimizer": 20,
-    },
-    "C2DTLZ2_10_scalar_experiments": {
+    "C2DTLZ2_2_experiments": {
         "problems": ["C2DTLZ2"],
         "method": ["pen-maKG"],
         "output_dim": 2,
@@ -176,7 +104,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "OSY_10_scalar_experiments": {
+    "OSY_2_experiments": {
         "problems": ["OSY"],
         "method": ["pen-maKG"],
         "output_dim": 2,

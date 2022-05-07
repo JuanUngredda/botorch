@@ -99,7 +99,7 @@ class Optimizer(BaseBOOptimizer):
         #self.weights = torch.Tensor([[0.9, 0.1]])
         self.weights = sample_simplex(n=self.num_scalarisations, d=self.f.num_objectives, qmc=True).squeeze()
         self.weights = torch.atleast_2d(self.weights)
-        NOISE_VAR = torch.Tensor([1e-4])
+        NOISE_VAR = torch.Tensor([1e-3])
 
         while True:
             try:
@@ -151,7 +151,7 @@ class Optimizer(BaseBOOptimizer):
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
-        NOISE_VAR = torch.Tensor([1e-4])
+        NOISE_VAR = torch.Tensor([1e-3])
         while True:
             try:
                 models = []

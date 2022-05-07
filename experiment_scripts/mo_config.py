@@ -70,7 +70,7 @@ CONFIG_DICT = {
     },
     "CONSTR_2_experiments": {
         "problems": ["CONSTR"],
-        "method": ["pen-maKG"],
+        "method": ["macKG"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -88,7 +88,7 @@ CONFIG_DICT = {
     },
     "C2DTLZ2_2_experiments": {
         "problems": ["C2DTLZ2"],
-        "method": ["pen-maKG"],
+        "method": ["macKG"],
         "output_dim": 2,
         "input_dim": 3,
         "number_of_scalarizations": 10,
@@ -106,7 +106,7 @@ CONFIG_DICT = {
     },
     "OSY_2_experiments": {
         "problems": ["OSY"],
-        "method": ["pen-maKG"],
+        "method": ["macKG"],
         "output_dim": 2,
         "input_dim": 6,
         "number_of_scalarizations": 10,

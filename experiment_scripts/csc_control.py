@@ -59,7 +59,7 @@ def run(args):
         # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]
         for exp_name in experiment_names:
 
-            if args.k + seed > 13:
+            if args.k + seed > 29:
                 raise
 
             mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)

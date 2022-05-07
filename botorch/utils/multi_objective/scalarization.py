@@ -25,7 +25,7 @@ from torch import Tensor
 
 
 def get_chebyshev_scalarization(
-    weights: Tensor, Y: Tensor, alpha: float = 0.001
+    weights: Tensor, Y: Tensor, alpha: float = 0.05
 ) -> Callable[[Tensor, Optional[Tensor]], Tensor]:
     r"""Construct an augmented Chebyshev scalarization.
 

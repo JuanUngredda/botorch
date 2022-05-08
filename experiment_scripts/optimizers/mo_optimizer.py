@@ -206,7 +206,7 @@ class Optimizer(BaseBOOptimizer):
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
-        NOISE_VAR = torch.Tensor([1e-4])
+        NOISE_VAR = torch.Tensor([1e-3])
         while True:
             try:
                 models_xstar = []

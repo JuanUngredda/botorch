@@ -114,6 +114,7 @@ class BaseBOOptimizer(BaseOptimizer):
             import time
             num_xnew = self.optional["RAW_SAMPLES"]
             num_xstar = acq_fun.X_discretisation_size
+            print("num_xsatr", num_xstar)
             input_dim = self.dim
             ts = time.time()
             xnew_weights = sample_simplex(n=num_xnew, d=self.f.num_objectives, qmc=True).squeeze()
@@ -127,7 +128,8 @@ class BaseBOOptimizer(BaseOptimizer):
 
             xstar_weights = sample_simplex(n=num_xstar, d=self.f.num_objectives, qmc=True).squeeze()
             ts = time.time()
-            xstar, _ = self.gen_xstar_values(model=self.model, weights=xstar_weights)
+            # xstar, _ = self.gen_xstar_values(model=self.model, weights=xstar_weights)
+            xstar = torch.rand((num_xstar , 1, input_dim))
             xstar = xstar.squeeze(dim=-2)
             te = time.time()
             print("gen xnew", ts-te)

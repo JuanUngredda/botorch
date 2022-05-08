@@ -50,16 +50,16 @@ def run(args):
     # print(number_of_csc_machines)
     seed = 0
     while True:
-        experiment_names = [  "SRN_2_experiments",
-                            "CONSTR_2_experiments",
-                            "ConstrainedBraninCurrin_2_experiments", "C2DTLZ2_2_experiments",
-                            "OSY_2_experiments"]
+        experiment_names = ["BNH_f50_experiments",  "SRN_f50_experiments",
+                            "CONSTR_f50_experiments",
+                            "ConstrainedBraninCurrin_f50_experiments", "C2DTLZ2_f50_experiments",
+                            "OSY_f50_experiments"]
 
         # experiment_names = ["SRN_2_experiments"]
         # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]
         for exp_name in experiment_names:
 
-            if args.k + seed > 29:
+            if args.k + seed > 12:
                 raise
 
             try:

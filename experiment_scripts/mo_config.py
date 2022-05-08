@@ -14,7 +14,7 @@
 # "beale"
 
 CONFIG_DICT = {
-        "BNH_2_experiments": {
+        "BNH_f50_experiments": {
         "problems": ["BNH"],
         "method": ["macKG"],
         "output_dim": 2,
@@ -23,7 +23,7 @@ CONFIG_DICT = {
         "num_samples_initial_design": 6,
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
-        "num_discrete_points": 3,
+        "num_discrete_points": 50,
         "num_fantasies": 3,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
@@ -32,7 +32,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "SRN_2_experiments": {
+    "SRN_f50_experiments": {
         "problems": ["SRN"],
         "method": ["macKG"],  # ["pen-maKG", "macKG"],
         "output_dim": 2,
@@ -41,7 +41,7 @@ CONFIG_DICT = {
         "num_samples_initial_design": 6,
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
-        "num_discrete_points": 3,
+        "num_discrete_points": 50,
         "num_fantasies": 3,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
@@ -50,7 +50,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "ConstrainedBraninCurrin_2_experiments": {
+    "ConstrainedBraninCurrin_f50_experiments": {
         "problems": ["ConstrainedBraninCurrin"],
         "method": ["macKG"],
         "output_dim": 2,
@@ -59,7 +59,7 @@ CONFIG_DICT = {
         "num_samples_initial_design": 6,
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
-        "num_discrete_points": 3,
+        "num_discrete_points": 50,
         "num_fantasies": 3,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
@@ -68,7 +68,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "CONSTR_2_experiments": {
+    "CONSTR_f50_experiments": {
         "problems": ["CONSTR"],
         "method": ["macKG"],
         "output_dim": 2,
@@ -77,7 +77,7 @@ CONFIG_DICT = {
         "num_samples_initial_design": 6,
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
-        "num_discrete_points": 3,
+        "num_discrete_points": 50,
         "num_fantasies": 3,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
@@ -86,7 +86,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "C2DTLZ2_2_experiments": {
+    "C2DTLZ2_f50_experiments": {
         "problems": ["C2DTLZ2"],
         "method": ["macKG"],
         "output_dim": 2,
@@ -95,7 +95,7 @@ CONFIG_DICT = {
         "num_samples_initial_design": 8,
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
-        "num_discrete_points": 3,
+        "num_discrete_points": 50,
         "num_fantasies": 3,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
@@ -104,7 +104,7 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": 1,
         "raw_samples_acq_optimizer": 20,
     },
-    "OSY_2_experiments": {
+    "OSY_f50_experiments": {
         "problems": ["OSY"],
         "method": ["macKG"],
         "output_dim": 2,
@@ -113,7 +113,7 @@ CONFIG_DICT = {
         "num_samples_initial_design": 14,
         "num_max_evaluatations": 100,
         "utility_model": ["Tche"],
-        "num_discrete_points": 3,
+        "num_discrete_points": 50,
         "num_fantasies": 3,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,

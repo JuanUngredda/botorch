@@ -304,7 +304,6 @@ class ConstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
         constraints = dict.fromkeys(
             range(model.num_outputs - self.num_objectives), default_value
         )
-        print("constraints", constraints)
         self._preprocess_constraint_bounds(constraints=constraints)
 
     @t_batch_mode_transform(expected_q=1)
@@ -840,10 +839,7 @@ def ParetoFrontApproximation(
     X_pmean = []
 
     for idx, w in enumerate(weights):
-        print("idx", idx)
-        print("num_obj", num_objectives)
-        print("num_const", num_constraints)
-        print("model outpus", model.num_outputs)
+
         constrained_model = ConstrainedPosteriorMean_individual(
             model=model,
             objective_index=idx,

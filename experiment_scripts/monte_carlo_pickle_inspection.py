@@ -5,19 +5,21 @@ import pickle
 import matplotlib.pyplot as plt
 import torch
 
-from botorch.test_functions.multi_objective import C2DTLZ2
+from botorch.test_functions.multi_objective import C2DTLZ2, BNH
 
-Function = {"C2DTLZ2": C2DTLZ2}
+Function = {"C2DTLZ2": C2DTLZ2,
+            "BNH":BNH}
+
 methods = ["macKG"]  # ["DISCKG", "HYBRIDKG", "MCKG", "ONESHOTKG"]
 
 performance_comparison = {}
-for f in Function.keys():
+for f in ["BNH"]:
     function_class = Function[f]
 
     stats_methods = {}
     stats_methods_parameters = {}
     for i, m in enumerate(methods):
-        experiment_path = "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/C2DTLZ2_experiments/" + f + "/" + m +"/"
+        experiment_path = "/home/juan/Documents/Github_repos/botorch/experiment_scripts/results/BNH_mc_experiments/" + f + "/" + m +"/"
 
         discretisation_sizes = os.listdir(experiment_path)
         stats_disc_size = {}

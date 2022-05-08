@@ -14,17 +14,17 @@
 # "beale"
 
 CONFIG_DICT = {
-    "C2DTLZ2_experiments": {
-        "problems": ["C2DTLZ2"],
+    "BNH_mc_experiments": {
+        "problems": ["BNH"],
         "method": ["macKG"],
         "output_dim": 2,
-        "input_dim": 3,
-        "number_of_scalarizations": [2,5,10,15,20],
-        "num_samples_initial_design": 8,
-        "num_max_evaluatations": 100,
+        "input_dim": 2,
+        "number_of_scalarizations": [3,10,50,100],
+        "num_samples_initial_design": 6,
+        "num_max_evaluatations": 7,
         "utility_model": [ "Tche"],
-        "num_discrete_points": [2,5,10,15, 20],
-        "num_fantasies": [2,5,10,15, 20],
+        "num_discrete_points": [150],
+        "num_fantasies": [3,10,50,100],
         "num_restarts_inner_optimizer": 1 ,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":

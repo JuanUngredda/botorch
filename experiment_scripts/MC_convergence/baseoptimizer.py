@@ -93,9 +93,9 @@ class BaseOptimizer(ABC):
         ).to(dtype =torch.double)
 
         # test initial
-        self.test()
-        logger.info("Test GP performance:\n %s", self.GP_performance[-1, :])
-        logger.info("Test sampled performance:\n %s", self.sampled_performance[-1, :])
+        # self.test()
+        # logger.info("Test GP performance:\n %s", self.GP_performance[-1, :])
+        # logger.info("Test sampled performance:\n %s", self.sampled_performance[-1, :])
 
         # start iterating until the budget is exhausted.
         for _ in range(self.n_max - self.n_init):

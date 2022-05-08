@@ -43,17 +43,14 @@ def run(args):
     hostname = sp.check_output(["hostname"], shell=True).decode()[:-1]
 
     # IMPORT AND RUN MODULES
-    import mo_experiment_manager  # monte_carlo_convergence_experiment_manager
+    import monte_carlo_convergence_experiment_manager  # monte_carlo_convergence_experiment_manager
     from forking_CSC.fork0_to_csc import U
 
     number_of_csc_machines = len(U)
     # print(number_of_csc_machines)
     seed = 0
     while True:
-        experiment_names = ["BNH_f50_experiments",  "SRN_f50_experiments",
-                            "CONSTR_f50_experiments",
-                            "ConstrainedBraninCurrin_f50_experiments", "C2DTLZ2_f50_experiments",
-                            "OSY_f50_experiments"]
+        experiment_names = ["BNH_mc_experiments"]
 
         # experiment_names = ["SRN_2_experiments"]
         # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]
@@ -62,10 +59,12 @@ def run(args):
             if args.k + seed > 29:
                 raise
 
-            try:
-                mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
-            except:
-                print("not completed")
+            monte_carlo_convergence_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+
+            # try:
+            #     mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            # except:
+            #     print("not completed")
             # print(args.k + seed, exp_name)
         seed += number_of_csc_machines
 

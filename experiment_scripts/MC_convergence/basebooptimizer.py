@@ -11,6 +11,7 @@ from botorch.generation.gen import gen_candidates_scipy
 from .baseoptimizer import BaseOptimizer
 from .utils import timeit, acq_values_recorder
 from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG
+from botorch.utils.sampling import sample_simplex
 
 LOG_FORMAT = (
     "%(asctime)s - %(name)s:%(funcName)s:%(lineno)s - %(levelname)s:  %(message)s"
@@ -67,70 +68,85 @@ class BaseBOOptimizer(BaseOptimizer):
                               bacth_initial_points: Optional[Tensor]=None, **kwargs) -> Tuple[Tensor, Tensor]:
         """Use multi-start Adam SGD over multiple seeds"""
 
-        bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
-
-        if bacth_initial_points is None:
-            X_initial_conditions_raw = self.best_model_posterior_mean(model=self.model, weights=self.weights)
-        else:
-            X_initial_conditions_raw = bacth_initial_points
-
         if isinstance(acq_fun, MultiAttributeConstrainedKG):
-
-            num_xnew = self.optional["NUM_RESTARTS"]
+            bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
+            import time
+            num_xnew = self.optional["RAW_SAMPLES"]
             num_xstar = acq_fun.X_discretisation_size
+            print("num_xsatr", num_xstar)
             input_dim = self.dim
+            ts = time.time()
+            xnew_weights = sample_simplex(n=num_xnew, d=self.f.num_objectives, qmc=True).squeeze()
+            # xnew_samples, _ = self.gen_xstar_values(model=self.model, weights=xnew_weights)
+            xnew_samples = bacth_initial_points
+            xnew_samples_rd = torch.rand((100 , 1, input_dim))
+            xnew_samples = torch.vstack([xnew_samples, xnew_samples_rd])
+            te = time.time()
+            print("gen xnew", ts-te)
+            batch_initial_conditions = torch.zeros((num_xnew + 100, num_xstar + 1, input_dim), dtype=torch.double)
 
-            perm = torch.randperm(X_initial_conditions_raw.shape[0])
-            idx = perm[:num_xnew]
-            xnew_samples = X_initial_conditions_raw[idx]
+            xstar_weights = sample_simplex(n=num_xstar, d=self.f.num_objectives, qmc=True).squeeze()
+            ts = time.time()
+            # xstar, _ = self.gen_xstar_values(model=self.model, weights=xstar_weights)
+            xstar = torch.rand((num_xstar , 1, input_dim))
+            xstar = xstar.squeeze(dim=-2)
+            te = time.time()
+            print("gen xnew", ts-te)
 
-            batch_initial_conditions = torch.zeros((num_xnew, num_xstar + 1, input_dim), dtype=torch.double)
             for xnew_idx, xnew in enumerate(xnew_samples):
-
-                perm = torch.randperm(X_initial_conditions_raw.shape[0])
-                idx = perm[:num_xstar]
-                xstar = X_initial_conditions_raw[idx].squeeze(dim=-2)
-
+                # xstar = torch.rand((num_xstar, input_dim))
                 idx_ics = torch.cat([xnew, xstar]).unsqueeze(dim=0)
                 batch_initial_conditions[xnew_idx, ...] = idx_ics
 
+            # print(batch_initial_conditions)
+            ts = time.time()
+            with torch.no_grad():
+                mu_val_initial_conditions_raw = acq_fun.forward(batch_initial_conditions)
+
+                best_k_indeces = torch.argsort(mu_val_initial_conditions_raw.squeeze(), descending=True)[
+                                 : self.optional["NUM_RESTARTS"]
+                                 ].squeeze()
+
+                batch_initial_conditions = batch_initial_conditions[best_k_indeces:best_k_indeces+1, :, :]
+            te = time.time()
+            # self.plot_points_on_objective(points=xnew_samples.squeeze(),
+            #                               cval=mu_val_initial_conditions_raw,
+            #                               scalarizations=xnew_weights)
+            print("batch_initial_conditions ",batch_initial_conditions, te-ts )
+            # acq_fun._plot(X=batch_initial_conditions,
+            #               lb = self.lb,
+            #               ub = self.ub,
+            #               X_train=self.x_train,
+            #               Y_train=self.y_train,
+            #               C_train=self.c_train,
+            #               true_fun=self.f)
+            # print("optimising acq")
+            import time
+            ts = time.time()
             x_best_concat, _ = optimize_acqf(
                 acq_function=acq_fun,
                 bounds=bounds_normalized,
                 q=1,
                 num_restarts=self.optional["NUM_RESTARTS"],
                 batch_initial_conditions=batch_initial_conditions,
+                optimizer=torch.optim.Adam,
                 return_full_tree=False
             )
+            te = time.time()
+            print("opt time", te-ts)
+            # print("finished optimising acq")
             x_best = acq_fun.extract_candidates(X_full=x_best_concat)
-
+            # print("xbest", x_best)
+            # self.plot_points_on_objective(points=torch.atleast_2d(x_best), cval=_,scalarizations=xnew_weights)
+            # print("plot on x_best_concat")
+            # acq_fun._plot(X=x_best_concat,
+            #               lb = self.lb,
+            #               ub = self.ub,
+            #               X_train=self.x_train,
+            #               Y_train=self.y_train,
+            #               C_train=self.c_train,
+            #               true_fun=self.f)
             return x_best, _
 
-        with torch.no_grad(): #torch.enable_grad():#torch.no_grad():
-            mu_val_initial_conditions_raw = acq_fun.forward(X_initial_conditions_raw)
 
-            best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
-                             : self.optional["NUM_RESTARTS"]
-                             ].squeeze()
-
-            X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
-
-        # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
-        if self.optional["OPTIMIZER"] == "Adam":
-            x_best, _ = gen_candidates_torch(
-                initial_conditions=X_initial_conditions.unsqueeze(dim=-2),
-                acquisition_function=acq_fun,
-                lower_bounds=bounds_normalized[0, :],
-                upper_bounds=bounds_normalized[1, :],
-                optimizer=torch.optim.Adam,
-            )
-        else:
-            x_best, _ = gen_candidates_scipy(
-                acquisition_function=acq_fun,
-                initial_conditions=X_initial_conditions.unsqueeze(dim=-2),
-                lower_bounds=torch.zeros(self.dim),
-                upper_bounds=torch.ones(self.dim)
-            )
-
-        return x_best.squeeze(dim=-2).detach(), _
 

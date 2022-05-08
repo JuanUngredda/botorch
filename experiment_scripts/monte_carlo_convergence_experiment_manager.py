@@ -7,10 +7,11 @@ from itertools import product
 
 import torch
 
-from botorch.test_functions.multi_objective import C2DTLZ2, ConstrainedBraninCurrin
+from botorch.test_functions.multi_objective import BNH, SRN, CONSTR, ConstrainedBraninCurrin, C2DTLZ2, OSY, WeldedBeam
 from mc_config import CONFIG_DICT
 from MC_convergence.mc_optimizer import Optimizer
 from optimizers.utils import mo_acq_wrapper
+from MC_convergence.utils import mo_acq_wrapper, test_function_handler
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +57,15 @@ def run_experiment(
         print(k, ":\t", v)
 
     # instantiate the test problem
+    # instantiate the test problem
     testfun_dict = {
+        "BNH": BNH,
+        "SRN": SRN,
+        "CONSTR": CONSTR,
+        "ConstrainedBraninCurrin": ConstrainedBraninCurrin,
         "C2DTLZ2": C2DTLZ2,
-        "ConstrainedBraninCurrin": ConstrainedBraninCurrin
+        "OSY": OSY,
+        "WeldedBeam": WeldedBeam
     }
 
     CONFIG_NUMBER_FANTASIES = CONFIG_DICT[experiment_name]["num_fantasies"]
@@ -70,10 +77,11 @@ def run_experiment(
         "output_dim"
     ]
 
-    testfun = testfun_dict[problem](dim=CONFIG_NUMBER_INPUT_DIM,
-                                    num_objectives=CONFIG_NUMBER_OUTPUT_DIM, negate=True).to(
-        dtype=dtype
-    )
+    testfun = test_function_handler(test_fun_str=problem,
+                                    test_fun_dict=testfun_dict,
+                                    input_dim=CONFIG_NUMBER_INPUT_DIM,
+                                    output_dim=CONFIG_NUMBER_OUTPUT_DIM).to(dtype=dtype)
+
     dim = testfun.dim
     bounds = testfun.bounds  # Bounds tensor (2, d)
     lb, ub = bounds
@@ -111,7 +119,12 @@ def run_experiment(
         "num_max_evaluatations"
     ]
 
-    acquisition_function = mo_acq_wrapper(method=method, bounds=bounds_normalized,
+    print("num scalarizations", num_scalarizations)
+    print("num_X_discretisation",num_X_discretisation)
+    print("num_fantasies",num_fantasies)
+    acquisition_function = mo_acq_wrapper(method=method,
+                                          test_fun=testfun,
+                                          bounds=bounds_normalized,
                                           utility_model_name=CONFIG_UTILITY_MODEL,
                                           MC_size=num_fantasies,
                                           num_objectives=testfun.num_objectives,
@@ -195,6 +208,7 @@ def main(exp_names, seed):
 
     EXPERIMENTS = list(product(*[PROBLEMS, ALGOS, UTILITY, NUMBER_FANTASIES, NUMBER_DISCRETE_POINTS, NUMBER_SCALARIZATIONS]))
     logger.info(f"Running experiment: {seed} of {len(EXPERIMENTS)}")
+
 
     # run that badboy
     for idx, _ in enumerate(EXPERIMENTS):

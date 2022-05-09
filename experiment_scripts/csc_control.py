@@ -50,7 +50,7 @@ def run(args):
     # print(number_of_csc_machines)
     seed = 0
     while True:
-        experiment_names = ["BNH_10_experiments",  "SRN_10_experiments",
+        experiment_names = [ "SRN_10_experiments",
                             "CONSTR_10_experiments",
                             "ConstrainedBraninCurrin_10_experiments", "C2DTLZ2_10_experiments"]
 

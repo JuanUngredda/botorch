@@ -164,16 +164,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
         for x_i, xnew in enumerate(X_actual):
             X_discretisation = X_fantasies[:, x_i, ...].squeeze()
             X_discretisation = torch.cat([X_discretisation, self.current_global_optimiser])
-            # ts = time.time()
-            # kg_unboosted = self._compute_mackg_unboosted(
-            #     xnew=xnew,
-            #     weights=self.fixed_scalarizations,
-            #     zvalues=zvalues,
-            #     optimal_discretisation=X_discretisation)
-            # te = time.time()
-            # print("unboosted", te - ts)
-            # kg_unboosted_vals.append(kg_unboosted)
-            # ts = time.time()
+
             kg_boosted = self._compute_mackg_boosted(
             xnew=xnew,
             weights=self.fixed_scalarizations,

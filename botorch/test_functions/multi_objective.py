@@ -1001,7 +1001,7 @@ class OSY(MultiObjectiveTestProblem, ConstrainedBaseTestProblem):
         (1.0, 5.0),
         (0.0, 10.0),
     ]
-    _ref_point = [-75.0, 75.0]
+    _ref_point = [0, 80.0]
 
     def evaluate_true(self, X: Tensor) -> Tensor:
         f1 = -(

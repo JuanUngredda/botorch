@@ -106,7 +106,7 @@ CONFIG_DICT = {
     },
     "OSY_f50_experiments": {
         "problems": ["OSY"],
-        "method": ["cParEGO", "ParEGO"],
+        "method": ["EHI", "cEHI"],
         "output_dim": 2,
         "input_dim": 6,
         "number_of_scalarizations": 10,

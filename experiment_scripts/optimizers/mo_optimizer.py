@@ -96,7 +96,6 @@ class Optimizer(BaseBOOptimizer):
 
     def _update_model(self, X_train: Tensor, Y_train: Tensor, C_train: Tensor):
 
-        #self.weights = torch.Tensor([[0.9, 0.1]])
         self.weights = sample_simplex(n=self.num_scalarisations, d=self.f.num_objectives, qmc=True).squeeze()
         self.weights = torch.atleast_2d(self.weights)
         NOISE_VAR = torch.Tensor([1e-3])
@@ -105,6 +104,7 @@ class Optimizer(BaseBOOptimizer):
             try:
                 models = []
                 for w in self.weights:
+
                     scalarization_fun = self.utility_model(weights=w, Y=Y_train)
 
                     utility_values = scalarization_fun(Y_train).unsqueeze(dim=-2).view(X_train.shape[0], 1)

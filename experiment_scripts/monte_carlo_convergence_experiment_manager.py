@@ -119,9 +119,7 @@ def run_experiment(
         "num_max_evaluatations"
     ]
 
-    print("num scalarizations", num_scalarizations)
-    print("num_X_discretisation",num_X_discretisation)
-    print("num_fantasies",num_fantasies)
+
     acquisition_function = mo_acq_wrapper(method=method,
                                           test_fun=testfun,
                                           bounds=bounds_normalized,

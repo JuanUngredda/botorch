@@ -25,6 +25,7 @@ from botorch.utils.multi_objective.scalarization import (
 )
 from botorch.acquisition.multi_objective.max_value_entropy_search import qMultiObjectiveMaxValueEntropy
 from botorch import settings
+from botorch.utils.sampling import draw_sobol_samples
 
 dtype = torch.double
 
@@ -195,7 +196,12 @@ def mo_acq_wrapper(
         elif method == "ParEGO":
             model_obj = model.subset_output(idcs=range(num_objectives))
             with torch.no_grad():
-                pred = model_obj.posterior(train_x).mean
+                X_discretisation = draw_sobol_samples(
+                    bounds=bounds, n=1000, q=1
+                )
+
+                pred = model_obj.posterior(X_discretisation).mean.squeeze()
+
             qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size)  # 128 samples
 
             weights = sample_simplex(d=test_fun.num_objectives, n=1).squeeze()
@@ -236,8 +242,16 @@ def mo_acq_wrapper(
             qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size)  # 128 samples
             num_constraints = test_fun.num_constraints
             weights = sample_simplex(d=test_fun.num_objectives, n=1).squeeze()
+
+            model_obj = model.subset_output(idcs=range(num_objectives))
+            with torch.no_grad():
+                X_discretisation = draw_sobol_samples(
+                    bounds=bounds, n=1000, q=1
+                )
+
+                pred = model_obj.posterior(X_discretisation).mean.squeeze()
             # construct augmented Chebyshev scalarization
-            scalarization = get_chebyshev_scalarization(weights=weights, Y=train_obj)
+            scalarization = get_chebyshev_scalarization(weights=weights, Y=pred)
             # initialize ConstrainedMCObjective
             constrained_objective = get_constrained_mc_objective(
                 train_obj=train_obj,

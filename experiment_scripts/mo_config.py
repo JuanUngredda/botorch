@@ -16,7 +16,7 @@
 CONFIG_DICT = {
         "BNH_f50_experiments": {
         "problems": ["BNH"],
-        "method": ["macKG"],
+        "method": ["cParEGO", "ParEGO"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -34,7 +34,7 @@ CONFIG_DICT = {
     },
     "SRN_f50_experiments": {
         "problems": ["SRN"],
-        "method": ["macKG"],  # ["pen-maKG", "macKG"],
+        "method": ["cParEGO", "ParEGO"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -52,7 +52,7 @@ CONFIG_DICT = {
     },
     "ConstrainedBraninCurrin_f50_experiments": {
         "problems": ["ConstrainedBraninCurrin"],
-        "method": ["macKG"],
+        "method": ["cParEGO", "ParEGO"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -70,7 +70,7 @@ CONFIG_DICT = {
     },
     "CONSTR_f50_experiments": {
         "problems": ["CONSTR"],
-        "method": ["macKG"],
+        "method": ["cParEGO", "ParEGO"],
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -88,7 +88,7 @@ CONFIG_DICT = {
     },
     "C2DTLZ2_f50_experiments": {
         "problems": ["C2DTLZ2"],
-        "method": ["macKG"],
+        "method": ["cParEGO", "ParEGO"],
         "output_dim": 2,
         "input_dim": 3,
         "number_of_scalarizations": 10,
@@ -106,7 +106,7 @@ CONFIG_DICT = {
     },
     "OSY_f50_experiments": {
         "problems": ["OSY"],
-        "method": ["macKG"],
+        "method": ["cParEGO", "ParEGO"],
         "output_dim": 2,
         "input_dim": 6,
         "number_of_scalarizations": 10,

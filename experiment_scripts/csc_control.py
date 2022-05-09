@@ -52,10 +52,10 @@ def run(args):
     while True:
         experiment_names = ["BNH_10_experiments",  "SRN_10_experiments",
                             "CONSTR_10_experiments",
-                            "ConstrainedBraninCurrin_10_experiments", "C2DTLZ2_10_experiments",
-                            "OSY_10_experiments"]
+                            "ConstrainedBraninCurrin_10_experiments", "C2DTLZ2_10_experiments"]
 
-        experiment_names = ["OSY_f50_experiments"]
+
+        # experiment_names = ["OSY_f50_experiments"]
         # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]
         for exp_name in experiment_names:
 

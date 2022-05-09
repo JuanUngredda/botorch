@@ -94,21 +94,45 @@ class Optimizer(BaseBOOptimizer):
         constraints = -self.f.evaluate_slack(x)
         return constraints
 
+    def _update_multi_objective_model_prediction(self):
+
+        models = []
+        for i in range(self.y_train.shape[-1]):
+            models.append(
+                SingleTaskGP(self.x_train, self.y_train[..., i: i + 1])
+            )
+        model = ModelListGP(*models)
+        mll = SumMarginalLogLikelihood(model.likelihood, model)
+        fit_gpytorch_model(mll)
+
+        bounds = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
+
+        with torch.no_grad():
+            X_discretisation = draw_sobol_samples(
+                bounds=bounds, n=1000, q=1
+            )
+
+            pred = model.posterior(X_discretisation).mean.squeeze()
+
+        return pred
+
     def _update_model(self, X_train: Tensor, Y_train: Tensor, C_train: Tensor):
 
         self.weights = sample_simplex(n=self.num_scalarisations, d=self.f.num_objectives, qmc=True).squeeze()
         self.weights = torch.atleast_2d(self.weights)
         NOISE_VAR = torch.Tensor([1e-3])
 
+        pred = self._update_multi_objective_model_prediction()
+
         while True:
             try:
                 models = []
                 for w in self.weights:
 
-                    scalarization_fun = self.utility_model(weights=w, Y=Y_train)
+                    scalarization_fun = self.utility_model(weights=w, Y=pred)
 
                     utility_values = scalarization_fun(Y_train).unsqueeze(dim=-2).view(X_train.shape[0], 1)
-                    utility_values = standardize(utility_values)
+                    # utility_values = standardize(utility_values)
                     models.append(
                         FixedNoiseGP(X_train, utility_values,
                                      train_Yvar=NOISE_VAR.expand_as(utility_values)
@@ -131,6 +155,7 @@ class Optimizer(BaseBOOptimizer):
                 NOISE_VAR *= 10
                 print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
+
     def policy(self):
 
         # print(self.x_train, self.y_train, self.c_train)
@@ -151,14 +176,16 @@ class Optimizer(BaseBOOptimizer):
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
+        pred = self._update_multi_objective_model_prediction()
+
         NOISE_VAR = torch.Tensor([1e-3])
         while True:
             try:
                 models = []
                 for w in weights:
-                    scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
+                    scalarization_fun = self.utility_model(weights=w, Y=pred)
                     utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-                    utility_values = standardize(utility_values)
+                    # utility_values = standardize(utility_values)
                     models.append(
                         FixedNoiseGP(self.x_train, utility_values,
                                      train_Yvar=NOISE_VAR.expand_as(utility_values)
@@ -198,11 +225,15 @@ class Optimizer(BaseBOOptimizer):
 
         return X_pareto_solutions, weights
 
+
+
     def gen_xstar_values(self, model, weights):
         """find the highest predicted x to return to the user"""
 
         assert self.y_train is not None
         "Include data to find best posterior mean"
+
+        pred = self._update_multi_objective_model_prediction()
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
@@ -211,9 +242,9 @@ class Optimizer(BaseBOOptimizer):
             try:
                 models_xstar = []
                 for w in weights:
-                    scalarization_fun = self.utility_model(weights=w, Y=self.y_train)
+                    scalarization_fun = self.utility_model(weights=w, Y=pred)
                     utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-                    utility_values = standardize(utility_values)
+                    # utility_values = standardize(utility_values)
 
                     models_xstar.append(
                         FixedNoiseGP(self.x_train, utility_values,

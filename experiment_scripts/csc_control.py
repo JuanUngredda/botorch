@@ -50,10 +50,10 @@ def run(args):
     # print(number_of_csc_machines)
     seed = 0
     while True:
-        experiment_names = ["BNH_f50_experiments",  "SRN_f50_experiments",
-                            "CONSTR_f50_experiments",
-                            "ConstrainedBraninCurrin_f50_experiments", "C2DTLZ2_f50_experiments",
-                            "OSY_f50_experiments"]
+        experiment_names = ["BNH_10_experiments",  "SRN_10_experiments",
+                            "CONSTR_10_experiments",
+                            "ConstrainedBraninCurrin_10_experiments", "C2DTLZ2_10_experiments",
+                            "OSY_10_experiments"]
 
         experiment_names = ["OSY_f50_experiments"]
         # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]
@@ -62,12 +62,12 @@ def run(args):
             if args.k + seed > 29:
                 raise
 
-            # mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
 
-            try:
-                mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
-            except:
-                print("not completed")
+            # try:
+            #     mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            # except:
+            #     print("not completed")
             # print(args.k + seed, exp_name)
         seed += number_of_csc_machines
 

@@ -62,13 +62,13 @@ def run(args):
             if args.k + seed > 29:
                 raise
 
-            mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            # mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
 
-            # try:
-            #     mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
-            # except:
-            #     print("not completed")
-            # print(args.k + seed, exp_name)
+            try:
+                mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            except:
+                print("not completed")
+            print(args.k + seed, exp_name)
         seed += number_of_csc_machines
 
     # end of demo

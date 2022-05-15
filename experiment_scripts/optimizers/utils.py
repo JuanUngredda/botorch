@@ -79,6 +79,19 @@ def timeit(method):
 
     return timed
 
+def test_function_handler(test_fun_str: str,
+                          test_fun_dict: dict,
+                          input_dim: int,
+                          output_dim: int):
+    if test_fun_str == "C2DTLZ2":
+        synthetic_fun = test_fun_dict[test_fun_str](dim=input_dim,
+                                                    num_objectives=output_dim,
+                                                    negate=True)
+    else:
+
+        synthetic_fun = test_fun_dict[test_fun_str](negate=True)
+
+    return synthetic_fun
 
 def mo_acq_wrapper(
         method: str,
@@ -199,7 +212,7 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
         # val =constrained_posterior_mean.squeeze(dim=-1).detach().numpy()
         # plt.scatter(mean_obj.detach().numpy()[..., 0], mean_obj.detach().numpy()[..., 1], c=val)
         # plt.show()
-        # raise
+        # raiseself.num
 
         return constrained_posterior_mean.squeeze(dim=-1).double()
 
@@ -219,10 +232,8 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
         con_indices = list(constraints.keys())
         if len(con_indices) == 0:
             raise ValueError("There must be at least one constraint.")
-        if self.objective_index in con_indices:
-            raise ValueError(
-                "Output corresponding to objective should not be a constraint."
-            )
+
+
         for k in con_indices:
             if constraints[k][0] is not None and constraints[k][1] is not None:
                 if constraints[k][1] <= constraints[k][0]:
@@ -305,6 +316,7 @@ def ParetoFrontApproximation(
         # normalizes scalarization between [0,1] given the training data.
         scalarization = scalatization_fun(weights=w, Y=dummy_mean)
 
+
         constrained_model = ConstrainedPosteriorMean(
             model=model,
             objective_index=y_train.shape[-1],
@@ -337,7 +349,7 @@ def ParetoFrontApproximation(
 
     # plot_X = torch.rand((1000,3))
     # posterior = model.posterior(plot_X)
-    # mean = posterior.mean.detach().numpy()
+    # mean = posterior.mean.detach().numpy()/home/juan/Documents/Github_repos/botorch
     # is_feas = (mean[:,2] <= 0)
     # print("mean", mean.shape)
     # import matplotlib.pyplot as plt
@@ -368,14 +380,166 @@ def _compute_expected_utility(
         utility_values = scalarization(y_values).squeeze()
         utility[idx, :] = utility_values
 
-    is_feas =  (c_values <= 0).squeeze()
+    is_feas = (c_values <= 0).squeeze()
+    is_feas = torch.atleast_1d(is_feas)
 
-    if is_feas.sum() == 0:
+    if len(is_feas.shape) == 1:
+        aggregated_is_feas = is_feas
+    else:
+        aggregated_is_feas = torch.prod(is_feas, dim=1, dtype=bool)
+
+    if aggregated_is_feas.sum() == 0:
         expected_utility = torch.Tensor([-100])
         return expected_utility
     else:
-        utility_feas = utility[:, is_feas]
-        best_utility = torch.max(utility_feas , dim=1).values
+        utility_feas = utility[:, aggregated_is_feas]
+
+        best_utility = torch.max(utility_feas, dim=1).values
         expected_utility = best_utility.mean()
 
         return expected_utility
+
+
+def generate_unconstrained_best_samples(model,
+                                        utility_model,
+                                        input_dim,
+                                        bounds,
+                                        num_objectives,
+                                        weights,
+                                        optional,
+                                        ):
+    dummy_X = torch.rand((1000, input_dim))
+    X_pareto_solutions, _ = UnconstrainedParetoFrontApproximation(
+        model=model,
+        scalatization_fun=utility_model,
+        input_dim=input_dim,
+        bounds=bounds,
+        dummy_X=dummy_X,
+        num_objectives=num_objectives,
+        weights=weights,
+        optional=optional,
+    )
+    return X_pareto_solutions
+
+
+def UnconstrainedParetoFrontApproximation(
+        model: Model,
+        input_dim: int,
+        scalatization_fun: Callable,
+        bounds: Tensor,
+        num_objectives: int,
+        weights: Tensor,
+        dummy_X: Optional[Tensor] = None,
+        optional: Optional[dict[str, int]] = None,
+) -> tuple[Tensor, Tensor]:
+    X_pareto_solutions = []
+    X_pmean = []
+
+    if dummy_X is None:
+        dummy_X = torch.rand((500, input_dim))
+
+    posterior = model.posterior(dummy_X)
+    dummy_mean = posterior.mean[..., :num_objectives]
+
+    for w in weights:
+        # normalizes scalarization between [0,1] given the training data.
+        scalarization = scalatization_fun(weights=w, Y=dummy_mean)
+
+        constrained_model = PosteriorMean(
+            model=model,
+            objective_index=num_objectives,
+            scalarization=scalarization,
+        )
+
+        X_initial_conditions_raw = torch.rand((100, 1, 1, input_dim))
+
+        mu_val_initial_conditions_raw = constrained_model.forward(
+            X_initial_conditions_raw
+        )
+
+        best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
+                         : 1
+                         ].squeeze()
+
+        with torch.enable_grad():
+            X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
+
+            top_x_initial_means, value_initial_means = gen_candidates_scipy(
+                initial_conditions=X_initial_conditions.unsqueeze(dim=-2),
+                acquisition_function=constrained_model,
+                lower_bounds=torch.zeros(input_dim),
+                upper_bounds=torch.ones(input_dim),
+            )
+
+        # subopt_x = X_initial_conditions[torch.argmax(value_initial_means), ...]
+        top_x = top_x_initial_means[torch.argmax(value_initial_means), ...]
+        X_pareto_solutions.append(top_x)
+        X_pmean.append(torch.max(value_initial_means))
+
+    X_pareto_solutions = torch.vstack(X_pareto_solutions)
+    X_pmean = torch.vstack(X_pmean)
+
+    return X_pareto_solutions, X_pmean
+
+
+class PosteriorMean(AnalyticAcquisitionFunction):
+    r"""Constrained Posterior Mean (feasibility-weighted).
+
+    Computes the analytic Posterior Mean for a Normal posterior
+    distribution, weighted by a probability of feasibility. The objective and
+    constraints are assumed to be independent and have Gaussian posterior
+    distributions. Only supports the case `q=1`. The model should be
+    multi-outcome, with the index of the objective and constraints passed to
+    the constructor.
+    """
+
+    def __init__(
+            self,
+            model: Model,
+            objective_index: int,
+            maximize: bool = True,
+            scalarization=Callable,
+    ) -> None:
+        r"""Analytic Constrained Expected Improvement.
+
+        Args:
+            model: A fitted single-outcome model.
+            best_f: Either a scalar or a `b`-dim Tensor (batch mode) representing
+                the best feasible function value observed so far (assumed noiseless).
+            objective_index: The index of the objective.
+            constraints: A dictionary of the form `{i: [lower, upper]}`, where
+                `i` is the output index, and `lower` and `upper` are lower and upper
+                bounds on that output (resp. interpreted as -Inf / Inf if None)
+            maximize: If True, consider the problem a maximization problem.
+        """
+        # use AcquisitionFunction constructor to avoid check for objective
+        super(AnalyticAcquisitionFunction, self).__init__(model=model)
+        self.objective = None
+        self.maximize = maximize
+        self.objective_index = objective_index
+        self.scalarization = scalarization
+
+    @t_batch_mode_transform(expected_q=1)
+    def forward(self, X: Tensor) -> Tensor:
+        r"""Evaluate Constrained Expected Improvement on the candidate set X.
+
+        Args:
+            X: A `(b) x 1 x d`-dim Tensor of `(b)` t-batches of `d`-dim design
+                points each.
+
+        Returns:
+            A `(b)`-dim Tensor of Expected Improvement values at the given
+            design points `X`.
+        """
+        assert len(X.shape) == 4, "dim issue {}".format(X.shape)
+
+        posterior = self._get_posterior(X=X)
+        means = posterior.mean.squeeze(dim=-2)  # (b) x m
+
+        # (b) x 1
+        oi = self.objective_index
+        mean_obj = means[..., :oi]
+
+        scalarized_objective = self.scalarization(mean_obj)
+        return scalarized_objective
+

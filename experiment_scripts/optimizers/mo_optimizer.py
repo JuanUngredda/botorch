@@ -4,7 +4,7 @@ from typing import Optional
 
 import torch
 from botorch.fit import fit_gpytorch_model
-from botorch.models import SingleTaskGP
+from botorch.models import FixedNoiseGP, SingleTaskGP
 from botorch.models.model_list_gp_regression import ModelListGP
 from botorch.models.transforms.outcome import Standardize
 from botorch.utils.multi_objective.scalarization import (
@@ -92,14 +92,23 @@ class Optimizer(BaseBOOptimizer):
         train_joint_YC = torch.cat([Y_train_standarized, C_train], dim=-1)
 
         models = []
-        for i in range(train_joint_YC.shape[-1]):
-            models.append(
-                SingleTaskGP(X_train, train_joint_YC[..., i : i + 1])
-            )
-        self.model = ModelListGP(*models)
-        mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
-        fit_gpytorch_model(mll)
-
+        NOISE_VAR = torch.Tensor([1e-4])
+        while True:
+            try:
+                for i in range(train_joint_YC.shape[-1]):
+                    output_training_data = train_joint_YC[..., i : i + 1]
+                    models.append(
+                        FixedNoiseGP(X_train, output_training_data ,
+                                     train_Yvar=NOISE_VAR.expand_as(output_training_data))
+                    )
+                self.model = ModelListGP(*models)
+                mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("update model: increased assumed fixed noise term")
+                NOISE_VAR *= 10
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
     def policy(self, num_scalarizations:int):
 

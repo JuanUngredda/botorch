@@ -14,36 +14,113 @@
 # "beale"
 
 CONFIG_DICT = {
-    "C2DTLZ2_experiments": {
-        "problems": ["C2DTLZ2"],
+        "BNH_MC_experiments": {
+        "problems": ["BNH"],
         "method": ["macKG"],
-        "number_of_scalarizations": 10 ,
-        "num_samples_initial_design": 10,
-        "num_max_evaluatations": 100,
-        "utility_model": ["Lin", "Tche"],
-        "num_discrete_points": None,
-        "num_fantasies": 5,
-        "num_restarts_inner_optimizer": 1 ,
-        "raw_samples_inner_optimizer": 100,
-        "acquisition_optimizer":
-            "Adam",  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": 1,
-        "raw_samples_acq_optimizer": 100,
-    },
-    "BraninCurrin_experiments": {
-        "problems": ["ConstrainedBraninCurrin"],
-        "method": ["macKG"],
+        "output_dim": 2,
+        "input_dim": 2,
         "number_of_scalarizations": 10,
-        "num_samples_initial_design": 10,
+        "num_samples_initial_design": 6,
         "num_max_evaluatations": 100,
-        "utility_model": ["Lin", "Tche"],
-        "num_discrete_points": None,
-        "num_fantasies": 5,
+        "utility_model": ["Tche"],
+        "num_discrete_points": 50,
+        "num_fantasies": 3,
         "num_restarts_inner_optimizer": 1,
         "raw_samples_inner_optimizer": 100,
         "acquisition_optimizer":
             "Adam",  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": 1,
-        "raw_samples_acq_optimizer": 100,
-    }
+        "raw_samples_acq_optimizer": 20,
+    },
+    "SRN_MC_experiments": {
+        "problems": ["SRN"],
+        "method": ["macKG"],
+        "output_dim": 2,
+        "input_dim": 2,
+        "number_of_scalarizations": 10,
+        "num_samples_initial_design": 6,
+        "num_max_evaluatations": 100,
+        "utility_model": ["Tche"],
+        "num_discrete_points": 50,
+        "num_fantasies": 3,
+        "num_restarts_inner_optimizer": 1,
+        "raw_samples_inner_optimizer": 100,
+        "acquisition_optimizer":
+            "Adam",  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": 1,
+        "raw_samples_acq_optimizer": 20,
+    },
+    "ConstrainedBraninCurrin_MC_experiments": {
+        "problems": ["ConstrainedBraninCurrin"],
+        "method": ["macKG"],
+        "output_dim": 2,
+        "input_dim": 2,
+        "number_of_scalarizations": 10,
+        "num_samples_initial_design": 6,
+        "num_max_evaluatations": 100,
+        "utility_model": ["Tche"],
+        "num_discrete_points": 50,
+        "num_fantasies": 3,
+        "num_restarts_inner_optimizer": 1,
+        "raw_samples_inner_optimizer": 100,
+        "acquisition_optimizer":
+            "Adam",  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": 1,
+        "raw_samples_acq_optimizer": 20,
+    },
+    "CONSTR_MC_experiments": {
+        "problems": ["CONSTR"],
+        "method": ["macKG"],
+        "output_dim": 2,
+        "input_dim": 2,
+        "number_of_scalarizations": 10,
+        "num_samples_initial_design": 6,
+        "num_max_evaluatations": 100,
+        "utility_model": ["Tche"],
+        "num_discrete_points": 50,
+        "num_fantasies": 3,
+        "num_restarts_inner_optimizer": 1,
+        "raw_samples_inner_optimizer": 100,
+        "acquisition_optimizer":
+            "Adam",  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": 1,
+        "raw_samples_acq_optimizer": 20,
+    },
+    "C2DTLZ2_MC_experiments": {
+        "problems": ["C2DTLZ2"],
+        "method": ["macKG"],
+        "output_dim": 2,
+        "input_dim": 3,
+        "number_of_scalarizations": 10,
+        "num_samples_initial_design": 8,
+        "num_max_evaluatations": 100,
+        "utility_model": ["Tche"],
+        "num_discrete_points": 50,
+        "num_fantasies": 3,
+        "num_restarts_inner_optimizer": 1,
+        "raw_samples_inner_optimizer": 100,
+        "acquisition_optimizer":
+            "Adam",  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": 1,
+        "raw_samples_acq_optimizer": 20,
+    },
+    "OSY_MC_experiments": {
+        "problems": ["OSY"],
+        "method": ["macKG"],
+        "output_dim": 2,
+        "input_dim": 6,
+        "number_of_scalarizations": 10,
+        "num_samples_initial_design": 14,
+        "num_max_evaluatations": 100,
+        "utility_model": ["Tche"],
+        "num_discrete_points": 50,
+        "num_fantasies": 3,
+        "num_restarts_inner_optimizer": 1,
+        "raw_samples_inner_optimizer": 100,
+        "acquisition_optimizer":
+            "Adam",  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": 1,
+        "raw_samples_acq_optimizer": 20,
+    },
+
 }

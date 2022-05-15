@@ -9,7 +9,7 @@ from botorch.optim import optimize_acqf
 from torch import Tensor
 from botorch.generation.gen import gen_candidates_scipy
 from .baseoptimizer import BaseOptimizer
-from .utils import timeit
+from .utils import timeit, generate_unconstrained_best_samples
 
 LOG_FORMAT = (
     "%(asctime)s - %(name)s:%(funcName)s:%(lineno)s - %(levelname)s:  %(message)s"
@@ -65,11 +65,26 @@ class BaseBOOptimizer(BaseOptimizer):
         """Use multi-start Adam SGD over multiple seeds"""
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
-
+        import time
+        time_s = time.time()
         with torch.no_grad():
 
-            X_initial_conditions_raw, _, _ = acq_fun._initialize_maKG_parameters(model=self.model)
+            X_initial_conditions_raw, weights, _ = acq_fun._initialize_maKG_parameters(model=self.model)
 
+
+            X_initial_conditions_best_uncons_post_mean = generate_unconstrained_best_samples(model=self.model,
+                                                                                             utility_model=self.utility_model,
+                                                                                             weights=weights,
+                                                                                             input_dim=self.dim,
+                                                                                             optional=self.optional,
+                                                                                             bounds=bounds_normalized,
+                                                                                             num_objectives=self.y_train.shape[-1])
+            X_initial_conditions_raw = torch.cat([X_initial_conditions_raw, X_initial_conditions_best_uncons_post_mean])
+            # print("X_initial_conditions_raw",X_initial_conditions_raw, X_initial_conditions_raw.shape)
+            X_initial_condition_random = torch.rand((10, 1, self.dim))
+            X_initial_conditions_raw = torch.cat([X_initial_conditions_raw, X_initial_condition_random])
+            # print("X_initial_conditions_raw ",X_initial_conditions_raw ,X_initial_conditions_raw.shape)
+            # raise
             mu_val_initial_conditions_raw = acq_fun.forward(X_initial_conditions_raw)
 
             best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
@@ -77,6 +92,7 @@ class BaseBOOptimizer(BaseOptimizer):
                              ].squeeze()
 
             X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
+        time_e = time.time()
 
         # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
         if self.optional["OPTIMIZER"] == "Adam":
@@ -95,27 +111,43 @@ class BaseBOOptimizer(BaseOptimizer):
                 upper_bounds=torch.ones(self.dim)
             )
 
+        time_e = time.time()
+
         # print("X_initial_conditions", X_initial_conditions, "x_best",x_best, "_")
         # posterior_best = self.model.posterior(x_best)
         # mean_best = posterior_best.mean.squeeze().detach().numpy()
         # print("mean_best",mean_best, "_", _)
         # raise
-        # with torch.no_grad():
-        #     plot_X = torch.rand((1000, 1, 1, 4))
-        #     posterior = self.model.posterior(plot_X)
-        #     mean = posterior.mean.squeeze().detach().numpy()
-        #     is_feas = (mean[:, 2] <= 0)
-        #     import matplotlib.pyplot as plt
-        #     plt.scatter(mean[is_feas, 0], mean[is_feas, 1], c=mean[is_feas, 2])
-        #     plt.show()
-        #
-        #     acq_vals = acq_fun.forward(plot_X).squeeze().detach().numpy()
-        #     posterior_best = self.model.posterior(x_best)
-        #     mean_best = posterior_best.mean.squeeze().detach().numpy()
-        #     print("mean_best", mean_best)
-        #     plt.scatter(mean[:, 0], mean[:, 1], c=acq_vals)
-        #     plt.scatter(mean_best[0], mean_best[1], color="red")
-        #     plt.show()
-        #     raise
+        with torch.no_grad():
+            self.plot_points_on_objective(points=torch.atleast_2d(x_best), init_points=torch.atleast_2d(X_initial_conditions_raw))
+
         print("x_best", x_best, "value", _)
         return x_best.squeeze(dim=-2).detach()
+
+    def plot_points_on_objective(self, points, init_points):
+        plot_X = torch.rand((1000, 1, self.f.dim))
+        init_points = init_points.squeeze()
+
+        import matplotlib.pyplot as plt
+        from botorch.utils.transforms import unnormalize
+
+        Y_train_standarized = self.y_train
+
+        with torch.no_grad():
+            bounds = torch.vstack([self.lb, self.ub])
+            x = unnormalize(X=plot_X, bounds=bounds)
+            objective_best_vals = torch.vstack([self.f(x_i) for x_i in points]).to(dtype=torch.double)
+            init_points_vals = torch.vstack([self.f(x_i) for x_i in init_points]).to(dtype=torch.double)
+
+            objective = torch.vstack([self.f(x_i) for x_i in x]).to(dtype=torch.double)
+            constraints = -torch.vstack([self.f.evaluate_slack(x_i) for x_i in x]).to(dtype=torch.double)
+            is_feas = (constraints.squeeze() <= 0)
+            if len(is_feas.shape) == 1:
+                is_feas = is_feas.unsqueeze(dim=-1)
+            aggregated_is_feas = torch.prod(is_feas, dim=-1, dtype=bool)
+            plt.scatter(objective[:, 0], objective[:, 1], color="grey")
+            plt.scatter(objective[aggregated_is_feas, 0], objective[aggregated_is_feas, 1], color="green")
+            plt.scatter(Y_train_standarized.squeeze()[:,0],Y_train_standarized.squeeze()[:,1], color="orange", marker="x")
+            plt.scatter(objective_best_vals[:,0], objective_best_vals[:,1], color="red")
+            plt.scatter(init_points_vals[:,0], init_points_vals[:,1], color="magenta", marker="x")
+            plt.show()

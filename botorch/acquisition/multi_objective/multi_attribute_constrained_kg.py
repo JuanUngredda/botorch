@@ -35,6 +35,7 @@ from botorch.utils.transforms import (
 )
 
 
+
 class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
     r"""Abstract base class for MC multi-output objectives."""
 
@@ -96,8 +97,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
                                                    weights=weights,
                                                    zvalues=zvalues,
                                                    X_current_argmax_pmean=X_argmax_pmean)
-        #     print("xnew", xnew, "kgvals", kgvals[xnew_idx])
-        # print("X", X, "kgvals",kgvals)
+
         return kgvals
 
     def _compute_mackg(self,
@@ -134,16 +134,55 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
                     X=xnew, sampler=sampler, observation_noise=True
                 )
 
-                xnew_constrained_model = ConstrainedPosteriorMean(
+                constrained_model = ConstrainedPosteriorMean(
                     model=fantasy_model,
                     objective_index=self.num_objectives,
                     scalarization=scalarization,
                 )
                 x_current_max = X_current_argmax_pmean[w_idx].unsqueeze(dim=-2)
-                x_top, x_top_val = self.argmax_constrained_model(value_fun=xnew_constrained_model,
-                                                                 batch_initial_conditions=X_current_argmax_pmean.unsqueeze(dim=-2))
+                x_top, x_top_val = self.argmax_constrained_model(value_fun=constrained_model,
+                                                                 batch_initial_conditions=X_current_argmax_pmean.unsqueeze(
+                                                                     dim=-2))
 
-                current_max_val = xnew_constrained_model.forward(x_current_max.unsqueeze(dim=-2))
+                current_max_val = constrained_model.forward(x_current_max.unsqueeze(dim=-2))
+
+                # if len(self.hashmap)==0:
+                #
+                #     x_current_max = X_current_argmax_pmean[w_idx].unsqueeze(dim=-2)
+                #     x_top, x_top_val = self.argmax_constrained_model(value_fun=constrained_model,
+                #                                                      batch_initial_conditions=X_current_argmax_pmean.unsqueeze(dim=-2))
+                #
+                #     current_max_val = constrained_model.forward(x_current_max.unsqueeze(dim=-2))
+                #
+                #     model_values_test = constrained_model.forward(self.X_discretisation_test).detach().squeeze()
+                #     self.model_values_test_dict[0] = model_values_test
+                #     self.hashmap[0] = [current_max_val, x_top_val]
+                # else:
+                #     model_values_test = constrained_model.forward(self.X_discretisation_test).detach().squeeze()
+                #     # print("model_vals", model_values_test)
+                #     found_solutions = False
+                #     for k in self.model_values_test_dict.keys():
+                #         # print("self.model_values_test_dict[k]",self.model_values_test_dict[k])
+                #         # print("overall metric", torch.sum(torch.abs(self.model_values_test_dict[k] - model_values_test)))
+                #         if torch.sum(torch.abs(self.model_values_test_dict[k] - model_values_test)) < 1e-8:
+                #
+                #             current_max_val = self.hashmap[k][0]
+                #             x_top_val = self.hashmap[k][1]
+                #             found_solutions = True
+                #             print("1")
+                #     if found_solutions is False:
+                #         x_current_max = X_current_argmax_pmean[w_idx].unsqueeze(dim=-2)
+                #         x_top, x_top_val = self.argmax_constrained_model(value_fun=constrained_model,
+                #                                                          batch_initial_conditions=X_current_argmax_pmean.unsqueeze(
+                #                                                              dim=-2))
+                #
+                #         current_max_val = constrained_model.forward(x_current_max.unsqueeze(dim=-2))
+                #
+                #         Kth_idx = list(self.model_values_test_dict.keys())[-1]
+                #         self.model_values_test_dict[Kth_idx + 1] = model_values_test
+                #         self.hashmap[Kth_idx + 1] = [current_max_val, x_top_val]
+
+
 
                 # if  True:#x_top_val - current_max_val < 0:
                 #     print("weight", w_i)
@@ -184,6 +223,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
             return fantasy_opt_val.mean()
 
+
     def argmax_constrained_model(self, value_fun: AnalyticAcquisitionFunction, batch_initial_conditions: Tensor):
         # get the value function and make sure gradients are enabled.
 
@@ -201,6 +241,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
                              :self.num_restarts].squeeze()
 
             X_initial_conditions = X_initial_conditions_raw[best_k_indeces, ...]
+
 
             x_value, value = gen_candidates_scipy(
                 initial_conditions=X_initial_conditions.unsqueeze(dim=-2),
@@ -231,7 +272,7 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
 
         if current_number_of_observations != self.num_X_observations:
             # sample random weights
-            self.dummy_X = torch.rand((500, self.input_dim))
+            self.dummy_X = torch.rand((1000, self.input_dim))
             weights = sample_simplex(
                 n=self.num_scalarisations, d=self.num_objectives
             ).squeeze()
@@ -247,38 +288,26 @@ class MultiAttributeConstrainedKG(MultiObjectiveMCAcquisitionFunction):
                 optional=self.optional,
             )
 
-            z_vals_objectives = draw_sobol_normal_samples(
-                d=self.num_objectives,
+            z_vals = draw_sobol_normal_samples(
+                d=self.num_outputs,
                 n=self.num_fantasies
             ).squeeze()  # 1 x num_fantasies
-
-
-            # nz_constraints = 7
-            num_constraints = self.num_outputs - self.num_objectives
-            constraint_base_zvals =  torch.Tensor([-3.79, -1.5932,  0.0000, 1.5932, 3.79])
-
-
-            idx = torch.randint(low=0, high=len(constraint_base_zvals), size=(self.num_fantasies, num_constraints))
-            z_vals_constraints = constraint_base_zvals[idx]
-            # print("constraint_base_zvals",constraint_base_zvals)
-            # print(z_vals_objectives, z_vals_constraints, z_vals_objectives.shape, z_vals_constraints.shape)
-            z_vals = torch.hstack([z_vals_objectives, z_vals_constraints])
             self.z_vals = z_vals
             self.weights = weights
             self.X_pareto_solutions = X_pareto_solutions
             self.num_X_observations = current_number_of_observations
+            # self.hashmap = {}
+            # self.model_values_test_dict = {}
+            # self.X_discretisation_test =  torch.rand((1000, 1, 1, self.input_dim))
 
-            # print("constraint_base_zvals", z_vals_constraints)
-            # print("self.weights",self.weights, self.weights.shape)
-            # print("self.z_vals",self.z_vals,self.z_vals.shape)
-            # print(self.z_vals, self.z_vals.shape)
-            # raise
         else:
             weights = self.weights
             z_vals = self.z_vals
             X_pareto_solutions = self.X_pareto_solutions
 
         return X_pareto_solutions, weights, z_vals
+
+
 
 
 class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
@@ -357,10 +386,7 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
             means=mean_constraints,
             sigmas=sigma_constraints,
         )
-        # print("X", X, X.shape)
-        # print("prob_feas", prob_feas.shape, "scalarized_objective", scalarized_objective.shape)
         constrained_posterior_mean = scalarized_objective.mul(prob_feas)
-        # print("constrained_posterior_mean.shape", constrained_posterior_mean.shape)
         return constrained_posterior_mean
 
     def _preprocess_constraint_bounds(
@@ -379,10 +405,7 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
         con_indices = list(constraints.keys())
         if len(con_indices) == 0:
             raise ValueError("There must be at least one constraint.")
-        if self.objective_index in con_indices:
-            raise ValueError(
-                "Output corresponding to objective should not be a constraint."
-            )
+
         for k in con_indices:
             if constraints[k][0] is not None and constraints[k][1] is not None:
                 if constraints[k][1] <= constraints[k][0]:

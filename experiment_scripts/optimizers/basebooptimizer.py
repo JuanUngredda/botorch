@@ -118,8 +118,8 @@ class BaseBOOptimizer(BaseOptimizer):
         # mean_best = posterior_best.mean.squeeze().detach().numpy()
         # print("mean_best",mean_best, "_", _)
         # raise
-        with torch.no_grad():
-            self.plot_points_on_objective(points=torch.atleast_2d(x_best), init_points=torch.atleast_2d(X_initial_conditions_raw))
+        # with torch.no_grad():
+        #     self.plot_points_on_objective(points=torch.atleast_2d(x_best), init_points=torch.atleast_2d(X_initial_conditions_raw))
 
         print("x_best", x_best, "value", _)
         return x_best.squeeze(dim=-2).detach()

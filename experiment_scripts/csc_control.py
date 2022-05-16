@@ -5,7 +5,6 @@ import sys
 
 import numpy as np
 
-
 # This is a bare script that receives args, prints something, wastes some time,function_caller_test_func_2_TS
 # and saves something. Use this as a blank template to run experiments.
 # The sys.argv = [demo_infra_usage.py (time_stamped_folder) (integer)]
@@ -50,10 +49,14 @@ def run(args):
     # print(number_of_csc_machines)
     seed = 0
     while True:
-        experiment_names = [ "SRN_10_experiments",
-                            "CONSTR_10_experiments",
-                            "ConstrainedBraninCurrin_10_experiments", "C2DTLZ2_10_experiments"]
-
+        experiment_names = [
+                            # "BNH_MC_experiments",
+                            # "SRN_MC_experiments",
+                            # "ConstrainedBraninCurrin_MC_experiments",
+                            # "CONSTR_MC_experiments",
+                            "C2DTLZ2_10_experiments",
+                            # "OSY_MC_experiments"
+                                ]
 
         # experiment_names = ["OSY_f50_experiments"]
         # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]
@@ -62,7 +65,7 @@ def run(args):
             if args.k + seed > 29:
                 raise
 
-            # mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
 
             try:
                 mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
@@ -70,6 +73,11 @@ def run(args):
                 print("not completed")
             print(args.k + seed, exp_name)
         seed += number_of_csc_machines
+    # experiment_manager(args.k)
+
+    # save something to hard drive in /res/ subfolder
+    # with open(this_job_savefile, "w") as f:
+    #     f.write(output + "\n\n")
 
     # end of demo
     print("\nOutput saved to file: ", this_job_savefile, "\n\n\n\n")

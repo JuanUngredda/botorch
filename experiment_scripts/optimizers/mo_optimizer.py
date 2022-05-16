@@ -21,7 +21,7 @@ from botorch.utils.sampling import (
     draw_sobol_samples)
 
 from .basebooptimizer import BaseBOOptimizer
-from .utils import timeit, ParetoFrontApproximation, _compute_expected_utility, ParetoFrontApproximation_xstar
+from .utils import timeit, UnconstrainedParetoFrontApproximation, ParetoFrontApproximation, _compute_expected_utility, ParetoFrontApproximation_xstar
 
 
 class Optimizer(BaseBOOptimizer):
@@ -164,11 +164,11 @@ class Optimizer(BaseBOOptimizer):
             X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train
         )
 
-        x_rec = self.best_model_posterior_mean(model=self.model, weights=self.weights)
+        x_rec = self.best_model_posterior_mean( weights=self.weights)
 
         return x_rec
 
-    def best_model_posterior_mean(self, model, weights):
+    def best_model_posterior_mean(self, weights):
         """find the highest predicted x to return to the user"""
 
         assert self.y_train is not None
@@ -225,6 +225,62 @@ class Optimizer(BaseBOOptimizer):
 
         return X_pareto_solutions, weights
 
+    def best_unconstrained_model_posterior_mean(self, weights):
+        """find the highest predicted x to return to the user"""
+
+        assert self.y_train is not None
+        "Include data to find best posterior mean"
+
+        bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
+
+        pred = self._update_multi_objective_model_prediction()
+
+        NOISE_VAR = torch.Tensor([1e-4])
+        while True:
+            try:
+                models = []
+                for w in weights:
+                    scalarization_fun = self.utility_model(weights=w, Y=pred)
+                    utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
+                    utility_values = standardize(utility_values)
+                    models.append(
+                        FixedNoiseGP(self.x_train, utility_values,
+                                     train_Yvar=NOISE_VAR.expand_as(utility_values)
+                                     )
+                    )
+
+                for i in range(self.c_train.shape[-1]):
+                    models.append(
+                        FixedNoiseGP(self.x_train, self.c_train[..., i: i + 1],
+                                     train_Yvar=NOISE_VAR.expand_as(self.c_train[..., i: i + 1]), )
+                    )
+
+                model = ModelListGP(*models)
+
+                mll = SumMarginalLogLikelihood(model.likelihood, model)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("update model: increased assumed fixed noise term")
+                NOISE_VAR *= 10
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
+
+        X_pareto_solutions, _ = UnconstrainedParetoFrontApproximation(
+            model=model,
+            objective_dim=self.y_train.shape[1],
+            scalatization_fun=self.utility_model,
+            input_dim=self.dim,
+            bounds=bounds_normalized,
+            y_train=self.y_train,
+            x_train=self.x_train,
+            c_train = self.c_train,
+            weights=weights,
+            num_objectives = weights.shape[0],
+            num_constraints = self.c_train.shape[-1],
+            optional=self.optional,
+        )
+
+        return X_pareto_solutions, weights
 
 
     def gen_xstar_values(self, model, weights):
@@ -291,7 +347,12 @@ class Optimizer(BaseBOOptimizer):
             X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train
         )
 
-        X_initial_conditions_raw, _ = self.best_model_posterior_mean(model=self.model, weights=self.weights)
+        X_constrained_initial_conditions_raw, _ = self.best_model_posterior_mean(weights=self.weights)
+
+        X_unconstrained_initial_conditions_raw, _ = self.best_unconstrained_model_posterior_mean(weights=self.weights)
+
+        X_initial_conditions_raw = torch.cat([X_constrained_initial_conditions_raw,
+                                              X_unconstrained_initial_conditions_raw])
 
         acquisition_function = self.acquisition_fun(self.model,
                                                     train_x=self.x_train,

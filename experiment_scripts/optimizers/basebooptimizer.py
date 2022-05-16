@@ -142,7 +142,7 @@ class BaseBOOptimizer(BaseOptimizer):
             # self.plot_points_on_objective(points=xnew_samples.squeeze(),
             #                               cval=mu_val_initial_conditions_raw,
             #                               scalarizations=xnew_weights)
-            print("batch_initial_conditions ",batch_initial_conditions, te-ts )
+            # print("batch_initial_conditions ",batch_initial_conditions, te-ts )
             # acq_fun._plot(X=batch_initial_conditions,
             #               lb = self.lb,
             #               ub = self.ub,
@@ -167,9 +167,9 @@ class BaseBOOptimizer(BaseOptimizer):
             # print("finished optimising acq")
             x_best = acq_fun.extract_candidates(X_full=x_best_concat)
             # print("xbest", x_best)
-            with torch.no_grad():
-                self.plot_points_on_objective(points=torch.atleast_2d(x_best),
-                                              init_points=torch.atleast_2d(X_initial_conditions))
+            # with torch.no_grad():
+            #     self.plot_points_on_objective(points=torch.atleast_2d(x_best),
+            #                                   init_points=torch.atleast_2d(X_initial_conditions))
             # print("plot on x_best_concat")
             # acq_fun._plot(X=x_best_concat,
             #               lb = self.lb,

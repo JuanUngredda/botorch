@@ -95,7 +95,8 @@ class Optimizer(BaseBOOptimizer):
         constraints = -self.f.evaluate_slack(x, noise=noise)
         return constraints
 
-    def _update_multi_objective_model_prediction(self):
+    def _update_multi_objective_model_prediction_with_noise(self):
+
 
         models = []
         for i in range(self.y_train.shape[-1]):
@@ -117,11 +118,48 @@ class Optimizer(BaseBOOptimizer):
 
         return pred
 
+    def _update_multi_objective_model_prediction_without_noise(self):
+
+        NOISE_VAR = torch.Tensor([1e-4])
+        while True:
+            try:
+                models = []
+                for i in range(self.y_train.shape[-1]):
+                    models.append(
+                        FixedNoiseGP(self.x_train, self.y_train[..., i: i + 1],
+                                     train_Yvar=NOISE_VAR.expand_as(self.y_train[..., i: i + 1])
+                                     )
+                    )
+                model = ModelListGP(*models)
+                mll = SumMarginalLogLikelihood(model.likelihood, model)
+                fit_gpytorch_model(mll)
+
+                break
+            except:
+                print("xstar: increased assumed fixed noise term")
+                NOISE_VAR *= 10
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
+
+        bounds = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
+
+        with torch.no_grad():
+            X_discretisation = draw_sobol_samples(
+                bounds=bounds, n=1000, q=1
+            )
+
+            pred = model.posterior(X_discretisation).mean.squeeze()
+
+        return pred
+
     def _update_model(self):
 
         self.weights = sample_simplex(n=self.num_scalarisations, d=self.f.num_objectives, qmc=True).squeeze()
         self.weights = torch.atleast_2d(self.weights)
-        pred = self._update_multi_objective_model_prediction()
+
+        if self.is_noise:
+            pred = self._update_multi_objective_model_prediction_with_noise()
+        else:
+            pred = self._update_multi_objective_model_prediction_without_noise()
         self.pred = pred
         if self.is_noise:
             print("model for noisy data")

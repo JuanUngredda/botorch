@@ -189,6 +189,7 @@ def run_experiment(
         "x": optimizer.x_train,
         "y": optimizer.y_train,
         "c": optimizer.c_train,
+        "noise_std": CONFIG_NOISE_LVL,
         "weights": optimizer.weights,
         "cwd": os.getcwd(),
         "savefile": savefile,

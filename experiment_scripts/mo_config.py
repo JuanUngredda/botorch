@@ -17,7 +17,7 @@ CONFIG_DICT = {
         "BNH_macKG_experiments": {
         "problems": ["BNH"],
         "method": ["macKG", "pen-maKG"],
-        "noise_lvl": 0.01,
+        "noise_lvl": None,
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,
@@ -36,7 +36,7 @@ CONFIG_DICT = {
     "BNH_benchmarks_experiments": {
         "problems": ["BNH"],
         "method": ["cEHI", "cParEGO"],
-        "noise_lvl": 0.01,
+        "noise_lvl": None,
         "output_dim": 2,
         "input_dim": 2,
         "number_of_scalarizations": 10,

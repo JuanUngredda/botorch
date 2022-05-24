@@ -131,7 +131,7 @@ class Optimizer(BaseBOOptimizer):
             print("model for deterministic data")
             self.model = self.train_scalarized_objectives_without_noise(normalizing_vectors=pred,
                                                                         weights=self.weights)
-        raise
+
     def best_model_posterior_mean(self, weights):
         """find the highest predicted x to return to the user"""
 

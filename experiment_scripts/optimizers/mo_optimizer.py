@@ -21,25 +21,27 @@ from botorch.utils.sampling import (
     draw_sobol_samples)
 
 from .basebooptimizer import BaseBOOptimizer
-from .utils import timeit, UnconstrainedParetoFrontApproximation, ParetoFrontApproximation, _compute_expected_utility, ParetoFrontApproximation_xstar
+from .utils import timeit, UnconstrainedParetoFrontApproximation, ParetoFrontApproximation, \
+    TrueParetoFrontApproximation, _compute_expected_utility, ParetoFrontApproximation_xstar
 
 
 class Optimizer(BaseBOOptimizer):
     def __init__(
-        self,
-        testfun,
-        acquisitionfun,
-        lb,
-        ub,
-        utility_model_name: str,
-        num_scalarizations: int,
-        n_max: int,
-        n_init: int = 20,
-        kernel_str: str = None,
-        nz: int = 5,
-        base_seed: Optional[int] = 0,
-        save_folder: Optional[str] = None,
-        optional: Optional[dict[str, int]] = None,
+            self,
+            testfun,
+            acquisitionfun,
+            lb,
+            ub,
+            utility_model_name: str,
+            num_scalarizations: int,
+            n_max: int,
+            n_init: int = 20,
+            kernel_str: str = None,
+            nz: int = 5,
+            base_seed: Optional[int] = 0,
+            save_folder: Optional[str] = None,
+            is_noise: Optional[bool] =False,
+            optional: Optional[dict[str, int]] = None,
     ):
 
         super().__init__(
@@ -58,6 +60,7 @@ class Optimizer(BaseBOOptimizer):
         self.save_folder = save_folder
         self.bounds = testfun.bounds
         self.num_scalarisations = num_scalarizations
+        self.is_noise = is_noise
         if kernel_str == "RBF":
             self.covar_module = ScaleKernel(
                 RBFKernel(ard_num_dims=self.dim),
@@ -77,21 +80,19 @@ class Optimizer(BaseBOOptimizer):
 
         self.weights = sample_simplex(
             n=self.num_scalarisations, d=self.f.num_objectives,
-        qmc=True).squeeze()
-
-
+            qmc=True).squeeze()
 
     @timeit
-    def evaluate_objective(self, x: Tensor, **kwargs) -> Tensor:
+    def evaluate_objective(self, x: Tensor, noise: Optional[bool] = True, **kwargs) -> Tensor:
         x = torch.atleast_2d(x)
         x = unnormalize(X=x, bounds=self.bounds)
-        objective = self.f(x)
+        objective = self.f(x, noise=noise)
         return objective
 
-    def evaluate_constraints(self, x: Tensor, **kwargs) -> Tensor:
+    def evaluate_constraints(self, x: Tensor, noise: Optional[bool] = True, **kwargs) -> Tensor:
         x = torch.atleast_2d(x)
         x = unnormalize(X=x, bounds=self.bounds)
-        constraints = -self.f.evaluate_slack(x)
+        constraints = -self.f.evaluate_slack(x, noise=noise)
         return constraints
 
     def _update_multi_objective_model_prediction(self):
@@ -116,110 +117,33 @@ class Optimizer(BaseBOOptimizer):
 
         return pred
 
-    def _update_model(self, X_train: Tensor, Y_train: Tensor, C_train: Tensor):
+    def _update_model(self):
 
         self.weights = sample_simplex(n=self.num_scalarisations, d=self.f.num_objectives, qmc=True).squeeze()
         self.weights = torch.atleast_2d(self.weights)
-        NOISE_VAR = torch.Tensor([1e-3])
-
         pred = self._update_multi_objective_model_prediction()
-
-        while True:
-            try:
-                models = []
-                for w in self.weights:
-
-                    scalarization_fun = self.utility_model(weights=w, Y=pred)
-
-                    utility_values = scalarization_fun(Y_train).unsqueeze(dim=-2).view(X_train.shape[0], 1)
-                    utility_values = standardize(utility_values)
-                    models.append(
-                        FixedNoiseGP(X_train, utility_values,
-                                     train_Yvar=NOISE_VAR.expand_as(utility_values)
-                                     )
-                    )
-
-                for i in range(C_train.shape[-1]):
-                    models.append(
-                        FixedNoiseGP(X_train, C_train[..., i : i + 1],
-                        train_Yvar=NOISE_VAR.expand_as(C_train[..., i : i + 1]),)
-                    )
-
-                self.model = ModelListGP(*models)
-
-                mll = SumMarginalLogLikelihood(self.model.likelihood, self.model)
-                fit_gpytorch_model(mll)
-                break
-            except:
-                print("update model: increased assumed fixed noise term")
-                NOISE_VAR *= 10
-                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
-
-
-    def policy(self):
-
-        # print(self.x_train, self.y_train, self.c_train)
-
-        self._update_model(
-            X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train
-        )
-
-        x_rec = self.best_model_posterior_mean( weights=self.weights)
-
-        return x_rec
-
+        self.pred = pred
+        if self.is_noise:
+            print("model for noisy data")
+            self.model = self.train_scalarized_objectives_with_noise(normalizing_vectors=pred,
+                                                                        weights=self.weights)
+        else:
+            print("model for deterministic data")
+            self.model = self.train_scalarized_objectives_without_noise(normalizing_vectors=pred,
+                                                                        weights=self.weights)
+        raise
     def best_model_posterior_mean(self, weights):
         """find the highest predicted x to return to the user"""
 
         assert self.y_train is not None
         "Include data to find best posterior mean"
 
-        bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
-
-        pred = self._update_multi_objective_model_prediction()
-
-        NOISE_VAR = torch.Tensor([1e-4])
-        while True:
-            try:
-                models = []
-                for w in weights:
-                    scalarization_fun = self.utility_model(weights=w, Y=pred)
-                    utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-                    utility_values = standardize(utility_values)
-                    models.append(
-                        FixedNoiseGP(self.x_train, utility_values,
-                                     train_Yvar=NOISE_VAR.expand_as(utility_values)
-                                     )
-                    )
-
-                for i in range(self.c_train.shape[-1]):
-                    models.append(
-                        FixedNoiseGP(self.x_train, self.c_train[..., i: i + 1],
-                                     train_Yvar=NOISE_VAR.expand_as(self.c_train[..., i: i + 1]), )
-                    )
-
-                model = ModelListGP(*models)
-
-                mll = SumMarginalLogLikelihood(model.likelihood, model)
-                fit_gpytorch_model(mll)
-                break
-            except:
-                print("update model: increased assumed fixed noise term")
-                NOISE_VAR *= 10
-                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
-
         X_pareto_solutions, _ = ParetoFrontApproximation(
-            model=model,
-            objective_dim=self.y_train.shape[1],
-            scalatization_fun=self.utility_model,
+            model=self.model,
             input_dim=self.dim,
-            bounds=bounds_normalized,
-            y_train=self.y_train,
-            x_train=self.x_train,
-            c_train = self.c_train,
             weights=weights,
-            num_objectives = weights.shape[0],
-            num_constraints = self.c_train.shape[-1],
+            num_objectives=weights.shape[0],
+            num_constraints=self.c_train.shape[-1],
             optional=self.optional,
         )
 
@@ -233,16 +157,42 @@ class Optimizer(BaseBOOptimizer):
 
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
-        pred = self._update_multi_objective_model_prediction()
+        if self.is_noise:
+            model = self.train_scalarized_objectives_with_noise(normalizing_vectors=self.pred,
+                                                                        weights=weights)
+        else:
+            model = self.train_scalarized_objectives_without_noise(normalizing_vectors=self.pred,
+                                                                        weights=weights)
+
+
+        X_pareto_solutions, _ = UnconstrainedParetoFrontApproximation(
+            model=model,
+            objective_dim=self.y_train.shape[1],
+            scalatization_fun=self.utility_model,
+            input_dim=self.dim,
+            bounds=bounds_normalized,
+            y_train=self.y_train,
+            x_train=self.x_train,
+            c_train=self.c_train,
+            weights=weights,
+            num_objectives=weights.shape[0],
+            num_constraints=self.c_train.shape[-1],
+            optional=self.optional,
+        )
+
+        return X_pareto_solutions, weights
+
+    def train_scalarized_objectives_without_noise(self, normalizing_vectors, weights):
 
         NOISE_VAR = torch.Tensor([1e-4])
         while True:
             try:
                 models = []
                 for w in weights:
-                    scalarization_fun = self.utility_model(weights=w, Y=pred)
+                    scalarization_fun = self.utility_model(weights=w, Y=normalizing_vectors)
                     utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
                     utility_values = standardize(utility_values)
+
                     models.append(
                         FixedNoiseGP(self.x_train, utility_values,
                                      train_Yvar=NOISE_VAR.expand_as(utility_values)
@@ -261,26 +211,33 @@ class Optimizer(BaseBOOptimizer):
                 fit_gpytorch_model(mll)
                 break
             except:
-                print("update model: increased assumed fixed noise term")
+                print("xstar: increased assumed fixed noise term")
                 NOISE_VAR *= 10
                 print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
-        X_pareto_solutions, _ = UnconstrainedParetoFrontApproximation(
-            model=model,
-            objective_dim=self.y_train.shape[1],
-            scalatization_fun=self.utility_model,
-            input_dim=self.dim,
-            bounds=bounds_normalized,
-            y_train=self.y_train,
-            x_train=self.x_train,
-            c_train = self.c_train,
-            weights=weights,
-            num_objectives = weights.shape[0],
-            num_constraints = self.c_train.shape[-1],
-            optional=self.optional,
-        )
+        return model
 
-        return X_pareto_solutions, weights
+    def train_scalarized_objectives_with_noise(self, normalizing_vectors, weights):
+
+
+        models = []
+        for w in weights:
+            scalarization_fun = self.utility_model(weights=w, Y=normalizing_vectors)
+            utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
+            utility_values = standardize(utility_values)
+
+            models.append(SingleTaskGP(self.x_train, utility_values))
+
+        for i in range(self.c_train.shape[-1]):
+            models.append(
+                SingleTaskGP(self.x_train, self.c_train[..., i: i + 1] ))
+
+        model = ModelListGP(*models)
+
+        mll = SumMarginalLogLikelihood(model.likelihood, model)
+        fit_gpytorch_model(mll)
+
+        return model
 
 
     def gen_xstar_values(self, model, weights):
@@ -289,40 +246,15 @@ class Optimizer(BaseBOOptimizer):
         assert self.y_train is not None
         "Include data to find best posterior mean"
 
-        pred = self._update_multi_objective_model_prediction()
-
         bounds_normalized = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
-        NOISE_VAR = torch.Tensor([1e-4])
-        while True:
-            try:
-                models_xstar = []
-                for w in weights:
-                    scalarization_fun = self.utility_model(weights=w, Y=pred)
-                    utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-                    utility_values = standardize(utility_values)
+        if self.is_noise:
+            model_xstar = self.train_scalarized_objectives_with_noise(normalizing_vectors=self.pred,
+                                                                        weights=weights)
+        else:
+            model_xstar = self.train_scalarized_objectives_without_noise(normalizing_vectors=self.pred,
+                                                                        weights=weights)
 
-                    models_xstar.append(
-                        FixedNoiseGP(self.x_train, utility_values,
-                                     train_Yvar=NOISE_VAR.expand_as(utility_values)
-                                     )
-                    )
-
-                for i in range(self.c_train.shape[-1]):
-                    models_xstar.append(
-                        FixedNoiseGP(self.x_train, self.c_train[..., i: i + 1],
-                                     train_Yvar=NOISE_VAR.expand_as(self.c_train[..., i: i + 1]), )
-                    )
-
-                model_xstar = ModelListGP(*models_xstar)
-
-                mll = SumMarginalLogLikelihood(model.likelihood, model_xstar)
-                fit_gpytorch_model(mll)
-                break
-            except:
-                print("xstar: increased assumed fixed noise term")
-                NOISE_VAR *= 10
-                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
         # print("weights", weights.shape)
         X_pareto_solutions, _ = ParetoFrontApproximation_xstar(
@@ -333,19 +265,17 @@ class Optimizer(BaseBOOptimizer):
             bounds=bounds_normalized,
             y_train=self.y_train,
             x_train=self.x_train,
-            c_train = self.c_train,
+            c_train=self.c_train,
             weights=weights,
-            num_objectives = weights.shape[0],
-            num_constraints = self.c_train.shape[-1],
+            num_objectives=weights.shape[0],
+            num_constraints=self.c_train.shape[-1],
             optional=self.optional,
         )
 
         return X_pareto_solutions, weights
 
     def get_next_point(self):
-        self._update_model(
-            X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train
-        )
+        self._update_model()
 
         X_constrained_initial_conditions_raw, _ = self.best_model_posterior_mean(weights=self.weights)
 
@@ -360,12 +290,23 @@ class Optimizer(BaseBOOptimizer):
                                                     train_con=self.c_train,
                                                     fixed_scalarizations=self.weights,
                                                     current_global_optimiser=X_initial_conditions_raw,
-                                                    X_pending = None)
+                                                    X_pending=None)
         x_new = self._sgd_optimize_aqc_fun(
             acquisition_function,
-            bacth_initial_points= X_initial_conditions_raw,
+            bacth_initial_points=X_initial_conditions_raw,
             log_time=self.method_time)
         return x_new
+
+
+    def policy(self):
+
+        # print(self.x_train, self.y_train, self.c_train)
+
+        self._update_model()
+
+        x_rec = self.best_model_posterior_mean(weights=self.weights)
+
+        return x_rec
 
     def save(self):
         # save the output
@@ -409,40 +350,82 @@ class Optimizer(BaseBOOptimizer):
             with open(self.save_folder + "/" + str(self.base_seed) + ".pkl", "wb") as f:
                 pkl.dump(output, f)
 
+
+    def true_underlying_policy(self, weights):
+
+        assert self.y_train is not None
+        "Include data to find best posterior mean"
+        X_pareto_solutions, _ = TrueParetoFrontApproximation(
+            output_true_function=self.evaluate_objective,
+            constraint_true_function=self.evaluate_constraints,
+            input_dim=self.dim,
+            weights=weights,
+            x_train=self.x_train,
+            x_recommended=self.pareto_set_recommended,
+            normalizing_vectors=self.pred,
+            utility_model=self.utility_model,
+            num_objectives=weights.shape[0],
+            num_constraints=self.c_train.shape[-1],
+            optional=self.optional,
+        )
+
+        return X_pareto_solutions, weights
+
+    def _compute_OC(self,
+                    true_underlying_PF,
+                    weights,
+                    recommended_solutions):
+
+        def utility_wrapper(utility):
+            def objective(X):
+                objective_values = torch.vstack([self.evaluate_objective(x_i, noise=False) for x_i in X]).to(
+                    dtype=torch.double)
+                constraint_values = torch.vstack([self.evaluate_constraints(x_i, noise=False) for x_i in X]).to(
+                    dtype=torch.double)
+                uvals = utility(objective_values)
+
+                is_feas = constraint_values <= 0
+                aggregated_is_feas = torch.prod(is_feas, dim=-1, dtype=int)
+                objective_val = uvals * aggregated_is_feas
+
+                return objective_val
+
+            return objective
+
+        OC = []
+        for idx, w in enumerate(weights):
+            utility = self.utility_model(weights=w, Y=self.pred)
+            objective = utility_wrapper(utility=utility)
+
+            true_best_uval = torch.max(objective(true_underlying_PF))
+            estimated_best_uval = torch.max(objective(recommended_solutions))
+            oc = torch.max(true_best_uval - estimated_best_uval, 0)
+            OC.append(oc)
+        OC = torch.Tensor(OC)
+        expected_utility = torch.mean(OC)
+        return expected_utility
+
     def test(self):
         """
         test and saves performance measures
         """
 
-        x_rec, weights = self.policy()
-        self.pareto_set_recommended = x_rec
-        self.weights = weights
+        self.pareto_set_recommended, self.weights = self.policy()
+        self.true_underlying_recommended, _ = self.true_underlying_policy(weights=self.weights)
+        estimated_OC = self._compute_OC(true_underlying_PF=self.true_underlying_recommended,
+                                        weights=self.weights,
+                                        recommended_solutions=self.pareto_set_recommended)
 
-        y_pareto_values = torch.vstack([self.evaluate_objective(x_i) for x_i in x_rec])
-        c_pareto_values = torch.vstack(
-            [self.evaluate_constraints(x_i) for x_i in x_rec]
-        )
-
-        expected_sampled_utility = _compute_expected_utility(
-            scalatization_fun=self.utility_model,
-            y_values=self.y_train,
-            c_values=self.c_train,
-            weights=weights,
-        )
-
-        expected_PF_utility = _compute_expected_utility(
-            scalatization_fun=self.utility_model,
-            y_values=y_pareto_values,
-            c_values=c_pareto_values,
-            weights=weights,
-        )
+        sampled_OC = self._compute_OC(true_underlying_PF=self.true_underlying_recommended,
+                                      weights=self.weights,
+                                      recommended_solutions=self.x_train)
 
         n = len(self.y_train) * 1.0
         self.GP_performance = torch.vstack(
-            [self.GP_performance, torch.Tensor([n, expected_PF_utility ])]
+            [self.GP_performance, torch.Tensor([n, estimated_OC])]
         )
 
         self.sampled_performance = torch.vstack(
-            [self.sampled_performance , torch.Tensor([n, expected_sampled_utility])]
+            [self.sampled_performance, torch.Tensor([n, sampled_OC])]
         )
         self.save()

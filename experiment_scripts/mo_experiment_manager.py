@@ -73,7 +73,12 @@ def run_experiment(
         "output_dim"
     ]
 
+    CONFIG_NOISE_LVL = CONFIG_DICT[experiment_name][
+        "noise_lvl"
+    ]
+
     testfun = test_function_handler(test_fun_str=problem,
+                                    noise_lvl = CONFIG_NOISE_LVL,
                                     test_fun_dict=testfun_dict,
                                     input_dim=CONFIG_NUMBER_INPUT_DIM,
                                     output_dim=CONFIG_NUMBER_OUTPUT_DIM).to(dtype=dtype)
@@ -133,11 +138,17 @@ def run_experiment(
     else:
         acquisition_function_optimizer = benchmarks_Optimizer
 
+    if CONFIG_NOISE_LVL is None:
+        is_noise = False
+    else:
+        is_noise = True
+
     optimizer = acquisition_function_optimizer(
         testfun=testfun,
         acquisitionfun=acquisition_function,
         utility_model_name=CONFIG_UTILITY_MODEL,
         num_scalarizations=CONFIG_NUMBER_OF_SCALARIZATIONS,
+        is_noise=is_noise,
         lb=lb,
         ub=ub,
         n_init=CONFIG_NUMBER_INITAL_DESIGN,  # n_init,
@@ -178,7 +189,6 @@ def run_experiment(
         "x": optimizer.x_train,
         "y": optimizer.y_train,
         "c": optimizer.c_train,
-        "x_front_recommended": optimizer.pareto_set_recommended,
         "weights": optimizer.weights,
         "cwd": os.getcwd(),
         "savefile": savefile,

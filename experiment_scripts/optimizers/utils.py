@@ -5,17 +5,19 @@ import torch
 from torch import Tensor
 from botorch.acquisition.objective import GenericMCObjective
 from botorch.acquisition.analytic import AnalyticAcquisitionFunction, _construct_dist
-from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG, MultiAttributePenalizedKG
+from botorch.acquisition.multi_objective.multi_attribute_constrained_kg import MultiAttributeConstrainedKG, \
+    MultiAttributePenalizedKG
 from botorch.generation.gen import gen_candidates_scipy
 from botorch.models.model import Model
 from botorch.utils import standardize
 from botorch.utils.transforms import t_batch_mode_transform
 from botorch.utils.multi_objective.box_decompositions.non_dominated import FastNondominatedPartitioning
 from botorch.utils.transforms import unnormalize, normalize
-from botorch.acquisition.multi_objective.monte_carlo import qExpectedHypervolumeImprovement
+from botorch.acquisition.multi_objective.monte_carlo import qExpectedHypervolumeImprovement, \
+    qNoisyExpectedHypervolumeImprovement
 from botorch.sampling.samplers import SobolQMCNormalSampler
 from botorch.utils.sampling import sample_simplex
-from botorch.acquisition.monte_carlo import qExpectedImprovement
+from botorch.acquisition.monte_carlo import qExpectedImprovement, qNoisyExpectedImprovement
 from botorch.acquisition.analytic import ExpectedImprovement
 from botorch.acquisition.objective import ConstrainedMCObjective
 from botorch.acquisition.multi_objective.objective import IdentityMCMultiOutputObjective
@@ -26,6 +28,7 @@ from botorch.utils.multi_objective.scalarization import (
 from botorch.acquisition.multi_objective.max_value_entropy_search import qMultiObjectiveMaxValueEntropy
 from botorch import settings
 from botorch.utils.sampling import draw_sobol_samples
+from botorch.optim import optimize_acqf
 
 dtype = torch.double
 
@@ -95,14 +98,18 @@ def timeit(method):
 def test_function_handler(test_fun_str: str,
                           test_fun_dict: dict,
                           input_dim: int,
-                          output_dim: int):
+                          output_dim: int,
+                          noise_lvl: Optional[float] = None):
+
+
     if test_fun_str == "C2DTLZ2":
         synthetic_fun = test_fun_dict[test_fun_str](dim=input_dim,
                                                     num_objectives=output_dim,
+                                                    noise_std = noise_lvl,
                                                     negate=True)
     else:
 
-        synthetic_fun = test_fun_dict[test_fun_str](negate=True)
+        synthetic_fun = test_fun_dict[test_fun_str](noise_std = noise_lvl,negate=True)
 
     return synthetic_fun
 
@@ -117,7 +124,7 @@ def get_constrained_mc_objective(train_obj, train_con, scalarization, num_constr
 
     constrained_obj = ConstrainedMCObjective(
         objective=objective,
-        constraints=[lambda Z: Z[..., -(i+1)] for i in range(num_constraints)],  # index the constraints
+        constraints=[lambda Z: Z[..., -(i + 1)] for i in range(num_constraints)],  # index the constraints
     )
     return constrained_obj
 
@@ -227,15 +234,16 @@ def mo_acq_wrapper(
                     Y=pred,
                 )
 
-                acq_fun = qExpectedHypervolumeImprovement(
+                acq_fun = qNoisyExpectedHypervolumeImprovement(
                     model=model,
                     ref_point=test_fun.ref_point,
                     partitioning=partitioning,
                     sampler=qehvi_sampler,
+                    X_baseline=train_x,
                     # define an objective that specifies which outcomes are the objectives
                     objective=IdentityMCMultiOutputObjective(outcomes=range(test_fun.num_objectives)),
                     # specify that the constraint is on the last outcome
-                    constraints=[lambda Z: Z[..., -(i+1)] for i in range(num_constraints)],
+                    constraints=[lambda Z: Z[..., -(i + 1)] for i in range(num_constraints)],
 
                 )
         elif method == "cParEGO":
@@ -260,8 +268,9 @@ def mo_acq_wrapper(
                 num_constraints=num_constraints
             )
             train_y = torch.cat([train_obj, train_con], dim=-1)
-            acq_fun = qExpectedImprovement(  # pyre-ignore: [28]
+            acq_fun = qNoisyExpectedImprovement(  # pyre-ignore: [28]
                 model=model,
+                X_baseline=train_x,
                 objective=constrained_objective,
                 best_f=constrained_objective(train_y).max(),
                 sampler=qparego_sampler,
@@ -743,6 +752,7 @@ class ConstrainedPosteriorMean(AnalyticAcquisitionFunction):
             prob_feas = prob_feas.mul(torch.prod(prob_u - prob_l, dim=-1, keepdim=True))
         return prob_feas
 
+
 class UnconstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
     r"""Constrained Posterior Mean (feasibility-weighted).
 
@@ -783,7 +793,6 @@ class UnconstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
         self.model_obj = self.model.subset_output(idcs=range(self.objective_index, self.objective_index + 1))
         self.model_cs = self.model.subset_output(idcs=range(self.num_objectives, model.num_outputs))
 
-
     @t_batch_mode_transform(expected_q=1)
     def forward(self, X: Tensor) -> Tensor:
         r"""Evaluate Constrained Expected Improvement on the candidate set X.
@@ -808,12 +817,6 @@ class UnconstrainedPosteriorMean_individual(AnalyticAcquisitionFunction):
 def ParetoFrontApproximation(
         model: Model,
         input_dim: int,
-        objective_dim: int,
-        scalatization_fun: Callable,
-        bounds: Tensor,
-        y_train: Tensor,
-        x_train: Tensor,
-        c_train: Tensor,
         weights: Tensor,
         num_objectives: int,
         num_constraints: int,
@@ -823,7 +826,6 @@ def ParetoFrontApproximation(
     X_pmean = []
 
     for idx, w in enumerate(weights):
-
         constrained_model = ConstrainedPosteriorMean_individual(
             model=model,
             objective_index=idx,
@@ -831,11 +833,9 @@ def ParetoFrontApproximation(
             num_constraints=num_constraints
         )
 
-        X_initial_conditions_raw = torch.rand((optional["RAW_SAMPLES"], 1, 1, input_dim))
+        X_initial_conditions_raw = torch.rand((1000, 1, 1, input_dim))
 
-        mu_val_initial_conditions_raw = constrained_model.forward(
-            X_initial_conditions_raw
-        )
+        mu_val_initial_conditions_raw = constrained_model.forward(X_initial_conditions_raw)
 
         best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[
                          : optional["NUM_RESTARTS"]
@@ -857,6 +857,7 @@ def ParetoFrontApproximation(
 
     return X_pareto_solutions, X_pmean
 
+
 def UnconstrainedParetoFrontApproximation(
         model: Model,
         input_dim: int,
@@ -875,7 +876,6 @@ def UnconstrainedParetoFrontApproximation(
     X_pmean = []
 
     for idx, w in enumerate(weights):
-
         constrained_model = UnconstrainedPosteriorMean_individual(
             model=model,
             objective_index=idx,
@@ -908,7 +908,6 @@ def UnconstrainedParetoFrontApproximation(
     X_pmean = torch.vstack(X_pmean)
 
     return X_pareto_solutions, X_pmean
-
 
 
 def ParetoFrontApproximation_xstar(
@@ -1033,3 +1032,123 @@ def _compute_expected_utility(
         expected_utility = best_utility.mean()
 
         return expected_utility
+
+
+def TrueParetoFrontApproximation(
+        output_true_function: Callable,
+        constraint_true_function: Callable,
+        input_dim: int,
+        weights: Tensor,
+        x_train: Tensor,
+        normalizing_vectors: Tensor,
+        utility_model: Callable,
+        num_objectives: int,
+        num_constraints: int,
+    x_recommended: Optional[Tensor] = None,
+        optional: Optional[dict[str, int]] = None) -> tuple[Tensor, Tensor]:
+    X_pareto_solutions = []
+    X_pmean = []
+
+    bounds_normalized = torch.vstack([torch.zeros((1, input_dim)), torch.ones((1, input_dim))])
+
+    for idx, w in enumerate(weights):
+
+        def utility_wrapper(utility):
+            def objective(X):
+                objective_values = torch.vstack([output_true_function(x_i, noise=False) for x_i in X]).to(
+                    dtype=torch.double)
+                constraint_values = torch.vstack([constraint_true_function(x_i, noise=False) for x_i in X]).to(
+                    dtype=torch.double)
+                uvals = utility(objective_values)
+
+                is_feas = constraint_values <= 0
+                aggregated_is_feas = torch.prod(is_feas, dim=-1, dtype=int)
+                objective_val = uvals * aggregated_is_feas
+
+                return objective_val
+
+            return objective
+
+        # generate initialisation points
+        X_random_initial_conditions_raw = torch.rand((1000, input_dim))
+        X_sampled = x_train
+
+        X_initial_conditions_raw = torch.concat([X_random_initial_conditions_raw, X_sampled])
+        if x_recommended is not None:
+            x_recommended = x_recommended.squeeze(dim=-2)
+            X_initial_conditions_raw = torch.concat([X_initial_conditions_raw, x_recommended])
+        X_initial_conditions_raw = X_initial_conditions_raw.unsqueeze(dim=-2)
+
+        utility = utility_model(weights=w, Y=normalizing_vectors)
+        objective = utility_wrapper(utility=utility)
+
+        with torch.no_grad():
+            x_train_posterior_mean = objective(X_initial_conditions_raw).squeeze()
+
+        best_k_indeces = torch.argsort(x_train_posterior_mean, descending=True)[:optional["NUM_RESTARTS"]]
+        X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
+
+        X_optimised, X_optimised_vals = optimize_acqf(
+            acq_function=objective,
+            bounds=bounds_normalized,
+            q=1,
+            batch_initial_conditions=X_initial_conditions,
+            num_restarts=optional["NUM_RESTARTS"])
+
+        x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
+        x_value = torch.max(X_optimised_vals.squeeze())
+
+        x_best = torch.atleast_2d(x_best)
+
+        # with torch.no_grad():
+        #     X_random_initial_conditions_raw = torch.rand((1000, 1, input_dim))
+        #
+        #     X_initial_conditions_raw = X_random_initial_conditions_raw
+        #     x_train_posterior_mean = objective(X_initial_conditions_raw).squeeze()
+        #
+        #     print("x_best", x_best)
+        #     print("BEST POST MEAN VALUE ", objective(x_best))
+        #
+        #     import matplotlib.pyplot as plt
+        #     plt.scatter(X_initial_conditions_raw[:, 0, 0], X_initial_conditions_raw[:, 0, 1], c=x_train_posterior_mean)
+        #     plt.scatter(x_train.numpy()[:, 0], x_train.numpy()[:, 1], color="red", label="sampled points")
+        #
+        #     plt.scatter(
+        #         x_best.numpy()[:, 0],
+        #         x_best.numpy()[:, 1],
+        #         color="black",
+        #         label="one-shot kg $x^{*}$",
+        #         marker="^",
+        #     )
+        #     plt.title("Design Space")
+        #     plt.show()
+        #
+        #     objective_values = torch.vstack([output_true_function(x_i) for x_i in X_random_initial_conditions_raw]).to(dtype=torch.double)
+        #     constraint_values = torch.vstack([constraint_true_function(x_i) for x_i in X_random_initial_conditions_raw]).to(dtype=torch.double)
+        #
+        #     # is_feas = constraint_values <= 0
+        #     # aggregated_is_feas = torch.prod(is_feas, dim=-1, dtype=bool)
+        #     objective_val = objective_values#[aggregated_is_feas, ...]
+        #
+        #     best_objective_values = output_true_function(x_best).to(dtype=torch.double)
+        #
+        #     plt.title("Objective Space")
+        #     plt.scatter(objective_val[:, 0],
+        #                 objective_val [:, 1],
+        #                 c=x_train_posterior_mean)
+        #     # print("posterior_best_mean",posterior_best_mean.shape)
+        #     plt.scatter(best_objective_values.numpy()[:, 0],
+        #                 best_objective_values.numpy()[:, 1], color="black",
+        #                 label="one-shot kg $x^{*}$",
+        #                 marker="^",
+        #                 )
+        #
+        #     plt.show()
+
+        X_pareto_solutions.append(x_best)
+        X_pmean.append(x_value)
+
+    X_pareto_solutions = torch.vstack(X_pareto_solutions)
+    X_pmean = torch.vstack(X_pmean)
+
+    return X_pareto_solutions, X_pmean

@@ -49,14 +49,9 @@ def run(args):
     # print(number_of_csc_machines)
     seed = 0
     while True:
-        experiment_names = [
-                            # "BNH_MC_experiments",
-                            # "SRN_MC_experiments",
-                            # "ConstrainedBraninCurrin_MC_experiments",
-                            # "CONSTR_MC_experiments",
-                            "C2DTLZ2_10_experiments",
-                            # "OSY_MC_experiments"
-                                ]
+        experiment_names = ["BNH_macKG_experiments",
+                            "BNH_benchmarks_experiments"
+                            ]
 
         # experiment_names = ["OSY_f50_experiments"]
         # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]

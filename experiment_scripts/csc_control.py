@@ -52,8 +52,8 @@ def run(args):
         experiment_names = [
                             # "BNH_macKG_experiments",
                             # "BNH_benchmarks_experiments",
-                            # "noisy_BNH_macKG_experiments",
-                            "noisy_BNH_benchmarks_experiments"
+                            "noisy_BNH_macKG_experiments",
+                            # "noisy_BNH_benchmarks_experiments"
                             ]
 
         # experiment_names = ["OSY_f50_experiments"]
@@ -62,7 +62,7 @@ def run(args):
 
             if args.k + seed > 29:
                 raise
-            mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            # mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             try:
                 mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             except:

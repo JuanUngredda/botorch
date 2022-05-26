@@ -19,7 +19,7 @@ from torch import Tensor
 from botorch.utils import standardize
 from botorch.utils.sampling import (
     draw_sobol_samples)
-
+import botorch.models.gp_regression
 from .basebooptimizer import BaseBOOptimizer
 from .utils import timeit, UnconstrainedParetoFrontApproximation, ParetoFrontApproximation, \
     TrueParetoFrontApproximation, _compute_expected_utility, ParetoFrontApproximation_xstar
@@ -268,36 +268,18 @@ class Optimizer(BaseBOOptimizer):
         while True:
             try:
                 models = []
+                botorch.models.gp_regression.MIN_INFERRED_NOISE_LEVEL = NOISE_VAR
                 for w in weights:
-                    noise_prior = GammaPrior(1.1, 0.05)
-                    noise_prior_mode = (noise_prior.concentration - 1) / noise_prior.rate
-                    likelihood = GaussianLikelihood(
-                        noise_prior=noise_prior,
-                        noise_constraint=GreaterThan(
-                            NOISE_VAR,
-                            transform=None,
-                            initial_value=noise_prior_mode,
-                        ),
-                    )
                     scalarization_fun = self.utility_model(weights=w, Y=normalizing_vectors)
                     utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
                     utility_values = standardize(utility_values)
 
-                    models.append(SingleTaskGP(self.x_train, utility_values, likelihood=likelihood))
+                    models.append(SingleTaskGP(self.x_train, utility_values))
 
                 for i in range(self.c_train.shape[-1]):
-                    noise_prior = GammaPrior(1.1, 0.05)
-                    noise_prior_mode = (noise_prior.concentration - 1) / noise_prior.rate
-                    likelihood = GaussianLikelihood(
-                        noise_prior=noise_prior,
-                        noise_constraint=GreaterThan(
-                            NOISE_VAR,
-                            transform=None,
-                            initial_value=noise_prior_mode,
-                        ),
-                    )
-                    models.append(
-                        SingleTaskGP(self.x_train, self.c_train[..., i: i + 1] , likelihood=likelihood))
+
+
+                    models.append(SingleTaskGP(self.x_train, self.c_train[..., i: i + 1] ))
 
                 model = ModelListGP(*models)
 

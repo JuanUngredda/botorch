@@ -49,9 +49,10 @@ def run(args):
     # print(number_of_csc_machines)
     seed = 0
     while True:
-        experiment_names = ["BNH_macKG_experiments",
-                            "BNH_benchmarks_experiments",
-                            "noisy_BNH_macKG_experiments",
+        experiment_names = [
+                            # "BNH_macKG_experiments",
+                            # "BNH_benchmarks_experiments",
+                            # "noisy_BNH_macKG_experiments",
                             "noisy_BNH_benchmarks_experiments"
                             ]
 

@@ -24,6 +24,13 @@ from .basebooptimizer import BaseBOOptimizer
 from .utils import timeit, UnconstrainedParetoFrontApproximation, ParetoFrontApproximation, \
     TrueParetoFrontApproximation, _compute_expected_utility, ParetoFrontApproximation_xstar
 
+from gpytorch.priors.torch_priors import GammaPrior
+from gpytorch.likelihoods.gaussian_likelihood import (
+    FixedNoiseGaussianLikelihood,
+    GaussianLikelihood,
+    _GaussianLikelihoodBase,
+)
+from gpytorch.constraints.constraints import GreaterThan
 
 class Optimizer(BaseBOOptimizer):
     def __init__(
@@ -257,23 +264,41 @@ class Optimizer(BaseBOOptimizer):
 
     def train_scalarized_objectives_with_noise(self, normalizing_vectors, weights):
 
+        NOISE_VAR = torch.Tensor([1e-4])
+        while True:
+            try:
+                models = []
+                for w in weights:
+                    noise_prior = GammaPrior(1.1, 0.05)
+                    noise_prior_mode = (noise_prior.concentration - 1) / noise_prior.rate
+                    likelihood = GaussianLikelihood(
+                        noise_prior=noise_prior,
+                        noise_constraint=GreaterThan(
+                            NOISE_VAR,
+                            transform=None,
+                            initial_value=noise_prior_mode,
+                        ),
+                    )
+                    scalarization_fun = self.utility_model(weights=w, Y=normalizing_vectors)
+                    utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
+                    utility_values = standardize(utility_values)
 
-        models = []
-        for w in weights:
-            scalarization_fun = self.utility_model(weights=w, Y=normalizing_vectors)
-            utility_values = scalarization_fun(self.y_train).unsqueeze(dim=-2).view(self.x_train.shape[0], 1)
-            utility_values = standardize(utility_values)
+                    models.append(SingleTaskGP(self.x_train, utility_values, likelihood=likelihood))
 
-            models.append(SingleTaskGP(self.x_train, utility_values))
+                for i in range(self.c_train.shape[-1]):
+                    models.append(
+                        SingleTaskGP(self.x_train, self.c_train[..., i: i + 1] ))
 
-        for i in range(self.c_train.shape[-1]):
-            models.append(
-                SingleTaskGP(self.x_train, self.c_train[..., i: i + 1] ))
+                model = ModelListGP(*models)
 
-        model = ModelListGP(*models)
+                mll = SumMarginalLogLikelihood(model.likelihood, model)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("xstar: increased assumed fixed noise term")
+                NOISE_VAR *= 10
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
-        mll = SumMarginalLogLikelihood(model.likelihood, model)
-        fit_gpytorch_model(mll)
 
         return model
 

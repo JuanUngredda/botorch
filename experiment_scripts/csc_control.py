@@ -62,7 +62,7 @@ def run(args):
 
             if args.k + seed > 29:
                 raise
-
+            mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             try:
                 mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             except:

@@ -19,11 +19,16 @@ from torch import Tensor
 from botorch.utils import standardize
 from botorch.utils.sampling import (
     draw_sobol_samples)
-
+from gpytorch.constraints.constraints import GreaterThan
 from .basebooptimizer import BaseBOOptimizer
 from .utils import timeit, ParetoFrontApproximation, _compute_expected_utility, \
     ParetoFrontApproximation_xstar, TrueParetoFrontApproximation
-
+from gpytorch.priors.torch_priors import GammaPrior
+from gpytorch.likelihoods.gaussian_likelihood import (
+    FixedNoiseGaussianLikelihood,
+    GaussianLikelihood,
+    _GaussianLikelihoodBase,
+)
 
 class benchmarks_Optimizer(BaseBOOptimizer):
     def __init__(
@@ -97,14 +102,33 @@ class benchmarks_Optimizer(BaseBOOptimizer):
 
     def _update_multi_objective_model_prediction(self):
 
-        models = []
-        for i in range(self.y_train.shape[-1]):
-            models.append(
-                SingleTaskGP(self.x_train, self.y_train[..., i: i + 1])
-            )
-        model = ModelListGP(*models)
-        mll = SumMarginalLogLikelihood(model.likelihood, model)
-        fit_gpytorch_model(mll)
+        NOISE_VAR = torch.Tensor([1e-4])
+        while True:
+            try:
+                noise_prior = GammaPrior(1.1, 0.05)
+                noise_prior_mode = (noise_prior.concentration - 1) / noise_prior.rate
+                likelihood = GaussianLikelihood(
+                    noise_prior=noise_prior,
+                    noise_constraint=GreaterThan(
+                        NOISE_VAR,
+                        transform=None,
+                        initial_value=noise_prior_mode,
+                    ),
+                )
+                models = []
+                for i in range(self.y_train.shape[-1]):
+
+                    models.append(
+                        SingleTaskGP(self.x_train, self.y_train[..., i: i + 1], likelihood=likelihood)
+                    )
+                model = ModelListGP(*models)
+                mll = SumMarginalLogLikelihood(model.likelihood, model)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("_update_multi_objective_model_prediction: increased assumed fixed noise term")
+                NOISE_VAR *= 10
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
         bounds = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 
@@ -169,19 +193,29 @@ class benchmarks_Optimizer(BaseBOOptimizer):
 
         NOISE_VAR = torch.Tensor([1e-4])
         while True:
+
             try:
                 models = []
-
+                noise_prior = GammaPrior(1.1, 0.05)
+                noise_prior_mode = (noise_prior.concentration - 1) / noise_prior.rate
+                likelihood = GaussianLikelihood(
+                    noise_prior=noise_prior,
+                    noise_constraint=GreaterThan(
+                        NOISE_VAR,
+                        transform=None,
+                        initial_value=noise_prior_mode,
+                    ),
+                )
                 for i in range(train_joint_YC.shape[-1]):
                     models.append(
-                        SingleTaskGP(X_train, train_joint_YC[..., i: i + 1])
+                        SingleTaskGP(X_train, train_joint_YC[..., i: i + 1], likelihood=likelihood)
                     )
                 model = ModelListGP(*models)
                 mll = SumMarginalLogLikelihood(model.likelihood, model)
                 fit_gpytorch_model(mll)
                 break
             except:
-                print("update model: increased assumed fixed noise term")
+                print("train_scalarized_objectives_with_noise: increased assumed fixed noise term")
                 NOISE_VAR *= 10
                 print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 

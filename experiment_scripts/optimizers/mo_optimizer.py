@@ -286,8 +286,18 @@ class Optimizer(BaseBOOptimizer):
                     models.append(SingleTaskGP(self.x_train, utility_values, likelihood=likelihood))
 
                 for i in range(self.c_train.shape[-1]):
+                    noise_prior = GammaPrior(1.1, 0.05)
+                    noise_prior_mode = (noise_prior.concentration - 1) / noise_prior.rate
+                    likelihood = GaussianLikelihood(
+                        noise_prior=noise_prior,
+                        noise_constraint=GreaterThan(
+                            NOISE_VAR,
+                            transform=None,
+                            initial_value=noise_prior_mode,
+                        ),
+                    )
                     models.append(
-                        SingleTaskGP(self.x_train, self.c_train[..., i: i + 1] ))
+                        SingleTaskGP(self.x_train, self.c_train[..., i: i + 1] , likelihood=likelihood))
 
                 model = ModelListGP(*models)
 

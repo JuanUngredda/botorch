@@ -264,7 +264,7 @@ class Optimizer(BaseBOOptimizer):
 
     def train_scalarized_objectives_with_noise(self, normalizing_vectors, weights):
 
-        NOISE_VAR = torch.Tensor([1e-4])
+        NOISE_VAR = 1e-4
         while True:
             try:
                 models = []

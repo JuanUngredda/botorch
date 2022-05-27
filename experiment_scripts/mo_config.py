@@ -31,7 +31,7 @@ CONFIG_DICT = {
         "acquisition_optimizer":
             "L-BFGS-B",  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": 1,
-        "raw_samples_acq_optimizer": 100,
+        "raw_samples_acq_optimizer": 20,
     },
     "BNH_benchmarks_experiments": {
         "problems": ["BNH"],
@@ -70,7 +70,7 @@ CONFIG_DICT = {
         "acquisition_optimizer":
             "L-BFGS-B",  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": 1,
-        "raw_samples_acq_optimizer": 100,
+        "raw_samples_acq_optimizer": 20,
     },
     "noisy_BNH_benchmarks_experiments": {
         "problems": ["BNH"],

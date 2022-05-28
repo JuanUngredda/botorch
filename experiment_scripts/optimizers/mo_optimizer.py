@@ -104,15 +104,23 @@ class Optimizer(BaseBOOptimizer):
 
     def _update_multi_objective_model_prediction_with_noise(self):
 
-
-        models = []
-        for i in range(self.y_train.shape[-1]):
-            models.append(
-                SingleTaskGP(self.x_train, self.y_train[..., i: i + 1])
-            )
-        model = ModelListGP(*models)
-        mll = SumMarginalLogLikelihood(model.likelihood, model)
-        fit_gpytorch_model(mll)
+        NOISE_VAR = 1e-4
+        while True:
+            try:
+                models = []
+                botorch.models.gp_regression.MIN_INFERRED_NOISE_LEVEL = NOISE_VAR
+                for i in range(self.y_train.shape[-1]):
+                    models.append(
+                        SingleTaskGP(self.x_train, self.y_train[..., i: i + 1])
+                    )
+                model = ModelListGP(*models)
+                mll = SumMarginalLogLikelihood(model.likelihood, model)
+                fit_gpytorch_model(mll)
+                break
+            except:
+                print("xstar: increased assumed fixed noise term")
+                NOISE_VAR *= 10
+                print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
 
         bounds = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
 

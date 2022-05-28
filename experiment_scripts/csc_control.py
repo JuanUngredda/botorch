@@ -55,7 +55,10 @@ def run(args):
                             # "noisy_BNH_macKG_experiments",
                             # "noisy_BNH_benchmarks_experiments"
                             # "SRN_macKG_experiments",
-                            "SRN_benchmarks_experiments"
+                            "ConstrainedBraninCurrin_benchmarks_experiments",
+            "CONSTR_benchmarks_experiments",
+            "C2DTLZ2_benchmarks_experiments",
+            "OSY_benchmarks_experiments"
                             ]
 
         # experiment_names = ["OSY_f50_experiments"]

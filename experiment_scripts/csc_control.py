@@ -54,7 +54,7 @@ def run(args):
                             # "BNH_benchmarks_experiments",
                             # "noisy_BNH_macKG_experiments",
                             # "noisy_BNH_benchmarks_experiments"
-                            "SRN_macKG_experiments",
+                            # "SRN_macKG_experiments",
                             "SRN_benchmarks_experiments"
                             ]
 

@@ -1085,18 +1085,22 @@ def TrueParetoFrontApproximation(
         with torch.no_grad():
             x_train_posterior_mean = objective(X_initial_conditions_raw).squeeze()
 
-        best_k_indeces = torch.argsort(x_train_posterior_mean, descending=True)[:optional["NUM_RESTARTS"]]
+        best_k_indeces = torch.argsort(x_train_posterior_mean, descending=True)[:1]
         X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
 
-        X_optimised, X_optimised_vals = optimize_acqf(
-            acq_function=objective,
-            bounds=bounds_normalized,
-            q=1,
-            batch_initial_conditions=X_initial_conditions,
-            num_restarts=optional["NUM_RESTARTS"])
+        try:
+            X_optimised, X_optimised_vals = optimize_acqf(
+                acq_function=objective,
+                bounds=bounds_normalized,
+                q=1,
+                batch_initial_conditions=X_initial_conditions,
+                num_restarts=optional["NUM_RESTARTS"])
 
-        x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
-        x_value = torch.max(X_optimised_vals.squeeze())
+            x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
+            x_value = torch.max(X_optimised_vals.squeeze())
+        except:
+            x_best = X_initial_conditions
+            x_value = x_train_posterior_mean[0]
 
         x_best = torch.atleast_2d(x_best)
 

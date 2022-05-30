@@ -47,6 +47,7 @@ CONFIG_DICT = {"ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1": {
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
         "raw_samples_acq_optimizer": [50]},
+
     "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.1": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [4],
@@ -78,695 +79,473 @@ CONFIG_DICT = {"ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1": {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [50]},}
-#
-# CONFIG_DICT = {"ONESHOTKG_GP_synthetic_10_dim2_l0.1": {
-#     "problems": ["GP_synthetic"],
-#     "num_input_dim": [2],
-#     "lengthscale": [0.1],
-#     "method": ["ONESHOTKG"],
-#     "num_samples_initial_design": [6],
-#     "num_max_evaluatations": [100],
-#     "num_discrete_points": [1000],
-#     "num_fantasies": [10],
-#     "num_restarts_inner_optimizer": [1],
-#     "raw_samples_inner_optimizer": [100],
-#     "acquisition_optimizer": [
-#         "L-BFGS-B"
-#     ],  # "L-BFGS-B" or "Adam"
-#     "num_restarts_acq_optimizer": [1],
-#     "raw_samples_acq_optimizer": [50]},
-#     "ONESHOTKG_GP_synthetic_10_dim2_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [0.4],
-#         "method": ["ONESHOTKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [10],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "ONESHOTKG_GP_synthetic_10_dim4_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.1],
-#         "method": ["ONESHOTKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [10],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "ONESHOTKG_GP_synthetic_10_dim4_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.4],
-#         "method": ["ONESHOTKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [10],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},}
+        "raw_samples_acq_optimizer": [50]},
 
-# CONFIG_DICT = {"ONESHOTKG_GP_synthetic_3_dim2_l0.1": {
-#     "problems": ["GP_synthetic"],
-#     "num_input_dim": [2],
-#     "lengthscale": [0.1],
-#     "method": ["ONESHOTKG"],
-#     "num_samples_initial_design": [6],
-#     "num_max_evaluatations": [100],
-#     "num_discrete_points": [1000],
-#     "num_fantasies": [3],
-#     "num_restarts_inner_optimizer": [1],
-#     "raw_samples_inner_optimizer": [100],
-#     "acquisition_optimizer": [
-#         "L-BFGS-B"
-#     ],  # "L-BFGS-B" or "Adam"
-#     "num_restarts_acq_optimizer": [1],
-#     "raw_samples_acq_optimizer": [50]},
-#     "ONESHOTKG_GP_synthetic_3_dim2_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [0.4],
-#         "method": ["ONESHOTKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [3],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "ONESHOTKG_GP_synthetic_3_dim4_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.1],
-#         "method": ["ONESHOTKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [3],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "ONESHOTKG_GP_synthetic_3_dim4_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.4],
-#         "method": ["ONESHOTKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [3],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},}
+    "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.1],
+        "method": ["ONESHOTHYBRIDKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.4],
+        "method": ["ONESHOTHYBRIDKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
 
+    "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.1],
+        "method": ["ONESHOTHYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.4],
+        "method": ["ONESHOTHYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
 
-# CONFIG_DICT = {"HYBRIDKG_GP_synthetic_10_dim2_l0.1": {
-#     "problems": ["GP_synthetic"],
-#     "num_input_dim": [2],
-#     "lengthscale": [0.1],
-#     "method": ["HYBRIDKG"],
-#     "num_samples_initial_design": [6],
-#     "num_max_evaluatations": [100],
-#     "num_discrete_points": [1000],
-#     "num_fantasies": [10],
-#     "num_restarts_inner_optimizer": [1],
-#     "raw_samples_inner_optimizer": [100],
-#     "acquisition_optimizer": [
-#         "L-BFGS-B"
-#     ],  # "L-BFGS-B" or "Adam"
-#     "num_restarts_acq_optimizer": [1],
-#     "raw_samples_acq_optimizer": [50]},
-#     "HYBRIDKG_GP_synthetic_10_dim2_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [0.4],
-#         "method": ["HYBRIDKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [10],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "HYBRIDKG_GP_synthetic_10_dim4_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.1],
-#         "method": ["HYBRIDKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [10],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "HYBRIDKG_GP_synthetic_10_dim4_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.4],
-#         "method": ["HYBRIDKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [10],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},}
+    "HYBRIDKG_GP_synthetic_10_dim2_l0.1": {
+    "problems": ["GP_synthetic"],
+    "num_input_dim": [2],
+    "lengthscale": [0.1],
+    "method": ["HYBRIDKG"],
+    "num_samples_initial_design": [6],
+    "num_max_evaluatations": [100],
+    "num_discrete_points": [1000],
+    "num_fantasies": [10],
+    "num_restarts_inner_optimizer": [1],
+    "raw_samples_inner_optimizer": [100],
+    "acquisition_optimizer": [
+        "L-BFGS-B"
+    ],  # "L-BFGS-B" or "Adam"
+    "num_restarts_acq_optimizer": [1],
+    "raw_samples_acq_optimizer": [50]},
+    "HYBRIDKG_GP_synthetic_10_dim2_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.4],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
 
+    "HYBRIDKG_GP_synthetic_10_dim4_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.1],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "HYBRIDKG_GP_synthetic_10_dim4_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.4],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]
 
+    },
 
-# CONFIG_DICT = {"HYBRIDKG_GP_synthetic_3_dim2_l0.1": {
-#     "problems": ["GP_synthetic"],
-#     "num_input_dim": [2],
-#     "lengthscale": [0.1],
-#     "method": ["HYBRIDKG"],
-#     "num_samples_initial_design": [6],
-#     "num_max_evaluatations": [100],
-#     "num_discrete_points": [1000],
-#     "num_fantasies": [3],
-#     "num_restarts_inner_optimizer": [1],
-#     "raw_samples_inner_optimizer": [100],
-#     "acquisition_optimizer": [
-#         "L-BFGS-B"
-#     ],  # "L-BFGS-B" or "Adam"
-#     "num_restarts_acq_optimizer": [1],
-#     "raw_samples_acq_optimizer": [50]},
-#     "HYBRIDKG_GP_synthetic_3_dim2_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [0.4],
-#         "method": ["HYBRIDKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [3],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "HYBRIDKG_GP_synthetic_3_dim4_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.1],
-#         "method": ["HYBRIDKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [3],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "HYBRIDKG_GP_synthetic_3_dim4_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.4],
-#         "method": ["HYBRIDKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [3],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},}
+    "HYBRIDKG_GP_synthetic_3_dim2_l0.1": {
+    "problems": ["GP_synthetic"],
+    "num_input_dim": [2],
+    "lengthscale": [0.1],
+    "method": ["HYBRIDKG"],
+    "num_samples_initial_design": [6],
+    "num_max_evaluatations": [100],
+    "num_discrete_points": [1000],
+    "num_fantasies": [3],
+    "num_restarts_inner_optimizer": [1],
+    "raw_samples_inner_optimizer": [100],
+    "acquisition_optimizer": [
+        "L-BFGS-B"
+    ],  # "L-BFGS-B" or "Adam"
+    "num_restarts_acq_optimizer": [1],
+    "raw_samples_acq_optimizer": [50]},
+    "HYBRIDKG_GP_synthetic_3_dim2_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.4],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
 
+    "HYBRIDKG_GP_synthetic_3_dim4_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.1],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "HYBRIDKG_GP_synthetic_3_dim4_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.4],
+        "method": ["HYBRIDKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
 
-# CONFIG_DICT = {"MCKG_GP_synthetic_10_dim2_l0.1": {
-#     "problems": ["GP_synthetic"],
-#     "num_input_dim": [2],
-#     "lengthscale": [0.1],
-#     "method": ["MCKG"],
-#     "num_samples_initial_design": [6],
-#     "num_max_evaluatations": [100],
-#     "num_discrete_points": [1000],
-#     "num_fantasies": [10],
-#     "num_restarts_inner_optimizer": [1],
-#     "raw_samples_inner_optimizer": [100],
-#     "acquisition_optimizer": [
-#         "L-BFGS-B"
-#     ],  # "L-BFGS-B" or "Adam"
-#     "num_restarts_acq_optimizer": [1],
-#     "raw_samples_acq_optimizer": [50]},
-#     "MCKG_GP_synthetic_10_dim2_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [0.4],
-#         "method": ["MCKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [10],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "MCKG_GP_synthetic_10_dim4_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.1],
-#         "method": ["MCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [10],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "MCKG_GP_synthetic_10_dim4_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.4],
-#         "method": ["MCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [10],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},}
+    "MCKG_GP_synthetic_10_dim2_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.1],
+        "method": ["MCKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "MCKG_GP_synthetic_10_dim2_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.4],
+        "method": ["MCKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
 
-# CONFIG_DICT = {"MCKG_GP_synthetic_3_dim2_l0.1": {
-#     "problems": ["GP_synthetic"],
-#     "num_input_dim": [2],
-#     "lengthscale": [0.1],
-#     "method": ["MCKG"],
-#     "num_samples_initial_design": [6],
-#     "num_max_evaluatations": [100],
-#     "num_discrete_points": [1000],
-#     "num_fantasies": [3],
-#     "num_restarts_inner_optimizer": [1],
-#     "raw_samples_inner_optimizer": [100],
-#     "acquisition_optimizer": [
-#         "L-BFGS-B"
-#     ],  # "L-BFGS-B" or "Adam"
-#     "num_restarts_acq_optimizer": [1],
-#     "raw_samples_acq_optimizer": [50]},
-#     "MCKG_GP_synthetic_3_dim2_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [0.4],
-#         "method": ["MCKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [3],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "MCKG_GP_synthetic_3_dim4_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.1],
-#         "method": ["MCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [3],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "MCKG_GP_synthetic_3_dim4_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.4],
-#         "method": ["MCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [3],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
+    "MCKG_GP_synthetic_10_dim4_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.1],
+        "method": ["MCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "MCKG_GP_synthetic_10_dim4_l0.4": {
+            "problems": ["GP_synthetic"],
+            "num_input_dim": [4],
+            "lengthscale": [0.4],
+            "method": ["MCKG"],
+            "num_samples_initial_design": [10],
+            "num_max_evaluatations": [100],
+            "num_discrete_points": [1000],
+            "num_fantasies": [10],
+            "num_restarts_inner_optimizer": [1],
+            "raw_samples_inner_optimizer": [100],
+            "acquisition_optimizer": [
+                "L-BFGS-B"
+            ],  # "L-BFGS-B" or "Adam"
+            "num_restarts_acq_optimizer": [1],
+            "raw_samples_acq_optimizer": [50]},
 
-#
-# CONFIG_DICT = {"DISCKG_GP_synthetic_1000_dim2_l0.1": {
-#     "problems": ["GP_synthetic"],
-#     "num_input_dim": [2],
-#     "lengthscale": [0.1],
-#     "method": ["DISCKG"],
-#     "num_samples_initial_design": [6],
-#     "num_max_evaluatations": [100],
-#     "num_discrete_points": [1000],
-#     "num_fantasies": [2],
-#     "num_restarts_inner_optimizer": [1],
-#     "raw_samples_inner_optimizer": [100],
-#     "acquisition_optimizer": [
-#         "L-BFGS-B"
-#     ],  # "L-BFGS-B" or "Adam"
-#     "num_restarts_acq_optimizer": [1],
-#     "raw_samples_acq_optimizer": [50]},
-#
-#     "DISCKG_GP_synthetic_1000_dim2_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [0.4],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "DISCKG_GP_synthetic_1000_dim2_l1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "DISCKG_GP_synthetic_1000_dim4_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "DISCKG_GP_synthetic_1000_dim4_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.4],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "DISCKG_GP_synthetic_1000_dim4_l1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "DISCKG_GP_synthetic_1000_dim6_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [6],
-#         "lengthscale": [0.1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "DISCKG_GP_synthetic_1000_dim6_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [6],
-#         "lengthscale": [0.4],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-#     "DISCKG_GP_synthetic_1000_dim6_l1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [6],
-#         "lengthscale": [1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [1000],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [1],
-#         "raw_samples_acq_optimizer": [50]},
-# }
+    "MCKG_GP_synthetic_3_dim2_l0.1": {
+    "problems": ["GP_synthetic"],
+    "num_input_dim": [2],
+    "lengthscale": [0.1],
+    "method": ["MCKG"],
+    "num_samples_initial_design": [6],
+    "num_max_evaluatations": [100],
+    "num_discrete_points": [1000],
+    "num_fantasies": [3],
+    "num_restarts_inner_optimizer": [1],
+    "raw_samples_inner_optimizer": [100],
+    "acquisition_optimizer": [
+        "L-BFGS-B"
+    ],  # "L-BFGS-B" or "Adam"
+    "num_restarts_acq_optimizer": [1],
+    "raw_samples_acq_optimizer": [50]},
+    "MCKG_GP_synthetic_3_dim2_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.4],
+        "method": ["MCKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
 
-# CONFIG_DICT = {"DISCKG_GP_synthetic_dim2_l0.1": {
-#     "problems": ["GP_synthetic"],
-#     "num_input_dim": [2],
-#     "lengthscale": [0.1],
-#     "method": ["DISCKG"],
-#     "num_samples_initial_design": [6],
-#     "num_max_evaluatations": [100],
-#     "num_discrete_points": [2],
-#     "num_fantasies": [2],
-#     "num_restarts_inner_optimizer": [1],
-#     "raw_samples_inner_optimizer": [100],
-#     "acquisition_optimizer": [
-#         "L-BFGS-B"
-#     ],  # "L-BFGS-B" or "Adam"
-#     "num_restarts_acq_optimizer": [3],
-#     "raw_samples_acq_optimizer": [80]},
-#     "DISCKG_GP_synthetic_dim2_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [0.4],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [2],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [3],
-#         "raw_samples_acq_optimizer": [80]},
-#     "DISCKG_GP_synthetic_dim2_l1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [2],
-#         "lengthscale": [1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [6],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [2],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [3],
-#         "raw_samples_acq_optimizer": [80]},
-#     "DISCKG_GP_synthetic_dim4_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [2],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [3],
-#         "raw_samples_acq_optimizer": [80]},
-#     "DISCKG_GP_synthetic_dim4_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [0.4],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [2],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [3],
-#         "raw_samples_acq_optimizer": [80]},
-#     "DISCKG_GP_synthetic_dim4_l1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [4],
-#         "lengthscale": [1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [2],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [3],
-#         "raw_samples_acq_optimizer": [80]},
-#     "DISCKG_GP_synthetic_dim6_l0.1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [6],
-#         "lengthscale": [0.1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [2],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [3],
-#         "raw_samples_acq_optimizer": [80]},
-#     "DISCKG_GP_synthetic_dim6_l0.4": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [6],
-#         "lengthscale": [0.4],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [2],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [3],
-#         "raw_samples_acq_optimizer": [80]},
-#     "DISCKG_GP_synthetic_dim6_l1": {
-#         "problems": ["GP_synthetic"],
-#         "num_input_dim": [6],
-#         "lengthscale": [1],
-#         "method": ["DISCKG"],
-#         "num_samples_initial_design": [10],
-#         "num_max_evaluatations": [100],
-#         "num_discrete_points": [2],
-#         "num_fantasies": [2],
-#         "num_restarts_inner_optimizer": [1],
-#         "raw_samples_inner_optimizer": [100],
-#         "acquisition_optimizer": [
-#             "L-BFGS-B"
-#         ],  # "L-BFGS-B" or "Adam"
-#         "num_restarts_acq_optimizer": [3],
-#         "raw_samples_acq_optimizer": [80]},
-# }
+    "MCKG_GP_synthetic_3_dim4_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.1],
+        "method": ["MCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "MCKG_GP_synthetic_3_dim4_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.4],
+        "method": ["MCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+
+    "DISCKG_GP_synthetic_1000_dim2_l0.1": {
+    "problems": ["GP_synthetic"],
+    "num_input_dim": [2],
+    "lengthscale": [0.1],
+    "method": ["DISCKG"],
+    "num_samples_initial_design": [6],
+    "num_max_evaluatations": [100],
+    "num_discrete_points": [1000],
+    "num_fantasies": [2],
+    "num_restarts_inner_optimizer": [1],
+    "raw_samples_inner_optimizer": [100],
+    "acquisition_optimizer": [
+        "L-BFGS-B"
+    ],  # "L-BFGS-B" or "Adam"
+    "num_restarts_acq_optimizer": [1],
+    "raw_samples_acq_optimizer": [50]},
+    "DISCKG_GP_synthetic_1000_dim2_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.4],
+        "method": ["DISCKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+
+    "DISCKG_GP_synthetic_1000_dim4_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.1],
+        "method": ["DISCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "DISCKG_GP_synthetic_1000_dim4_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.4],
+        "method": ["DISCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+
+    "DISCKG_GP_synthetic_3_dim2_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.1],
+        "method": ["DISCKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [3],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "DISCKG_GP_synthetic_3_dim2_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.4],
+        "method": ["DISCKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [3],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+
+    "DISCKG_GP_synthetic_3_dim4_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.1],
+        "method": ["DISCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [3],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "DISCKG_GP_synthetic_3_dim4_l0.4": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [4],
+        "lengthscale": [0.4],
+        "method": ["DISCKG"],
+        "num_samples_initial_design": [10],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [3],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+}
+
 
 # CONFIG_DICT = {"RANDOMKG_GP_synthetic_dim2_l0.1": {
 #     "problems": ["GP_synthetic"],

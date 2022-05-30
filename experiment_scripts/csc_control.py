@@ -60,8 +60,6 @@ def run(args):
             "noisy_OSY_benchmarks_experiments"
                             ]
 
-        # experiment_names = ["OSY_f50_experiments"]
-        # experiment_names = ["BNH_experiments"]#["BNH_experiments", "SRN_experiments", "ConstrainedBraninCurrin_experiments"]
         for exp_name in experiment_names:
 
             if args.k + seed > 29:

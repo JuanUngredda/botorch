@@ -86,7 +86,7 @@ class benchmarks_Optimizer(BaseBOOptimizer):
         self.weights = sample_simplex(
             n=self.num_scalarisations, d=self.f.num_objectives,
             qmc=True).squeeze()
-
+        self.weights = torch.atleast_2d(self.weights)
     @timeit
     def evaluate_objective(self, x: Tensor, noise: Optional[bool] = True, **kwargs) -> Tensor:
         x = torch.atleast_2d(x)
@@ -101,7 +101,6 @@ class benchmarks_Optimizer(BaseBOOptimizer):
         return constraints
 
     def _update_multi_objective_model_prediction(self):
-
         NOISE_VAR = torch.Tensor([1e-4])
         while True:
             try:
@@ -124,21 +123,20 @@ class benchmarks_Optimizer(BaseBOOptimizer):
                 model = ModelListGP(*models)
                 mll = SumMarginalLogLikelihood(model.likelihood, model)
                 fit_gpytorch_model(mll)
+
+                bounds = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
+
+                with torch.no_grad():
+                    X_discretisation = draw_sobol_samples(
+                        bounds=bounds, n=1000, q=1
+                    )
+
+                    pred = model.posterior(X_discretisation).mean.squeeze()
                 break
             except:
                 print("_update_multi_objective_model_prediction: increased assumed fixed noise term")
                 NOISE_VAR *= 10
                 print("original noise var:", 1e-4, "updated noisevar:", NOISE_VAR)
-
-        bounds = torch.vstack([torch.zeros(self.dim), torch.ones(self.dim)])
-
-        with torch.no_grad():
-            X_discretisation = draw_sobol_samples(
-                bounds=bounds, n=1000, q=1
-            )
-
-            pred = model.posterior(X_discretisation).mean.squeeze()
-
         return pred
 
 

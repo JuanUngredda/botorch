@@ -132,7 +132,7 @@ def run_experiment(
                                           num_restarts=CONFIG_NUMBER_RESTARTS_INNER_OPT,
                                           raw_samples=CONFIG_NUMBER_RAW_SAMPLES_INNER_OPT)
     # instantiate the optimizer
-    if (method=="macKG") or (method=="pen-maKG"):
+    if (method=="macKG") or (method=="pen-maKG") or (method=="cParEGO"):
         acquisition_function_optimizer = Optimizer
 
     else:

@@ -51,14 +51,18 @@ def run(args):
     while True:
         experiment_names = [
                             # "BNH_macKG_experiments",
-                            # "BNH_benchmarks_experiments",
+                            "BNH_benchmarks_experiments",
+                            "ConstrainedBraninCurrin_benchmarks_experiments",
+                            "CONSTR_benchmarks_experiments",
+                            "C2DTLZ2_benchmarks_experiments",
+
                             # "noisy_BNH_macKG_experiments",
-                            # "noisy_BNH_benchmarks_experiments"
+                            "noisy_BNH_benchmarks_experiments"
                             "noisy_ConstrainedBraninCurrin_benchmarks_experiments",
-            "noisy_CONSTR_benchmarks_experiments",
-            "noisy_C2DTLZ2_benchmarks_experiments",
-            "noisy_OSY_benchmarks_experiments"
-                            ]
+                            "noisy_CONSTR_benchmarks_experiments",
+                            "noisy_C2DTLZ2_benchmarks_experiments",
+                            # "noisy_OSY_benchmarks_experiments"
+        ]
 
         for exp_name in experiment_names:
 

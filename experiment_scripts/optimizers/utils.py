@@ -114,13 +114,13 @@ def test_function_handler(test_fun_str: str,
     return synthetic_fun
 
 
-def get_constrained_mc_objective(train_obj, train_con, scalarization, num_constraints):
+def get_constrained_mc_objective(num_objectives,num_constraints):
     """Initialize a ConstrainedMCObjective for qParEGO"""
-    n_obj = train_obj.shape[-1]
+    n_obj = num_objectives
 
     # assume first outcomes of the model are the objectives, the rest constraints
     def objective(Z):
-        return scalarization(Z[..., :n_obj])
+        return Z[..., 0]
 
     constrained_obj = ConstrainedMCObjective(
         objective=objective,
@@ -249,32 +249,19 @@ def mo_acq_wrapper(
         elif method == "cParEGO":
             qparego_sampler = SobolQMCNormalSampler(num_samples=MC_size)  # 128 samples
             num_constraints = test_fun.num_constraints
-            weights = sample_simplex(d=test_fun.num_objectives, n=1).squeeze()
 
-            model_obj = model.subset_output(idcs=range(num_objectives))
-            with torch.no_grad():
-                X_discretisation = draw_sobol_samples(
-                    bounds=bounds, n=1000, q=1
-                )
-
-                pred = model_obj.posterior(X_discretisation).mean.squeeze()
-            # construct augmented Chebyshev scalarization
-            scalarization = get_chebyshev_scalarization(weights=weights, Y=pred)
-            # initialize ConstrainedMCObjective
             constrained_objective = get_constrained_mc_objective(
-                train_obj=train_obj,
-                train_con=train_con,
-                scalarization=scalarization,
+                num_objectives=1,
                 num_constraints=num_constraints
             )
-            train_y = torch.cat([train_obj, train_con], dim=-1)
+
             acq_fun = qNoisyExpectedImprovement(  # pyre-ignore: [28]
                 model=model,
                 X_baseline=train_x,
                 objective=constrained_objective,
-                best_f=constrained_objective(train_y).max(),
                 sampler=qparego_sampler,
             )
+
         else:
             raise Exception(
                 "method does not exist. Specify implemented method"

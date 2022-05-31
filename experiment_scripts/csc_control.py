@@ -62,11 +62,11 @@ def run(args):
             "ConstrainedBraninCurrin_macKG_experiments",
             "noisy_ConstrainedBraninCurrin_macKG_experiments",
 
-            "CONSTR_macKG_experiments",
-            "noisy_CONSTR_macKG_experiments",
-
-            "C2DTLZ2_macKG_experiments",
-            "noisy_C2DTLZ2_macKG_experiments"
+            # "CONSTR_macKG_experiments",
+            # "noisy_CONSTR_macKG_experiments",
+            #
+            # "C2DTLZ2_macKG_experiments",
+            # "noisy_C2DTLZ2_macKG_experiments"
 
             # "noisy_BNH_benchmarks_experiments",
             # "noisy_ConstrainedBraninCurrin_benchmarks_experiments",

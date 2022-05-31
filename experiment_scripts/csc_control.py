@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 
+
 # This is a bare script that receives args, prints something, wastes some time,function_caller_test_func_2_TS
 # and saves something. Use this as a blank template to run experiments.
 # The sys.argv = [demo_infra_usage.py (time_stamped_folder) (integer)]
@@ -50,18 +51,28 @@ def run(args):
     seed = 0
     while True:
         experiment_names = [
-                            # "BNH_macKG_experiments",
-                            "BNH_benchmarks_experiments",
-                            "ConstrainedBraninCurrin_benchmarks_experiments",
-                            "CONSTR_benchmarks_experiments",
-                            "C2DTLZ2_benchmarks_experiments",
+            # "BNH_macKG_experiments",
+            # "BNH_benchmarks_experiments",
+            # "ConstrainedBraninCurrin_benchmarks_experiments",
+            # "CONSTR_benchmarks_experiments",
+            # "C2DTLZ2_benchmarks_experiments",
 
-                            # "noisy_BNH_macKG_experiments",
-                            "noisy_BNH_benchmarks_experiments",
-                            "noisy_ConstrainedBraninCurrin_benchmarks_experiments",
-                            "noisy_CONSTR_benchmarks_experiments",
-                            "noisy_C2DTLZ2_benchmarks_experiments",
-                            # "noisy_OSY_benchmarks_experiments"
+            # "noisy_BNH_macKG_experiments",
+
+            "ConstrainedBraninCurrin_macKG_experiments",
+            "noisy_ConstrainedBraninCurrin_macKG_experiments",
+
+            "CONSTR_macKG_experiments",
+            "noisy_CONSTR_macKG_experiments",
+
+            "C2DTLZ2_macKG_experiments",
+            "noisy_C2DTLZ2_macKG_experiments"
+
+            # "noisy_BNH_benchmarks_experiments",
+            # "noisy_ConstrainedBraninCurrin_benchmarks_experiments",
+            # "noisy_CONSTR_benchmarks_experiments",
+            # "noisy_C2DTLZ2_benchmarks_experiments",
+            # "noisy_OSY_benchmarks_experiments"
         ]
 
         for exp_name in experiment_names:

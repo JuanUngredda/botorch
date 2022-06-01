@@ -1086,55 +1086,11 @@ def TrueParetoFrontApproximation(
             x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
             x_value = torch.max(X_optimised_vals.squeeze())
         except:
-            x_best = X_initial_conditions
+            x_best = X_initial_conditions.squeeze()
             x_value = x_train_posterior_mean[0]
 
         x_best = torch.atleast_2d(x_best)
 
-        # with torch.no_grad():
-        #     X_random_initial_conditions_raw = torch.rand((1000, 1, input_dim))
-        #
-        #     X_initial_conditions_raw = X_random_initial_conditions_raw
-        #     x_train_posterior_mean = objective(X_initial_conditions_raw).squeeze()
-        #
-        #     print("x_best", x_best)
-        #     print("BEST POST MEAN VALUE ", objective(x_best))
-        #
-        #     import matplotlib.pyplot as plt
-        #     plt.scatter(X_initial_conditions_raw[:, 0, 0], X_initial_conditions_raw[:, 0, 1], c=x_train_posterior_mean)
-        #     plt.scatter(x_train.numpy()[:, 0], x_train.numpy()[:, 1], color="red", label="sampled points")
-        #
-        #     plt.scatter(
-        #         x_best.numpy()[:, 0],
-        #         x_best.numpy()[:, 1],
-        #         color="black",
-        #         label="one-shot kg $x^{*}$",
-        #         marker="^",
-        #     )
-        #     plt.title("Design Space")
-        #     plt.show()
-        #
-        #     objective_values = torch.vstack([output_true_function(x_i) for x_i in X_random_initial_conditions_raw]).to(dtype=torch.double)
-        #     constraint_values = torch.vstack([constraint_true_function(x_i) for x_i in X_random_initial_conditions_raw]).to(dtype=torch.double)
-        #
-        #     # is_feas = constraint_values <= 0
-        #     # aggregated_is_feas = torch.prod(is_feas, dim=-1, dtype=bool)
-        #     objective_val = objective_values#[aggregated_is_feas, ...]
-        #
-        #     best_objective_values = output_true_function(x_best).to(dtype=torch.double)
-        #
-        #     plt.title("Objective Space")
-        #     plt.scatter(objective_val[:, 0],
-        #                 objective_val [:, 1],
-        #                 c=x_train_posterior_mean)
-        #     # print("posterior_best_mean",posterior_best_mean.shape)
-        #     plt.scatter(best_objective_values.numpy()[:, 0],
-        #                 best_objective_values.numpy()[:, 1], color="black",
-        #                 label="one-shot kg $x^{*}$",
-        #                 marker="^",
-        #                 )
-        #
-        #     plt.show()
 
         X_pareto_solutions.append(x_best)
         X_pmean.append(x_value)

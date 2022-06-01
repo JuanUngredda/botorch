@@ -528,6 +528,7 @@ CONFIG_DICT = {"ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1": {
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
         "raw_samples_acq_optimizer": [50]},
+
     "DISCKG_GP_synthetic_3_dim4_l0.4": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [4],

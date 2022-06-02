@@ -49,7 +49,11 @@ def run(args):
 
     seed = 0
     while True:
-        experiment_names = [
+        experiment_names = ["best_GP_vals_GP_synthetic_dim2_l0.1",
+                            "best_GP_vals_GP_synthetic_dim4_l0.1",
+                            "best_GP_vals_GP_synthetic_dim2_l0.4",
+                            "best_GP_vals_GP_synthetic_dim4_l0.4"
+
                             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1",
                             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.4",
                             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.1",
@@ -60,14 +64,15 @@ def run(args):
                             # "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.1",
                             # "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.4",
 
-                            "DISCKG_GP_synthetic_1000_dim2_l0.1",
-                            "DISCKG_GP_synthetic_1000_dim2_l0.4",
-                            "DISCKG_GP_synthetic_1000_dim4_l0.1",
-                            "DISCKG_GP_synthetic_1000_dim4_l0.4",
-                            "DISCKG_GP_synthetic_3_dim2_l0.1",
-                            "DISCKG_GP_synthetic_3_dim2_l0.4",
-                            "DISCKG_GP_synthetic_3_dim4_l0.1",
-                            "DISCKG_GP_synthetic_3_dim4_l0.4"]
+                            # "DISCKG_GP_synthetic_1000_dim2_l0.1",
+                            # "DISCKG_GP_synthetic_1000_dim2_l0.4",
+                            # "DISCKG_GP_synthetic_1000_dim4_l0.1",
+                            # "DISCKG_GP_synthetic_1000_dim4_l0.4",
+                            # "DISCKG_GP_synthetic_3_dim2_l0.1",
+                            # "DISCKG_GP_synthetic_3_dim2_l0.4",
+                            # "DISCKG_GP_synthetic_3_dim4_l0.1",
+                            # "DISCKG_GP_synthetic_3_dim4_l0.4"
+                                ]
 
         for exp_name in experiment_names:
 

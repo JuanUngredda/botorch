@@ -212,18 +212,20 @@ class BaseBOOptimizer(BaseOptimizer):
         else:
 
             X_random_initial_conditions_raw = torch.rand((self.optional["RAW_SAMPLES"], self.dim))
+
             x_GP_rec = self.policy()
             X_sampled = self.x_train
-
+            Y_train = self.y_train
+            X_best_sampled = torch.atleast_2d(X_sampled[torch.argmax(Y_train)])
             # print(x_GP_rec.shape, X_random_initial_conditions_raw.shape, X_sampled.shape)
-            X_initial_conditions_raw = torch.concat([X_random_initial_conditions_raw, x_GP_rec, X_sampled])
+            X_initial_conditions_raw = torch.concat([X_random_initial_conditions_raw, x_GP_rec, X_best_sampled ])
             X_initial_conditions_raw = X_initial_conditions_raw.unsqueeze(dim=-2)
+
             with torch.no_grad():
                 mu_val_initial_conditions_raw = acq_fun.forward(X=X_initial_conditions_raw).squeeze()
 
             best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:self.optional["NUM_RESTARTS"]]
             X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
-
 
             X_optimised, X_optimised_vals = gen_candidates_scipy(
                 acquisition_function=acq_fun,
@@ -231,6 +233,7 @@ class BaseBOOptimizer(BaseOptimizer):
                 lower_bounds=torch.zeros(self.dim),
                 upper_bounds=torch.ones(self.dim),
             )
+
 
             x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
 

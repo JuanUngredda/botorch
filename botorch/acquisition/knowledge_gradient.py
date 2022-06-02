@@ -208,7 +208,8 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                     X_unit_cube_samples = torch.rand((self.raw_samples, 1, 1, self.dim))
                     X_initial_conditions_raw = X_unit_cube_samples * domain_range + domain_offset
 
-                    mu_val_initial_conditions_raw = value_function.forward(X_initial_conditions_raw)
+                    with torch.no_grad():
+                        mu_val_initial_conditions_raw = value_function.forward(X_initial_conditions_raw)
                     best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:self.num_restarts]
                     X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
 
@@ -232,7 +233,7 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                     acquisition_function=value_function,
                     lower_bounds=self.bounds[0],
                     upper_bounds=self.bounds[1],
-                    options=self.kwargs.get("scipy_options"),
+                    options={"maxiter":20}#self.kwargs.get("scipy_options"),
                 )
                 x_value = x_value  # num initial conditions x 1 x d
                 value = value.squeeze()  # num_initial conditions

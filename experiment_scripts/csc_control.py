@@ -88,7 +88,7 @@ def run(args):
 
             if args.k + seed > 199:
                 raise
-            experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            # experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             try:
                 experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             except:

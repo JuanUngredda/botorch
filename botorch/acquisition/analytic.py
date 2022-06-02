@@ -120,6 +120,8 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
         self.X_discretisation = X_discretisation
         if current_optimiser is not None:
             self.current_optimiser = current_optimiser.squeeze()
+        else:
+            self.current_optimiser = None
 
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
     def forward(self, X: Tensor) -> Tensor:

@@ -49,15 +49,16 @@ def run(args):
 
     seed = 0
     while True:
-        experiment_names = ["ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1",
-                            "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.4",
-                            "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.1",
-                            "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.4",
-
-                            "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.1",
-                            "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.4",
-                            "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.1",
-                            "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.4",
+        experiment_names = [
+                            # "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1",
+                            # "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.4",
+                            # "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.1",
+                            # "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.4",
+                            #
+                            # "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.1",
+                            # "ONESHOTHYBRIDKG_GP_synthetic_3_dim2_l0.4",
+                            # "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.1",
+                            # "ONESHOTHYBRIDKG_GP_synthetic_3_dim4_l0.4",
 
                             "DISCKG_GP_synthetic_1000_dim2_l0.1",
                             "DISCKG_GP_synthetic_1000_dim2_l0.4",
@@ -72,6 +73,7 @@ def run(args):
 
             if args.k + seed > 199:
                 raise
+            experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             try:
                 experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             except:

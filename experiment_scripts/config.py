@@ -497,7 +497,7 @@ CONFIG_DICT = {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [50]},
+        "raw_samples_acq_optimizer": [25]},
     "MCKG_GP_synthetic_10_dim2_l0.4": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [2],
@@ -513,7 +513,7 @@ CONFIG_DICT = {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [50]},
+        "raw_samples_acq_optimizer": [25]},
 
     "MCKG_GP_synthetic_10_dim4_l0.1": {
         "problems": ["GP_synthetic"],
@@ -530,7 +530,7 @@ CONFIG_DICT = {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [50]},
+        "raw_samples_acq_optimizer": [25]},
     "MCKG_GP_synthetic_10_dim4_l0.4": {
             "problems": ["GP_synthetic"],
             "num_input_dim": [4],
@@ -546,7 +546,7 @@ CONFIG_DICT = {
                 "L-BFGS-B"
             ],  # "L-BFGS-B" or "Adam"
             "num_restarts_acq_optimizer": [1],
-            "raw_samples_acq_optimizer": [50]},
+            "raw_samples_acq_optimizer": [25]},
 
     "MCKG_GP_synthetic_3_dim2_l0.1": {
     "problems": ["GP_synthetic"],
@@ -563,7 +563,7 @@ CONFIG_DICT = {
         "L-BFGS-B"
     ],  # "L-BFGS-B" or "Adam"
     "num_restarts_acq_optimizer": [1],
-    "raw_samples_acq_optimizer": [50]},
+    "raw_samples_acq_optimizer": [25]},
     "MCKG_GP_synthetic_3_dim2_l0.4": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [2],
@@ -579,7 +579,7 @@ CONFIG_DICT = {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [50]},
+        "raw_samples_acq_optimizer": [25]},
 
     "MCKG_GP_synthetic_3_dim4_l0.1": {
         "problems": ["GP_synthetic"],
@@ -596,7 +596,7 @@ CONFIG_DICT = {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [50]},
+        "raw_samples_acq_optimizer": [25]},
     "MCKG_GP_synthetic_3_dim4_l0.4": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [4],
@@ -612,7 +612,7 @@ CONFIG_DICT = {
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
         "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [50]},
+        "raw_samples_acq_optimizer": [25]},
 
     "DISCKG_GP_synthetic_1000_dim2_l0.1": {
     "problems": ["GP_synthetic"],

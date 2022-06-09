@@ -55,6 +55,11 @@ def run(args):
                             # "best_GP_vals_GP_synthetic_dim2_l0.4",
                             # "best_GP_vals_GP_synthetic_dim4_l0.4"
 
+                            # "RANDOMKG_GP_synthetic_dim2_l0.1",
+                            # "RANDOMKG_GP_synthetic_dim2_l0.4",
+                            # "RANDOMKG_GP_synthetic_dim4_l0.1",
+                            # "RANDOMKG_GP_synthetic_dim4_l0.4"
+
                             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1",
                             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.4",
                             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim4_l0.1",
@@ -74,15 +79,15 @@ def run(args):
             # "HYBRIDKG_GP_synthetic_3_dim4_l0.1",
             # "HYBRIDKG_GP_synthetic_3_dim4_l0.4"
 
-            "MCKG_GP_synthetic_10_dim2_l0.1",
-            "MCKG_GP_synthetic_10_dim2_l0.4",
-            "MCKG_GP_synthetic_10_dim4_l0.1",
-            "MCKG_GP_synthetic_10_dim4_l0.4",
-
-            "MCKG_GP_synthetic_3_dim2_l0.1",
-            "MCKG_GP_synthetic_3_dim2_l0.4",
-            "MCKG_GP_synthetic_3_dim4_l0.1",
-            "MCKG_GP_synthetic_3_dim4_l0.4"
+            # "MCKG_GP_synthetic_10_dim2_l0.1",
+            # "MCKG_GP_synthetic_10_dim2_l0.4",
+            # "MCKG_GP_synthetic_10_dim4_l0.1",
+            # "MCKG_GP_synthetic_10_dim4_l0.4",
+            #
+            # "MCKG_GP_synthetic_3_dim2_l0.1",
+            # "MCKG_GP_synthetic_3_dim2_l0.4",
+            # "MCKG_GP_synthetic_3_dim4_l0.1",
+            # "MCKG_GP_synthetic_3_dim4_l0.4"
                             # "ONESHOTKG_GP_synthetic_10_dim2_l0.1",
                             # "ONESHOTKG_GP_synthetic_10_dim2_l0.4",
                             # "ONESHOTKG_GP_synthetic_10_dim4_l0.1",
@@ -99,7 +104,11 @@ def run(args):
                             # "DISCKG_GP_synthetic_3_dim2_l0.1",
                             # "DISCKG_GP_synthetic_3_dim2_l0.4",
                             # "DISCKG_GP_synthetic_3_dim4_l0.1",
-                            # "DISCKG_GP_synthetic_3_dim4_l0.4"
+                            # "DISCKG_GP_synthetic_3_dim4_l0.4",
+                        "DISCKG_GP_synthetic_10_dim2_l0.1",
+                        "DISCKG_GP_synthetic_10_dim2_l0.4",
+                        "DISCKG_GP_synthetic_10_dim4_l0.1",
+                        "DISCKG_GP_synthetic_10_dim4_l0.4"
                                 ]
 
         for exp_name in experiment_names:

@@ -198,7 +198,7 @@ def run_experiment(
     }
 
     if os.path.isdir(savefile) == False:
-        os.makedirs(savefile)
+        os.makedirs(savefile, exist_ok=True)
 
     with open(savefile + "/" + str(base_seed) + ".pkl", "wb") as f:
         pkl.dump(output, f)
@@ -220,21 +220,21 @@ def main(exp_names, seed):
         file_name = script_dir + "/results/" + EXPERIMENT_NAME + "/" + EXPERIMENTS[idx][0] + "/" + EXPERIMENTS[idx][
             1] + "/" + EXPERIMENTS[idx][2] + "/" + str(seed) + ".pkl"
 
-        if os.path.isfile(file_name) == False:
-            run_experiment(
-                experiment_name=EXPERIMENT_NAME,
-                problem=EXPERIMENTS[idx][0],
-                method=EXPERIMENTS[idx][1],
-                utility_model_str=EXPERIMENTS[idx][2],
-                savefile=script_dir
-                         + "/results/" +
-                         EXPERIMENT_NAME + "/"
-                         + EXPERIMENTS[idx][0]
-                         + "/"
-                         + EXPERIMENTS[idx][1] + "/"
-                         + EXPERIMENTS[idx][2],
-                base_seed=seed,
-            )
+
+        run_experiment(
+            experiment_name=EXPERIMENT_NAME,
+            problem=EXPERIMENTS[idx][0],
+            method=EXPERIMENTS[idx][1],
+            utility_model_str=EXPERIMENTS[idx][2],
+            savefile=script_dir
+                     + "/results/" +
+                     EXPERIMENT_NAME + "/"
+                     + EXPERIMENTS[idx][0]
+                     + "/"
+                     + EXPERIMENTS[idx][1] + "/"
+                     + EXPERIMENTS[idx][2],
+            base_seed=seed,
+        )
 
 
 if __name__ == "__main__":

@@ -82,14 +82,22 @@ class BaseOptimizer(ABC):
 
         logger.info(f"Starting optim, n_init: {self.n_init}")
 
+        print("self.save_folder",self.save_folder + "/" + str(self.base_seed) + ".pkl")
+        import pickle
+
+        with open(self.save_folder + "/" + str(self.base_seed) + ".pkl", 'rb') as pickle_file:
+            results_dict = pickle.load(pickle_file)
+
+
+        Overall_X = results_dict["x"]
+        Overall_Y = results_dict["y"]
+        Overall_C = results_dict["c"]
+
         # initial random dataset
-        self.x_train = lhc(n=self.n_init, dim=self.dim).to(dtype =torch.double)
-        self.y_train = torch.vstack(
-            [self.evaluate_objective(x_i) for x_i in self.x_train]
-        ).to(dtype =torch.double)
-        self.c_train = torch.vstack(
-            [self.evaluate_constraints(x_i) for x_i in self.x_train]
-        ).to(dtype =torch.double)
+        self.x_train = Overall_X[:self.n_init]#lhc(n=self.n_init, dim=self.dim).to(dtype =torch.double)
+        self.y_train = Overall_Y[:self.n_init]#torch.vstack([self.evaluate_objective(x_i) for x_i in self.x_train]).to(dtype =torch.double)
+        self.c_train = Overall_C[:self.n_init]#torch.vstack([self.evaluate_constraints(x_i) for x_i in self.x_train]).to(dtype =torch.double)
+
 
         # test initial
         self.test()
@@ -97,12 +105,14 @@ class BaseOptimizer(ABC):
         logger.info("Test sampled performance:\n %s", self.sampled_performance[-1, :])
 
         # start iterating until the budget is exhausted.
-        for _ in range(self.n_max - self.n_init):
+        for it in range(self.n_max - self.n_init):
+
+            new_sample_idx = it + self.n_init
 
             # collect next points
-            x_new = self.get_next_point().to(dtype =torch.double)
-            y_new = self.evaluate_objective(x_new).to(dtype =torch.double)
-            c_new = self.evaluate_constraints(x_new)
+            x_new = Overall_X[new_sample_idx]#self.get_next_point().to(dtype =torch.double)
+            y_new = Overall_Y[new_sample_idx]#self.evaluate_objective(x_new).to(dtype =torch.double)
+            c_new = Overall_C[new_sample_idx]#self.evaluate_constraints(x_new)
 
             # update stored data
             self.x_train = torch.vstack([self.x_train, x_new.reshape(1, -1)])

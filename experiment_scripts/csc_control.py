@@ -58,15 +58,17 @@ def run(args):
             # "C2DTLZ2_benchmarks_experiments",
 
             # "noisy_BNH_macKG_experiments",
+            "BNH_experiments",
+            "noisy_BNH_experiments",
 
-            "ConstrainedBraninCurrin_macKG_experiments", #to complete
-            "noisy_ConstrainedBraninCurrin_macKG_experiments",
+            "ConstrainedBraninCurrin_experiments",
+            "noisy_ConstrainedBraninCurrin_experiments",
 
-            # "CONSTR_macKG_experiments",
-            # "noisy_CONSTR_macKG_experiments",
+            "CONSTR_experiments",
+            "noisy_CONSTR_experiments",
             #
-            # "C2DTLZ2_macKG_experiments",
-            # "noisy_C2DTLZ2_macKG_experiments"
+            "C2DTLZ2_experiments",
+            "noisy_C2DTLZ2_experiments"
 
             # "noisy_BNH_benchmarks_experiments",
             # "noisy_ConstrainedBraninCurrin_benchmarks_experiments",
@@ -80,6 +82,7 @@ def run(args):
             if args.k + seed > 29:
                 raise
             mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            raise
             # try:
             #     mo_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             # except:

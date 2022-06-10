@@ -388,30 +388,30 @@ class Optimizer(BaseBOOptimizer):
             self.model.models[0].covar_module.base_kernel.__class__.__name__
         )
 
-        output = {
-            "problem": self.f.problem,
-            "method_times": self.method_time,
-            "OC_GP": self.GP_performance,
-            "OC_sampled": self.sampled_performance,
-            "x": self.x_train,
-            "y": self.y_train,
-            "c": self.c_train,
-            "x_pareto_recommended": self.pareto_set_recommended,
-            "weights": self.weights,
-            "kernel": self.kernel_name,
-            "gp_lik_noise": self.gp_likelihood_noise,
-            "gp_lengthscales": self.gp_lengthscales,
-            "base_seed": self.base_seed,
-            "cwd": os.getcwd(),
-            "savefile": self.save_folder,
-        }
-
-        if self.save_folder is not None:
-            if os.path.isdir(self.save_folder) == False:
-                os.makedirs(self.save_folder, exist_ok=True)
-
-            with open(self.save_folder + "/" + str(self.base_seed) + ".pkl", "wb") as f:
-                pkl.dump(output, f)
+        # output = {
+        #     "problem": self.f.problem,
+        #     "method_times": self.method_time,
+        #     "OC_GP": self.GP_performance,
+        #     "OC_sampled": self.sampled_performance,
+        #     "x": self.x_train,
+        #     "y": self.y_train,
+        #     "c": self.c_train,
+        #     "x_pareto_recommended": self.pareto_set_recommended,
+        #     "weights": self.weights,
+        #     "kernel": self.kernel_name,
+        #     "gp_lik_noise": self.gp_likelihood_noise,
+        #     "gp_lengthscales": self.gp_lengthscales,
+        #     "base_seed": self.base_seed,
+        #     "cwd": os.getcwd(),
+        #     "savefile": self.save_folder,
+        # }
+        #
+        # if self.save_folder is not None:
+        #     if os.path.isdir(self.save_folder) == False:
+        #         os.makedirs(self.save_folder, exist_ok=True)
+        #
+        #     with open(self.save_folder + "/" + "a" + str(self.base_seed) +".pkl", "wb") as f:
+        #         pkl.dump(output, f)
 
 
     def true_underlying_policy(self, weights):
@@ -474,6 +474,7 @@ class Optimizer(BaseBOOptimizer):
         """
 
         self.pareto_set_recommended, self.weights = self.policy()
+
         self.true_underlying_recommended, _ = self.true_underlying_policy(weights=self.weights)
         estimated_OC = self._compute_OC(true_underlying_PF=self.true_underlying_recommended,
                                         weights=self.weights,
@@ -482,6 +483,7 @@ class Optimizer(BaseBOOptimizer):
         sampled_OC = self._compute_OC(true_underlying_PF=self.true_underlying_recommended,
                                       weights=self.weights,
                                       recommended_solutions=self.x_train)
+
 
         n = len(self.y_train) * 1.0
         self.GP_performance = torch.vstack(

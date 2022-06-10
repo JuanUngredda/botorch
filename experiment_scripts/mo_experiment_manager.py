@@ -167,41 +167,41 @@ def run_experiment(
 
     # optmize the test problem
     optimizer.optimize()
-
-    # save the output
-    output = {
-        "problem": problem,
-        "method": method,
-        "number_of_fantasies": CONFIG_NUMBER_FANTASIES,
-        "number_of_discrete_points": CONFIG_NUMBER_DISCRETE_POINTS,
-        "number_of_restarts_inner_optimizer": CONFIG_NUMBER_RESTARTS_INNER_OPT,
-        "number_of_raw_samples_inner_optimizer": CONFIG_NUMBER_RAW_SAMPLES_INNER_OPT,
-        "number_of_restarts_acq_optimizer": CONFIG_NUMBER_RESTARTS_ACQ_OPT,
-        "number_of_raw_samples_acq_optimizer": CONFIG_NUMBER_RAW_SAMPLES_ACQ_OPT,
-        "base_seed": base_seed,
-        "acquisition_optimizer": CONFIG_ACQ_OPTIMIZER,
-        "kernel": optimizer.kernel_name,
-        "gp_lik_noise": optimizer.gp_likelihood_noise,
-        "gp_lengthscales": optimizer.gp_lengthscales,
-        "method_times": optimizer.method_time,
-        "OC_GP": optimizer.GP_performance,
-        "OC_sampled": optimizer.sampled_performance,
-        "x": optimizer.x_train,
-        "y": optimizer.y_train,
-        "c": optimizer.c_train,
-        "noise_std": CONFIG_NOISE_LVL,
-        "weights": optimizer.weights,
-        "cwd": os.getcwd(),
-        "savefile": savefile,
-        "HOSTNAME": HOSTNAME,
-        "GIT_ROOT": GIT_ROOT,
-    }
-
-    if os.path.isdir(savefile) == False:
-        os.makedirs(savefile, exist_ok=True)
-
-    with open(savefile + "/" + str(base_seed) + ".pkl", "wb") as f:
-        pkl.dump(output, f)
+    #
+    # # save the output
+    # output = {
+    #     "problem": problem,
+    #     "method": method,
+    #     "number_of_fantasies": CONFIG_NUMBER_FANTASIES,
+    #     "number_of_discrete_points": CONFIG_NUMBER_DISCRETE_POINTS,
+    #     "number_of_restarts_inner_optimizer": CONFIG_NUMBER_RESTARTS_INNER_OPT,
+    #     "number_of_raw_samples_inner_optimizer": CONFIG_NUMBER_RAW_SAMPLES_INNER_OPT,
+    #     "number_of_restarts_acq_optimizer": CONFIG_NUMBER_RESTARTS_ACQ_OPT,
+    #     "number_of_raw_samples_acq_optimizer": CONFIG_NUMBER_RAW_SAMPLES_ACQ_OPT,
+    #     "base_seed": base_seed,
+    #     "acquisition_optimizer": CONFIG_ACQ_OPTIMIZER,
+    #     "kernel": optimizer.kernel_name,
+    #     "gp_lik_noise": optimizer.gp_likelihood_noise,
+    #     "gp_lengthscales": optimizer.gp_lengthscales,
+    #     "method_times": optimizer.method_time,
+    #     "OC_GP": optimizer.GP_performance,
+    #     "OC_sampled": optimizer.sampled_performance,
+    #     "x": optimizer.x_train,
+    #     "y": optimizer.y_train,
+    #     "c": optimizer.c_train,
+    #     "noise_std": CONFIG_NOISE_LVL,
+    #     "weights": optimizer.weights,
+    #     "cwd": os.getcwd(),
+    #     "savefile": savefile,
+    #     "HOSTNAME": HOSTNAME,
+    #     "GIT_ROOT": GIT_ROOT,
+    # }
+    #
+    # if os.path.isdir(savefile) == False:
+    #     os.makedirs(savefile, exist_ok=True)
+    #
+    # with open(savefile + "/" + str(base_seed) + ".pkl", "wb") as f:
+    #     pkl.dump(output, f)
 
 
 def main(exp_names, seed):

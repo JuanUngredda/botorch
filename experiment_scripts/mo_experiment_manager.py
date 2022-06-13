@@ -218,23 +218,23 @@ def main(exp_names, seed):
     for idx, _ in enumerate(EXPERIMENTS):
 
         file_name = script_dir + "/results/" + EXPERIMENT_NAME + "/" + EXPERIMENTS[idx][0] + "/" + EXPERIMENTS[idx][
-            1] + "/" + EXPERIMENTS[idx][2] + "/" + str(seed) + ".pkl"
+            1] + "/" + EXPERIMENTS[idx][2] + "/a" + str(seed) + ".pkl"
 
-
-        run_experiment(
-            experiment_name=EXPERIMENT_NAME,
-            problem=EXPERIMENTS[idx][0],
-            method=EXPERIMENTS[idx][1],
-            utility_model_str=EXPERIMENTS[idx][2],
-            savefile=script_dir
-                     + "/results/" +
-                     EXPERIMENT_NAME + "/"
-                     + EXPERIMENTS[idx][0]
-                     + "/"
-                     + EXPERIMENTS[idx][1] + "/"
-                     + EXPERIMENTS[idx][2],
-            base_seed=seed,
-        )
+        if os.path.isfile(file_name) == False:
+            run_experiment(
+                experiment_name=EXPERIMENT_NAME,
+                problem=EXPERIMENTS[idx][0],
+                method=EXPERIMENTS[idx][1],
+                utility_model_str=EXPERIMENTS[idx][2],
+                savefile=script_dir
+                         + "/results/" +
+                         EXPERIMENT_NAME + "/"
+                         + EXPERIMENTS[idx][0]
+                         + "/"
+                         + EXPERIMENTS[idx][1] + "/"
+                         + EXPERIMENTS[idx][2],
+                base_seed=seed,
+            )
 
 
 if __name__ == "__main__":

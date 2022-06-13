@@ -352,7 +352,7 @@ class benchmarks_Optimizer(BaseBOOptimizer):
             if os.path.isdir(self.save_folder) == False:
                 os.makedirs(self.save_folder, exist_ok=True)
 
-            with open(self.save_folder + "/" + str(self.base_seed) + ".pkl", "wb") as f:
+            with open(self.save_folder + "/" + "a" + str(self.base_seed) +".pkl", "wb") as f:
                 pkl.dump(output, f)
 
     def true_underlying_policy(self, weights):
@@ -365,7 +365,7 @@ class benchmarks_Optimizer(BaseBOOptimizer):
             input_dim=self.dim,
             weights=weights,
             x_train=self.x_train,
-            x_recommended=None,
+            x_recommended=self.pareto_set_recommended,
             normalizing_vectors=self.pred,
             utility_model=self.utility_model,
             num_objectives=weights.shape[0],
@@ -414,21 +414,21 @@ class benchmarks_Optimizer(BaseBOOptimizer):
         test and saves performance measures
         """
 
-        self._update_model(
-            X_train=self.x_train, Y_train=self.y_train, C_train=self.c_train
-        )
+        self.pareto_set_recommended, self.weights = self.policy()
+
         self.true_underlying_recommended, _ = self.true_underlying_policy(weights=self.weights)
-        # estimated_OC = self._compute_OC(true_underlying_PF=self.true_underlying_recommended,
-        #                                 weights=self.weights,
-        #                                 recommended_solutions=self.pareto_set_recommended)
+        estimated_OC = self._compute_OC(true_underlying_PF=self.true_underlying_recommended,
+                                        weights=self.weights,
+                                        recommended_solutions=self.pareto_set_recommended)
 
         sampled_OC = self._compute_OC(true_underlying_PF=self.true_underlying_recommended,
                                       weights=self.weights,
                                       recommended_solutions=self.x_train)
 
+
         n = len(self.y_train) * 1.0
         self.GP_performance = torch.vstack(
-            [self.GP_performance, torch.Tensor([n, sampled_OC])]
+            [self.GP_performance, torch.Tensor([n, estimated_OC])]
         )
 
         self.sampled_performance = torch.vstack(

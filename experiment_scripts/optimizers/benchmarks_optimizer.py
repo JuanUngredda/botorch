@@ -352,7 +352,7 @@ class benchmarks_Optimizer(BaseBOOptimizer):
             if os.path.isdir(self.save_folder) == False:
                 os.makedirs(self.save_folder, exist_ok=True)
 
-            with open(self.save_folder + "/" + str(self.base_seed) + ".pkl", "wb") as f:
+            with open(self.save_folder + "/" + "a" + str(self.base_seed) +".pkl", "wb") as f:
                 pkl.dump(output, f)
 
     def true_underlying_policy(self, weights):

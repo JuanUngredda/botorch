@@ -306,8 +306,8 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
                                       : len(xnew), :
                                       ].squeeze()  # ( 1 + num_X_disc,)
         full_posterior_variance = (
-            full_posterior.variance.squeeze()
-        )  # (1 + num_X_disc, )
+            full_posterior.variance.squeeze()[0]
+        )  # (1, )
 
         full_predictive_covariance = (
                 posterior_cov_xnew_opt_disc

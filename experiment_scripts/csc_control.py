@@ -88,27 +88,30 @@ def run(args):
             # "MCKG_GP_synthetic_3_dim2_l0.4",
             # "MCKG_GP_synthetic_3_dim4_l0.1",
             # "MCKG_GP_synthetic_3_dim4_l0.4"
-                            # "ONESHOTKG_GP_synthetic_10_dim2_l0.1",
-                            # "ONESHOTKG_GP_synthetic_10_dim2_l0.4",
-                            # "ONESHOTKG_GP_synthetic_10_dim4_l0.1",
-                            # "ONESHOTKG_GP_synthetic_10_dim4_l0.4",
-                            #
-                            # "ONESHOTKG_GP_synthetic_3_dim2_l0.1",
-                            # "ONESHOTKG_GP_synthetic_3_dim2_l0.4",
-                            # "ONESHOTKG_GP_synthetic_3_dim4_l0.1",
-                            # "ONESHOTKG_GP_synthetic_3_dim4_l0.4"
-                            # "DISCKG_GP_synthetic_1000_dim2_l0.1",
-                            # "DISCKG_GP_synthetic_1000_dim2_l0.4",
-                            # "DISCKG_GP_synthetic_1000_dim4_l0.1",
-                            # "DISCKG_GP_synthetic_1000_dim4_l0.4",
-                            "DISCKG_GP_synthetic_3_dim2_l0.1",
-                            "DISCKG_GP_synthetic_3_dim2_l0.4",
-                            "DISCKG_GP_synthetic_3_dim4_l0.1",
-                            "DISCKG_GP_synthetic_3_dim4_l0.4",
-                        "DISCKG_GP_synthetic_10_dim2_l0.1",
-                        "DISCKG_GP_synthetic_10_dim2_l0.4",
-                        "DISCKG_GP_synthetic_10_dim4_l0.1",
-                        "DISCKG_GP_synthetic_10_dim4_l0.4"
+            # "ONESHOTKG_GP_synthetic_10_dim2_l0.1",
+            # "ONESHOTKG_GP_synthetic_10_dim2_l0.4",
+            # "ONESHOTKG_GP_synthetic_10_dim4_l0.1",
+            # "ONESHOTKG_GP_synthetic_10_dim4_l0.4",
+            #
+            # "ONESHOTKG_GP_synthetic_3_dim2_l0.1",
+            # "ONESHOTKG_GP_synthetic_3_dim2_l0.4",
+            # "ONESHOTKG_GP_synthetic_3_dim4_l0.1",
+            # "ONESHOTKG_GP_synthetic_3_dim4_l0.4"
+            # "DISCKG_GP_synthetic_1000_dim2_l0.1",
+            # "DISCKG_GP_synthetic_1000_dim2_l0.4",
+            # "DISCKG_GP_synthetic_1000_dim4_l0.1",
+            # "DISCKG_GP_synthetic_1000_dim4_l0.4",
+            #     "DISCKG_GP_synthetic_3_dim2_l0.1",
+            #     "DISCKG_GP_synthetic_3_dim2_l0.4",
+            #     "DISCKG_GP_synthetic_3_dim4_l0.1",
+            #     "DISCKG_GP_synthetic_3_dim4_l0.4",
+            #
+            # "DISCKG_GP_synthetic_10_dim2_l0.1",
+            # "DISCKG_GP_synthetic_10_dim2_l0.4",
+            # "DISCKG_GP_synthetic_10_dim4_l0.1",
+            # "DISCKG_GP_synthetic_10_dim4_l0.4"
+            "DISCKG_GP_synthetic_3_dim6_l0.1",
+            "DISCKG_GP_synthetic_10_dim6_l0.1"
                                 ]
 
         for exp_name in experiment_names:

@@ -122,8 +122,10 @@ def run(args):
             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1",
             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim6_l0.1",
 
-            "MCKG_GP_synthetic_3_dim6_l0.1",
-            "MCKG_GP_synthetic_10_dim6_l0.1"
+            "RANDOMKG_GP_synthetic_dim6_l0.1"
+
+            # "MCKG_GP_synthetic_3_dim6_l0.1",
+            # "MCKG_GP_synthetic_10_dim6_l0.1"
                                 ]
 
         for exp_name in experiment_names:

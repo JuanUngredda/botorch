@@ -110,8 +110,8 @@ def run(args):
             # "DISCKG_GP_synthetic_10_dim2_l0.4",
             # "DISCKG_GP_synthetic_10_dim4_l0.1",
             # "DISCKG_GP_synthetic_10_dim4_l0.4"
-            "DISCKG_GP_synthetic_3_dim6_l0.1",
-            "DISCKG_GP_synthetic_10_dim6_l0.1"
+            # "DISCKG_GP_synthetic_3_dim6_l0.1",
+            # "DISCKG_GP_synthetic_10_dim6_l0.1"
 
             # "ONESHOTKG_GP_synthetic_3_dim6_l0.1",
             # "ONESHOTKG_GP_synthetic_10_dim6_l0.1",
@@ -122,6 +122,8 @@ def run(args):
             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim2_l0.1",
             # "ONESHOTHYBRIDKG_GP_synthetic_10_dim6_l0.1",
 
+            "MCKG_GP_synthetic_3_dim6_l0.1",
+            "MCKG_GP_synthetic_10_dim6_l0.1"
                                 ]
 
         for exp_name in experiment_names:

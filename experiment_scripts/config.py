@@ -586,6 +586,39 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [1],
         "raw_samples_acq_optimizer": [25]},
 
+    "MCKG_GP_synthetic_3_dim6_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [6],
+        "lengthscale": [0.1],
+        "method": ["MCKG"],
+        "num_samples_initial_design": [14],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [3],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+    "MCKG_GP_synthetic_10_dim6_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [6],
+        "lengthscale": [0.1],
+        "method": ["MCKG"],
+        "num_samples_initial_design": [14],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [10],
+        "num_fantasies": [2],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [50]},
+
     "MCKG_GP_synthetic_10_dim2_l0.1": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [2],
@@ -600,8 +633,8 @@ CONFIG_DICT = {
         "acquisition_optimizer": [
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [25]},
+        "num_restarts_acq_optimizer": [10],
+        "raw_samples_acq_optimizer": [100]},
     "MCKG_GP_synthetic_10_dim2_l0.4": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [2],
@@ -616,8 +649,8 @@ CONFIG_DICT = {
         "acquisition_optimizer": [
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": [1],
-        "raw_samples_acq_optimizer": [25]},
+        "num_restarts_acq_optimizer": [10],
+        "raw_samples_acq_optimizer": [100]},
 
     "MCKG_GP_synthetic_10_dim4_l0.1": {
         "problems": ["GP_synthetic"],

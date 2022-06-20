@@ -851,10 +851,10 @@ CONFIG_DICT = {
 
     "DISCKG_GP_synthetic_3_dim6_l0.1": {
         "problems": ["GP_synthetic"],
-        "num_input_dim": [14],
+        "num_input_dim": [6],
         "lengthscale": [0.1],
         "method": ["DISCKG"],
-        "num_samples_initial_design": [6],
+        "num_samples_initial_design": [14],
         "num_max_evaluatations": [100],
         "num_discrete_points": [3],
         "num_fantasies": [2],
@@ -867,10 +867,10 @@ CONFIG_DICT = {
         "raw_samples_acq_optimizer": [50]},
     "DISCKG_GP_synthetic_10_dim6_l0.1": {
         "problems": ["GP_synthetic"],
-        "num_input_dim": [14],
+        "num_input_dim": [6],
         "lengthscale": [0.1],
         "method": ["DISCKG"],
-        "num_samples_initial_design": [6],
+        "num_samples_initial_design": [14],
         "num_max_evaluatations": [100],
         "num_discrete_points": [10],
         "num_fantasies": [2],

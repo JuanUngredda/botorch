@@ -126,7 +126,7 @@ def run(args):
 
         for exp_name in experiment_names:
 
-            if args.k + seed > 99:
+            if args.k + seed > 199:
                 raise
 
             try:

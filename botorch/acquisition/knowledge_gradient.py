@@ -202,31 +202,17 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                 )
 
                 # optimize the inner problem
-                if self.inner_condition_sampler == "random":
-                    domain_offset = self.bounds[0]
-                    domain_range = self.bounds[1] - self.bounds[0]
-                    X_unit_cube_samples = torch.rand((self.raw_samples, 1, 1, self.dim))
-                    X_initial_conditions_raw = X_unit_cube_samples * domain_range + domain_offset
-
-                    with torch.no_grad():
-                        mu_val_initial_conditions_raw = value_function.forward(X_initial_conditions_raw)
-                    best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:self.num_restarts]
-                    X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
-
-
-                else:
-
-                    X_initial_conditions = gen_value_function_initial_conditions(
-                        acq_function=value_function,
-                        bounds=self.bounds,
-                        current_model=self.model,
-                        num_restarts=self.num_restarts,
-                        raw_samples=self.raw_samples,
-                        options={
-                            **self.kwargs.get("options", {}),
-                            **self.kwargs.get("scipy_options", {}),
-                        },
-                    )
+                X_initial_conditions = gen_value_function_initial_conditions(
+                    acq_function=value_function,
+                    bounds=self.bounds,
+                    current_model=self.model,
+                    num_restarts=1,#self.num_restarts,
+                    raw_samples=500,#self.raw_samples,
+                    options={
+                        **self.kwargs.get("options", {}),
+                        **self.kwargs.get("scipy_options", {}),
+                    },
+                )
 
                 x_value, value = gen_candidates_scipy(
                     initial_conditions=X_initial_conditions,
@@ -235,6 +221,25 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                     upper_bounds=self.bounds[1],
                     options={"maxiter":20}#self.kwargs.get("scipy_options"),
                 )
+
+                #internal check. eliminate after
+                # domain_offset = self.bounds[0]
+                # domain_range = self.bounds[1] - self.bounds[0]
+                # X_unit_cube_samples = torch.rand((1000, 1, 1, self.dim))
+                # X_initial_conditions_raw = X_unit_cube_samples * domain_range + domain_offset
+                #
+                # with torch.no_grad():
+                #     mu_val_initial_conditions_raw = value_function.forward(X_initial_conditions_raw)
+                # Xplot = X_initial_conditions_raw.squeeze().numpy()
+                # xval = x_value.squeeze().numpy()
+                # import matplotlib.pyplot as plt
+                #
+                # X_init = X_initial_conditions.squeeze().numpy()
+                # plt.scatter(Xplot[:,0], Xplot[:,1], c=mu_val_initial_conditions_raw.numpy().squeeze())
+                # plt.scatter(X_init[0], X_init[1], color="red", marker="x")
+                # plt.scatter(xval[ 0], xval[1], color="red")
+                # plt.show()
+                # raise
                 x_value = x_value  # num initial conditions x 1 x d
                 value = value.squeeze()  # num_initial conditions
 
@@ -252,7 +257,7 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                 xstar_inner_optimisation[fantasy_idx, :] = x_top.squeeze()
 
         kg_estimated_value = torch.mean(fantasy_opt_val, dim=-1)
-
+        # raise
         return xstar_inner_optimisation, kg_estimated_value
 
 

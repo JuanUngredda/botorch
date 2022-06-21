@@ -124,17 +124,20 @@ def run(args):
 
             # "RANDOMKG_GP_synthetic_dim6_l0.1"
 
+            "MCKG_GP_synthetic_3_dim2_l0.1"
+            
             # "MCKG_GP_synthetic_3_dim6_l0.1",
             # "MCKG_GP_synthetic_10_dim6_l0.1"
 
-            "HYBRIDKG_GP_synthetic_3_dim6_l0.1",
-            "HYBRIDKG_GP_synthetic_10_dim6_l0.1"
+            # "HYBRIDKG_GP_synthetic_3_dim6_l0.1",
+            # "HYBRIDKG_GP_synthetic_10_dim6_l0.1"
                                 ]
 
         for exp_name in experiment_names:
 
             if args.k + seed > 199:
                 raise
+            experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
 
             try:
                 experiment_manager.main(exp_names=exp_name, seed=args.k + seed)

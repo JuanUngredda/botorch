@@ -210,7 +210,8 @@ class BaseBOOptimizer(BaseOptimizer):
                 optimizer=torch.optim.Adam,
             )
         else:
-
+            import time
+            ts = time.time()
             X_random_initial_conditions_raw = torch.rand((self.optional["RAW_SAMPLES"], self.dim))
 
             x_GP_rec = self.policy()
@@ -227,14 +228,53 @@ class BaseBOOptimizer(BaseOptimizer):
             best_k_indeces = torch.argsort(mu_val_initial_conditions_raw, descending=True)[:self.optional["NUM_RESTARTS"]]
             X_initial_conditions = X_initial_conditions_raw[best_k_indeces, :]
 
+            # X_optimised_torch, X_optimised_vals = gen_candidates_torch(
+            #     acquisition_function=acq_fun,
+            #     initial_conditions=X_initial_conditions,
+            #     lower_bounds=torch.zeros(self.dim),
+            #     upper_bounds=torch.ones(self.dim),
+            #     optimizer=torch.optim.Adam,
+            # )
+            #
+            # xval_torch = X_optimised_torch[torch.argmax(X_optimised_vals.squeeze())].squeeze().detach().numpy()
+            te = time.time()
+            print("time init", te-ts)
             X_optimised, X_optimised_vals = gen_candidates_scipy(
                 acquisition_function=acq_fun,
                 initial_conditions=X_initial_conditions,
                 lower_bounds=torch.zeros(self.dim),
                 upper_bounds=torch.ones(self.dim),
             )
+            te = time.time()
+            print("time", te-ts)
+            raise
+            # xval = X_optimised[torch.argmax(X_optimised_vals.squeeze())].squeeze().detach().numpy()
 
-
+            # print("X_initial_conditions",X_initial_conditions)
+            # print("X_optimised",  X_optimised_torch, X_optimised_scipy)
+            # internal check. eliminate after
+            # X_unit_cube_samples = torch.rand((100, 1,  self.dim))
+            # X_initial_conditions_raw = X_unit_cube_samples
+            # #
+            # X_initial_conditions_raw = torch.concat([X_initial_conditions_raw,
+            #                                          X_optimised_torch,
+            #                                          X_optimised_scipy])
+            # with torch.no_grad():
+            #     mu_val_initial_conditions_raw = acq_fun.forward(X_initial_conditions_raw)
+            #
+            # Xplot = X_initial_conditions_raw.squeeze().detach().numpy()
+            #
+            # import matplotlib.pyplot as plt
+            #
+            # X_init = X_initial_conditions.squeeze().numpy()
+            # plt.scatter(Xplot[:,0], Xplot[:,1], c=mu_val_initial_conditions_raw.numpy().squeeze())
+            # plt.scatter(X_init[0], X_init[1], color="red")
+            # plt.scatter(xval_torch[ 0], xval_torch[1], color="red", marker="x")
+            # plt.scatter(xval_scipy[0], xval_scipy[1], color="blue", marker="x")
+            # plt.show()
+            #
+            #
+            # raise
             x_best = X_optimised[torch.argmax(X_optimised_vals.squeeze())]
 
         return x_best

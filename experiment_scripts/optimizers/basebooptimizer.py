@@ -210,8 +210,8 @@ class BaseBOOptimizer(BaseOptimizer):
                 optimizer=torch.optim.Adam,
             )
         else:
-            import time
-            ts = time.time()
+            # import time
+            # ts = time.time()
             X_random_initial_conditions_raw = torch.rand((self.optional["RAW_SAMPLES"], self.dim))
 
             x_GP_rec = self.policy()
@@ -237,17 +237,17 @@ class BaseBOOptimizer(BaseOptimizer):
             # )
             #
             # xval_torch = X_optimised_torch[torch.argmax(X_optimised_vals.squeeze())].squeeze().detach().numpy()
-            te = time.time()
-            print("time init", te-ts)
+            # te = time.time()
+            # print("time init", te-ts)
             X_optimised, X_optimised_vals = gen_candidates_scipy(
                 acquisition_function=acq_fun,
                 initial_conditions=X_initial_conditions,
                 lower_bounds=torch.zeros(self.dim),
                 upper_bounds=torch.ones(self.dim),
             )
-            te = time.time()
-            print("time", te-ts)
-            raise
+            # te = time.time()
+            # print("time", te-ts)
+            # raise
             # xval = X_optimised[torch.argmax(X_optimised_vals.squeeze())].squeeze().detach().numpy()
 
             # print("X_initial_conditions",X_initial_conditions)

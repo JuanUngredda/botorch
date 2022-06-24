@@ -124,8 +124,11 @@ def run(args):
 
             # "RANDOMKG_GP_synthetic_dim6_l0.1"
 
-            "MCKG_GP_synthetic_3_dim2_l0.1",
-            "HYBRIDKG_GP_synthetic_3_dim2_l0.1"
+            # "MCKG_GP_synthetic_3_dim2_l0.1",
+            # "HYBRIDKG_GP_synthetic_3_dim2_l0.1"
+
+            "MCKG_GP_synthetic_3_dim6_l0.1",
+            "HYBRIDKG_GP_synthetic_3_dim6_l0.1"
             # "MCKG_GP_synthetic_3_dim6_l0.1",
             # "MCKG_GP_synthetic_10_dim6_l0.1"
 

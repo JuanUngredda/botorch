@@ -127,13 +127,16 @@ def run(args):
             # "MCKG_GP_synthetic_3_dim2_l0.1",
             # "HYBRIDKG_GP_synthetic_3_dim2_l0.1"
 
-            "MCKG_GP_synthetic_3_dim6_l0.1",
-            "HYBRIDKG_GP_synthetic_3_dim6_l0.1"
+            # "MCKG_GP_synthetic_3_dim6_l0.1",
+            # "HYBRIDKG_GP_synthetic_3_dim6_l0.1"
             # "MCKG_GP_synthetic_3_dim6_l0.1",
             # "MCKG_GP_synthetic_10_dim6_l0.1"
 
             # "HYBRIDKG_GP_synthetic_3_dim6_l0.1",
             # "HYBRIDKG_GP_synthetic_10_dim6_l0.1"
+
+            "MCKG_GP_synthetic_10_dim2_l0.1",
+            "HYBRIDKG_GP_synthetic_10_dim2_l0.1"
                                 ]
 
         for exp_name in experiment_names:

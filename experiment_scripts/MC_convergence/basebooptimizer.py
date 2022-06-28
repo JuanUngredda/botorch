@@ -174,7 +174,7 @@ class BaseBOOptimizer(BaseOptimizer):
 
             X_random_initial_conditions_raw = torch.rand((self.optional["RAW_SAMPLES"], self.dim))
 
-            if "record_evaluation_time" in kwargs:
+            if True:#"record_evaluation_time" in kwargs:
                 X_initial_conditions = torch.atleast_2d(X_random_initial_conditions_raw[0, :])
                 ts = time.time()
                 _ = acq_fun.forward(X_initial_conditions)

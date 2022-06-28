@@ -137,7 +137,7 @@ def run_experiment(
         lb=lb,
         ub=ub,
         n_init=CONFIG_NUMBER_INITAL_DESIGN,  # n_init,
-        n_max=CONFIG_NUMBER_INITAL_DESIGN ,  # n_max,
+        n_max=CONFIG_NUMBER_INITAL_DESIGN + 1,  # n_max,
         kernel_str="Matern",
         save_folder=savefile,
         base_seed=base_seed,

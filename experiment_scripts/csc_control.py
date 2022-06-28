@@ -43,6 +43,7 @@ def run(args):
 
     # IMPORT AND RUN MODULES
     import experiment_manager as experiment_manager
+    import monte_carlo_convergence_experiment_manager as mc_experiment_manager
     from forking_CSC.fork0_to_csc import U
 
     number_of_csc_machines = len(U)
@@ -137,8 +138,12 @@ def run(args):
 
             # "MCKG_GP_synthetic_10_dim2_l0.1",
             # "HYBRIDKG_GP_synthetic_10_dim2_l0.1"
-            "MCKG_GP_synthetic_10_dim6_l0.1",
-            "HYBRIDKG_GP_synthetic_10_dim6_l0.1"
+            # "MCKG_GP_synthetic_10_dim6_l0.1",
+            # "HYBRIDKG_GP_synthetic_10_dim6_l0.1"
+            # "DISCKG_GP_synthetic_1000_dim2_l0.1",
+            # "DISCKG_GP_synthetic_1000_dim6_l0.1"
+            # "t_DISCKG_GP_synthetic_dim6_l0.1"
+            "ONESHOTKG_GP_synthetic_3_dim6_l0.1"
                                 ]
 
         for exp_name in experiment_names:
@@ -146,7 +151,7 @@ def run(args):
             if args.k + seed > 199:
                 raise
             experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
-
+            # mc_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             try:
                 experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             except:

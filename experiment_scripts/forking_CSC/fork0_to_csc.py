@@ -114,18 +114,18 @@ N_PROCESSES = 8
 # set the computers you want to use here, tmux will load to show if they are active.
 ALL_CSC_NAMES = [
     # "torta",
-    # "okoy",
-    # "embutido",
-    # "jamon",
-    # "caldereta",
-    # "keiko",
-    # "kumeta",
-    # "kaluga",
-    # "kalocsa",
+    "okoy",
+    "embutido",
+    "jamon",
+    "caldereta",
+    "keiko",
+    "kumeta",
+    "kaluga",
+    "kalocsa",
     "het1",
-    "het2",
+    # "het2",
     # "het3",
-    "het4",
+    # "het4",
 ]
 
 #python fork0_to_csc.py /home/rawsys/matjiu/botorch/experiment_scripts/csc_control.py 7 --basedir /home/rawsys/matjiu/RESULTS_mc_botorch --conda hybridkgenv

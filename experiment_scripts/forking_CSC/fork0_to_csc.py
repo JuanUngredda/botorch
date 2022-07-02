@@ -122,7 +122,7 @@ ALL_CSC_NAMES = [
     "kumeta",
     "kaluga",
     "kalocsa",
-    "het1",
+    # "het1",
     # "het2",
     # "het3",
     # "het4",

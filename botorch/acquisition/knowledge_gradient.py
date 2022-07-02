@@ -207,7 +207,7 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                     bounds=self.bounds,
                     current_model=self.model,
                     num_restarts=1,#self.num_restarts,
-                    raw_samples=500,#self.raw_samples,
+                    raw_samples=100,#self.raw_samples,
                     options={
                         **self.kwargs.get("options", {}),
                         **self.kwargs.get("scipy_options", {}),

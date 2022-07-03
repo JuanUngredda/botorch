@@ -183,6 +183,7 @@ class BaseBOOptimizer(BaseOptimizer):
 
         # This optimizer uses "L-BFGS-B" by default. If specified, optimizer is Adam.
         if isinstance(acq_fun, qKnowledgeGradient):
+
             x_best, _ = optimize_acqf(
                 acq_function=acq_fun,
                 bounds=bounds_normalized,

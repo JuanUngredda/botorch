@@ -191,7 +191,6 @@ class BaseBOOptimizer(BaseOptimizer):
                 num_restarts=self.optional["NUM_RESTARTS"],
                 raw_samples=self.optional["RAW_SAMPLES"]
             )
-            raise
             return x_best
 
 

@@ -399,7 +399,7 @@ CONFIG_DICT = {
         "acquisition_optimizer": [
             "L-BFGS-B"
         ],  # "L-BFGS-B" or "Adam"
-        "num_restarts_acq_optimizer": [5],
+        "num_restarts_acq_optimizer": [20],
         "raw_samples_acq_optimizer": [500]},
 
     "ONESHOTKG_GP_synthetic_3_dim6_l0.1": {

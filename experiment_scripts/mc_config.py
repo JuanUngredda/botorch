@@ -154,14 +154,14 @@ import torch
 #     "raw_samples_acq_optimizer": [100]},
 #
 CONFIG_DICT = {
-    "t_DISCKG_GP_synthetic_dim6_l0.1": {
+    "t_DISCKG_GP_synthetic_dim2_l0.1": {
     "problems": ["GP_synthetic"],
     "num_input_dim": [2],
     "lengthscale": [0.1],
     "method": ["DISCKG"],
     "num_samples_initial_design": [99],
     "num_max_evaluatations": [100],
-    "num_discrete_points": [1000],
+    "num_discrete_points": [3,10, 1000],
     "num_fantasies": [0],
     "num_restarts_inner_optimizer": [1],
     "raw_samples_inner_optimizer": [100],
@@ -170,4 +170,38 @@ CONFIG_DICT = {
     ],  # "L-BFGS-B" or "Adam"
     "num_restarts_acq_optimizer": [1],
     "raw_samples_acq_optimizer": [100]},
+
+    "t_ONESHOTKG_GP_synthetic_dim2_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.1],
+        "method": ["ONESHOTKG"],
+        "num_samples_initial_design": [99],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [3],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [100]},
+
+    "t_ONESHOTHYBRIDKG_GP_synthetic_dim2_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.1],
+        "method": ["ONESHOTHYBRIDKG"],
+        "num_samples_initial_design": [99],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [10],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [1],
+        "raw_samples_acq_optimizer": [100]},
 }

@@ -93,7 +93,7 @@ class BaseBOOptimizer(BaseOptimizer):
                 raw_samples=self.optional["RAW_SAMPLES"]
             )
 
-            if "record_evaluation_time" in kwargs:
+            if True:#"record_evaluation_time" in kwargs:
                 ts = time.time()
                 _ = acq_fun.forward(batch_initial_conditions)
                 te = time.time()
@@ -120,12 +120,15 @@ class BaseBOOptimizer(BaseOptimizer):
                 num_restarts=self.optional["NUM_RESTARTS"],
                 raw_samples=self.optional["RAW_SAMPLES"]
             )
-            if "record_evaluation_time" in kwargs:
+
+            if True:#"record_evaluation_time" in kwargs:
                 print("init_conds", batch_initial_conditions.shape)
                 ts = time.time()
-                _ = acq_fun.forward(batch_initial_conditions)
+                with torch.no_grad():
+                    _ = acq_fun.forward(batch_initial_conditions)
                 te = time.time()
                 self.evaluation_time.append([te - ts])
+
                 return batch_initial_conditions[:, 0, :], _
 
             x_best, _ = optimize_acqf(
@@ -177,7 +180,8 @@ class BaseBOOptimizer(BaseOptimizer):
             if True:#"record_evaluation_time" in kwargs:
                 X_initial_conditions = torch.atleast_2d(X_random_initial_conditions_raw[0, :])
                 ts = time.time()
-                _ = acq_fun.forward(X_initial_conditions)
+                with torch.no_grad():
+                    _ = acq_fun.forward(X_initial_conditions)
                 te = time.time()
                 self.evaluation_time.append([te - ts])
                 print("hybrid")

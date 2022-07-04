@@ -144,11 +144,14 @@ def run(args):
             # "DISCKG_GP_synthetic_1000_dim6_l0.1"
             # "t_DISCKG_GP_synthetic_dim6_l0.1"
             #
-            "ONESHOTKG_GP_synthetic_10_dim6_l0.1",
+            # "ONESHOTKG_GP_synthetic_10_dim6_l0.1",
             # "ONESHOTKG_GP_synthetic_10_dim2_l0.1",
             #
             # "ONESHOTKG_GP_synthetic_128_dim6_l0.1",
             # "ONESHOTKG_GP_synthetic_128_dim2_l0.1"
+
+            "ONESHOTKG_GP_synthetic_1000_dim6_l0.1",
+            "ONESHOTKG_GP_synthetic_1000_dim2_l0.1"
 
             # "t_ONESHOTKG_GP_synthetic_dim2_l0.1"
 
@@ -160,8 +163,9 @@ def run(args):
 
             if args.k + seed > 99:
                 raise
-            # experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             # mc_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            # raise
             try:
                 experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             except:

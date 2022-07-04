@@ -179,7 +179,7 @@ CONFIG_DICT = {
         "num_samples_initial_design": [99],
         "num_max_evaluatations": [100],
         "num_discrete_points": [1000],
-        "num_fantasies": [3],
+        "num_fantasies": [1000],
         "num_restarts_inner_optimizer": [1],
         "raw_samples_inner_optimizer": [100],
         "acquisition_optimizer": [

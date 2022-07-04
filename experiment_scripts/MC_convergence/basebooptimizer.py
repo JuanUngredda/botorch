@@ -128,6 +128,7 @@ class BaseBOOptimizer(BaseOptimizer):
                     _ = acq_fun.forward(batch_initial_conditions)
                 te = time.time()
                 self.evaluation_time.append([te - ts])
+                print("te-ts", te-ts)
 
                 return batch_initial_conditions[:, 0, :], _
 

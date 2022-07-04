@@ -150,8 +150,11 @@ def run(args):
             # "ONESHOTKG_GP_synthetic_128_dim6_l0.1",
             # "ONESHOTKG_GP_synthetic_128_dim2_l0.1"
 
-            "ONESHOTKG_GP_synthetic_1000_dim6_l0.1",
-            "ONESHOTKG_GP_synthetic_1000_dim2_l0.1"
+            # "ONESHOTKG_GP_synthetic_1000_dim6_l0.1",
+            # "ONESHOTKG_GP_synthetic_1000_dim2_l0.1"
+
+            "ONESHOTKG_GP_synthetic_500_dim6_l0.1",
+            "ONESHOTKG_GP_synthetic_500_dim2_l0.1"
 
             # "t_ONESHOTKG_GP_synthetic_dim2_l0.1"
 
@@ -165,11 +168,12 @@ def run(args):
                 raise
             experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
             # mc_experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+
             # raise
-            try:
-                experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
-            except:
-                print("not completed")
+            # try:
+            #     experiment_manager.main(exp_names=exp_name, seed=args.k + seed)
+            # except:
+            #     print("not completed")
             # print(args.k + seed, exp_name)
         seed += number_of_csc_machines
 

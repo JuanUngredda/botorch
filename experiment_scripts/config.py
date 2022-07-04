@@ -387,6 +387,40 @@ CONFIG_DICT = {
         "num_restarts_acq_optimizer": [3],
         "raw_samples_acq_optimizer": [500]},
 
+    "ONESHOTKG_GP_synthetic_500_dim6_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [6],
+        "lengthscale": [0.1],
+        "method": ["ONESHOTKG"],
+        "num_samples_initial_design": [14],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [500],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [500]},
+
+    "ONESHOTKG_GP_synthetic_500_dim2_l0.1": {
+        "problems": ["GP_synthetic"],
+        "num_input_dim": [2],
+        "lengthscale": [0.1],
+        "method": ["ONESHOTKG"],
+        "num_samples_initial_design": [6],
+        "num_max_evaluatations": [100],
+        "num_discrete_points": [1000],
+        "num_fantasies": [500],
+        "num_restarts_inner_optimizer": [1],
+        "raw_samples_inner_optimizer": [100],
+        "acquisition_optimizer": [
+            "L-BFGS-B"
+        ],  # "L-BFGS-B" or "Adam"
+        "num_restarts_acq_optimizer": [3],
+        "raw_samples_acq_optimizer": [500]},
+
     "ONESHOTKG_GP_synthetic_128_dim6_l0.1": {
         "problems": ["GP_synthetic"],
         "num_input_dim": [6],

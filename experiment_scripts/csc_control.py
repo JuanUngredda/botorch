@@ -138,8 +138,8 @@ def run(args):
 
             # "MCKG_GP_synthetic_10_dim2_l0.1",
             # "HYBRIDKG_GP_synthetic_10_dim2_l0.1"
-            "MCKG_GP_synthetic_10_dim6_l0.1",
-            # "HYBRIDKG_GP_synthetic_10_dim6_l0.1"
+            # "MCKG_GP_synthetic_10_dim6_l0.1",
+            "HYBRIDKG_GP_synthetic_10_dim6_l0.1"
             # "DISCKG_GP_synthetic_1000_dim2_l0.1",
             # "DISCKG_GP_synthetic_1000_dim6_l0.1"
             # "t_DISCKG_GP_synthetic_dim6_l0.1"

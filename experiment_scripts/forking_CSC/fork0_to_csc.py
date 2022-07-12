@@ -113,9 +113,9 @@ N_PROCESSES = 8
 
 # set the computers you want to use here, tmux will load to show if they are active.
 ALL_CSC_NAMES = [
-    "torta",
-    "okoy",
-    "embutido",
+    # "torta",
+    # "okoy",
+    # "embutido",
     "jamon",
     "caldereta",
     # "keiko",

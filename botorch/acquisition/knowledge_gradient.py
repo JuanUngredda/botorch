@@ -26,15 +26,19 @@ and [Wu2016parallelkg]_.
 
 from __future__ import annotations
 
+import sys
 from copy import deepcopy
 from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 
 import torch
+from torch import Tensor
+
 from botorch import settings
 from botorch.acquisition.acquisition import (
     AcquisitionFunction,
     OneShotAcquisitionFunction,
 )
+from botorch.acquisition.analytic import DiscreteKnowledgeGradient
 from botorch.acquisition.analytic import PosteriorMean
 from botorch.acquisition.cost_aware import CostAwareUtility
 from botorch.acquisition.monte_carlo import MCAcquisitionFunction, qSimpleRegret
@@ -43,7 +47,6 @@ from botorch.acquisition.objective import (
     MCAcquisitionObjective,
     ScalarizedObjective,
 )
-from botorch.exceptions.errors import UnsupportedError
 from botorch.models.model import Model
 from botorch.sampling.samplers import MCSampler, SobolQMCNormalSampler
 from botorch.utils.transforms import (
@@ -51,7 +54,262 @@ from botorch.utils.transforms import (
     match_batch_shape,
     t_batch_mode_transform,
 )
-from torch import Tensor
+from botorch.utils.sampling import draw_sobol_normal_samples
+
+
+class MCKnowledgeGradient(DiscreteKnowledgeGradient):
+    r"""Knowledge Gradient using Monte-Carlo integration.
+
+    This computes the Knowledge Gradient using randomly generated Zj ~ N(0,1) to
+    find \max_{x'}{ \mu^n(x') + \hat{\sigma^n{x', x}}Z_{j} }. Then, the outer
+    expectation is solved by taking the Monte Carlo average.
+    """
+
+    def __init__(
+            self,
+            model: Model,
+            num_fantasies: Optional[int] = 64,
+            bounds: Tensor = None,
+            inner_sampler: Optional[MCSampler] = None,
+            objective: Optional[AcquisitionObjective] = None,
+            seed: Optional[MCSampler] = 1,
+            current_value: Optional[Tensor] = None,
+            **kwargs: Any,
+    ) -> None:
+        r"""q-Knowledge Gradient (one-shot optimization).
+
+        Args:
+            model: A fitted model. Must support fantasizing.
+            num_fantasies: The number of fantasy points to use. More fantasy
+                points result in a better approximation, at the expense of
+                memory and wall time. Unused if `sampler` is specified.
+            bounds: A `2 x d` tensor of lower and upper bounds for each column of
+                the solutions to the inner problem.
+            inner_sampler: The sampler used to sample fantasy observations.
+            objective: The objective under which the samples are evaluated. If
+                `None` or a ScalarizedObjective, then the analytic posterior mean
+                is used, otherwise the objective is MC-evaluated (using
+                inner_sampler).
+            current_value: The current value, i.e. the expected best objective
+                given the observed points `D`. If omitted, forward will not
+                return the actual KG value, but the expected best objective
+                given the data set `D u X`.
+            kwargs: Additional keyword arguments. This includes the options for
+                optimization of the inner problem, i.e. `num_restarts`, `raw_samples`,
+                an `options` dictionary to be passed on to the optimization helpers, and
+                a `scipy_options` dictionary to be passed to `scipy.minimize`.
+        """
+
+        if num_fantasies is None:
+            raise ValueError("Must specify `num_fantasies`")
+
+        super(MCKnowledgeGradient, self).__init__(
+            model=model, bounds=bounds, num_discrete_points=num_fantasies
+        )
+
+        self.bounds = bounds
+        self.dim = bounds.shape[1]
+        self.num_fantasies = num_fantasies
+        self.current_value = current_value
+        self.inner_sampler = inner_sampler
+        self.objective = objective
+        self.inner_condition_sampler = kwargs.get("inner_condition_sampler", "random")
+        self.num_restarts = kwargs.get("num_restarts", 20)
+        self.raw_samples = kwargs.get("raw_samples", 1024)
+        self.seed = seed
+        self.num_X_observations = None
+        self.kwargs = kwargs
+
+    @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
+    def forward(self, X: Tensor) -> Tensor:
+
+        zvalues = self.construct_z_vals(self.num_fantasies)
+        kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+        for xnew_idx, xnew in enumerate(X):
+            _, kgvals[xnew_idx] = self.compute_mc_kg(xnew=xnew, zvalues=zvalues)
+
+        return kgvals
+
+    def construct_z_vals(self, nz: int, device: Optional[torch.device] = None) -> Tensor:
+        """make nz random z """
+
+        current_number_of_observations = self.model.train_inputs[0].shape[0]
+
+        # Z values are only updated if new data is included in the model.
+        # This ensures that we can use a deterministic optimizer.
+
+        if current_number_of_observations != self.num_X_observations:
+            # This generates the fantasised samples according to a random seed.
+            z_vals = draw_sobol_normal_samples(
+                d=1,
+                n=self.num_fantasies
+            ).squeeze()  # 1 x num_fantasies
+            self.z_vals = z_vals
+            self.num_X_observations = current_number_of_observations
+
+        else:
+            z_vals = self.z_vals
+        return z_vals.to(device=device)
+
+    def compute_mc_kg(
+            self, xnew: Tensor, zvalues: Optional[Tensor]
+    ) -> tuple[Tensor, Tensor]:
+        """
+        Args:
+            xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
+            `d` dimensions.
+            Zvals: 1 x num_fantasies Tensor with num_fantasies Normal quantiles.
+        Returns:
+            xstar_inner_optimisation: num_fantasies x d Tensor. Optimal X values for each z in Zvals.
+            kg_estimated_value: 1 x 1 Tensor, Monte Carlo KG value of xnew
+        """
+
+        # There's a recurssion problem importing packages by one_shot kg. Hacky way of importing these packages.
+        # TODO: find a better way to fix this
+        if "gen_candidates_scipy" not in sys.modules:
+            from botorch.generation.gen import gen_candidates_scipy
+            from botorch.optim.initializers import gen_value_function_initial_conditions
+
+        # Loop over xnew points
+        fantasy_opt_val = torch.zeros((1, self.num_fantasies))  # 1 x num_fantasies
+        xstar_inner_optimisation = torch.zeros((self.num_fantasies, xnew.shape[1]))
+
+        # This setting makes sure that I can rewrite the base samples and use the quantiles.
+        # Therefore, resample=False, collapse_batch_dims=True.
+        sampler = SobolQMCNormalSampler(
+            num_samples=1, resample=False, collapse_batch_dims=True
+        )
+
+        # loop over number of GP fantasised mean realisations
+        for fantasy_idx in range(self.num_fantasies):
+
+            # construct one realisation of the fantasy model by adding xnew. We rewrite the internal variable
+            # base samples, such that the samples are taken from the quantile.
+            zval = zvalues[fantasy_idx].view(1, 1, 1)
+            sampler.base_samples = zval
+
+            fantasy_model = self.model.fantasize(
+                X=xnew, sampler=sampler, observation_noise=True
+            )
+
+            # get the value function and make sure gradients are enabled.
+            with torch.enable_grad():
+                value_function = _get_value_function(
+                    model=fantasy_model,
+                    objective=self.objective,
+                    sampler=self.inner_sampler,
+                    project=getattr(self, "project", None),
+                )
+
+                # optimize the inner problem
+                X_initial_conditions = gen_value_function_initial_conditions(
+                    acq_function=value_function,
+                    bounds=self.bounds,
+                    current_model=self.model,
+                    num_restarts=1,#self.num_restarts,
+                    raw_samples=100,#self.raw_samples,
+                    options={
+                        **self.kwargs.get("options", {}),
+                        **self.kwargs.get("scipy_options", {}),
+                    },
+                )
+
+                x_value, value = gen_candidates_scipy(
+                    initial_conditions=X_initial_conditions,
+                    acquisition_function=value_function,
+                    lower_bounds=self.bounds[0],
+                    upper_bounds=self.bounds[1],
+                    options={"maxiter":20}#self.kwargs.get("scipy_options"),
+                )
+
+                #internal check. eliminate after
+                # domain_offset = self.bounds[0]
+                # domain_range = self.bounds[1] - self.bounds[0]
+                # X_unit_cube_samples = torch.rand((1000, 1, 1, self.dim))
+                # X_initial_conditions_raw = X_unit_cube_samples * domain_range + domain_offset
+                #
+                # with torch.no_grad():
+                #     mu_val_initial_conditions_raw = value_function.forward(X_initial_conditions_raw)
+                # Xplot = X_initial_conditions_raw.squeeze().numpy()
+                # xval = x_value.squeeze().numpy()
+                # import matplotlib.pyplot as plt
+                #
+                # X_init = X_initial_conditions.squeeze().numpy()
+                # plt.scatter(Xplot[:,0], Xplot[:,1], c=mu_val_initial_conditions_raw.numpy().squeeze())
+                # plt.scatter(X_init[0], X_init[1], color="red", marker="x")
+                # plt.scatter(xval[ 0], xval[1], color="red")
+                # plt.show()
+                # raise
+                x_value = x_value  # num initial conditions x 1 x d
+                value = value.squeeze()  # num_initial conditions
+
+                # find top x in case there are several initial conditions
+                x_top = x_value[torch.argmax(value)]  # 1 x 1 x d
+
+                # make sure to propagate kg gradients.
+                with settings.propagate_grads(True):
+                    x_top_val = value_function(X=x_top)
+
+                if self.current_value is not None:
+                    x_top_val = x_top_val - self.current_value
+
+                fantasy_opt_val[:, fantasy_idx] = x_top_val
+                xstar_inner_optimisation[fantasy_idx, :] = x_top.squeeze()
+
+        kg_estimated_value = torch.mean(fantasy_opt_val, dim=-1)
+        # raise
+        return xstar_inner_optimisation, kg_estimated_value
+
+
+class HybridKnowledgeGradient(MCKnowledgeGradient):
+    r"""Hybrid Knowledge Gradient using Monte-Carlo integration as described in
+    Pearce M., Klaise J.,and Groves M. 2020. "Practical Bayesian Optimization
+    of Objectives with Conditioning Variables". arXiv:2002.09996
+
+    This acquisition function first computes high value design vectors using the
+    predictive posterior GP mean for different Normal quantiles. Then discrete
+    knowledge gradient is computed using the high value design vectors as a
+    discretisation.
+    """
+
+    @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
+    def forward(self, X: Tensor) -> Tensor:
+        r"""
+
+        Args:
+            X: A `m x 1 x d` Tensor with `m` acquisition function evaluations of
+            `d` dimensions. Currently DiscreteKnowledgeGradient does can't perform
+            batched evaluations.
+
+        Returns:
+            kgvals: A 'm' Tensor with 'm' KG values.
+        """
+
+        """ compute hybrid KG """
+
+        # generate equal quantile spaced z_vals
+        zvalues = self.construct_z_vals(self.num_fantasies)
+
+        kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+        for xnew_idx, xnew in enumerate(X):
+            # Compute X discretisation using the different generated quantiles.
+            x_star, _ = self.compute_mc_kg(xnew=xnew, zvalues=zvalues)
+
+            # Compute value of discrete Knowledge Gradient using the generated discretisation
+            kgvals[xnew_idx] = self.compute_discrete_kg(
+                model=self.model, xnew=xnew, optimal_discretisation=x_star
+            )
+
+        return kgvals
+
+
+    def construct_z_vals(self, nz: int, device: Optional[torch.device] = None) -> Tensor:
+        """make nz equally quantile-spaced z values"""
+
+        quantiles_z = (torch.arange(nz) + 0.5) * (1 / nz)
+        normal = torch.distributions.Normal(0, 1)
+        z_vals = normal.icdf(quantiles_z)
+        return z_vals.to(device=device)
 
 
 class qKnowledgeGradient(MCAcquisitionFunction, OneShotAcquisitionFunction):
@@ -67,15 +325,15 @@ class qKnowledgeGradient(MCAcquisitionFunction, OneShotAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        num_fantasies: Optional[int] = 64,
-        sampler: Optional[MCSampler] = None,
-        objective: Optional[AcquisitionObjective] = None,
-        inner_sampler: Optional[MCSampler] = None,
-        X_pending: Optional[Tensor] = None,
-        current_value: Optional[Tensor] = None,
-        **kwargs: Any,
+            self,
+            model: Model,
+            num_fantasies: Optional[int] = 64,
+            sampler: Optional[MCSampler] = None,
+            objective: Optional[AcquisitionObjective] = None,
+            inner_sampler: Optional[MCSampler] = None,
+            X_pending: Optional[Tensor] = None,
+            current_value: Optional[Tensor] = None,
+            **kwargs: Any,
     ) -> None:
         r"""q-Knowledge Gradient (one-shot optimization).
 
@@ -159,6 +417,7 @@ class qKnowledgeGradient(MCAcquisitionFunction, OneShotAcquisitionFunction):
                 true KG value of `X_actual[b]`, and `X_fantasies[b, : ]` must be
                 maximized at fixed `X_actual[b]`.
         """
+
         X_actual, X_fantasies = _split_fantasy_points(X=X, n_f=self.num_fantasies)
 
         # We only concatenate X_pending into the X part after splitting
@@ -284,6 +543,121 @@ class qKnowledgeGradient(MCAcquisitionFunction, OneShotAcquisitionFunction):
         return X_full[..., : -self.num_fantasies, :]
 
 
+class HybridOneShotKnowledgeGradient(qKnowledgeGradient):
+    def __init__(
+            self,
+            model: Model,
+            num_fantasies: Optional[int] = None,
+            x_optimiser: Optional[Tensor] = None,
+            **kwargs: Any,
+    ) -> None:
+        r"""q-Knowledge Gradient (one-shot optimization).
+
+        Args:
+            model: A fitted model. Must support fantasizing.
+            num_fantasies: The number of fantasy points to use. More fantasy
+                points result in a better approximation, at the expense of
+                memory and wall time. Unused if `sampler` is specified.
+        """
+
+        if num_fantasies is None:
+            raise ValueError(
+                "Must specify `num_fantasies` if no `sampler` is provided."
+            )
+
+        super(HybridOneShotKnowledgeGradient, self).__init__(model=model)
+        self.num_fantasies = num_fantasies
+        self.x_optimiser = x_optimiser
+
+    @t_batch_mode_transform()
+    def forward(self, X: Tensor) -> Tensor:
+        r"""Evaluate HybridOneShotKnowledgeGradient on the candidate set `X`.
+
+        Args:
+            X: A `b x (q + num_fantasies) x d` Tensor with `b` t-batches of
+                `q + num_fantasies` design points each. We split this X tensor
+                into two parts in the `q` dimension (`dim=-2`). The first `q`
+                are the q-batch of design points and the last num_fantasies are
+                the current solutions of the inner optimization problem.
+
+                `X_fantasies = X[..., -num_fantasies:, :]`
+                `X_fantasies.shape = b x num_fantasies x d`
+
+                `X_actual = X[..., :-num_fantasies, :]`
+                `X_actual.shape = b x q x d`
+
+        Returns:
+            A Tensor of shape `b`. For t-batch b, the q-KG value of the design
+                `X_actual[b]` is averaged across the fantasy models, where
+                `X_fantasies[b, i]` is chosen as the final selection for the
+                `i`-th fantasy model.
+                NOTE: If `current_value` is not provided, then this is not the
+                true KG value of `X_actual[b]`, and `X_fantasies[b, : ]` must be
+                maximized at fixed `X_actual[b]`.
+        """
+        kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+        X_actual, X_fantasies = _split_fantasy_points(X=X, n_f=self.num_fantasies)
+
+        # make sure to propagate gradients to the fantasy model train inputs
+        for x_i, xnew in enumerate(X_actual):
+            X_discretisation = X_fantasies[:, x_i, ...].squeeze()
+
+            if self.x_optimiser is not None:
+                X_discretisation = torch.cat([X_discretisation, self.x_optimiser])
+
+            kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
+                                                                        xnew=xnew,
+                                                                        optimal_discretisation=X_discretisation)
+        return kgvals
+
+    def evaluate_discrete_kg(self, X: Tensor, test=False) -> Tensor:
+        kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+        X_actual, X_fantasies = _split_fantasy_points(X=X, n_f=self.num_fantasies)
+        # make sure to propagate gradients to the fantasy model train inputs
+        for x_i, xnew in enumerate(X_actual):
+            X_discretisation = X_fantasies[:, x_i, ...]
+            xnew = torch.atleast_2d(xnew.squeeze())
+            X_discretisation = X_discretisation.squeeze()
+
+            kgvals[x_i] = DiscreteKnowledgeGradient.compute_discrete_kg(model=self.model,
+                                                                        xnew=xnew,
+                                                                        optimal_discretisation=X_discretisation,
+                                                                        test=test)
+        return kgvals
+
+    def construct_z_vals(self, nz: int, device: Optional[torch.device] = None) -> Tensor:
+        """make nz equally quantile-spaced z values"""
+
+        quantiles_z = (torch.arange(nz) + 0.5) * (1 / nz)
+        normal = torch.distributions.Normal(0, 1)
+        z_vals = normal.icdf(quantiles_z)
+        return z_vals.to(device=device)
+
+    def get_augmented_q_batch_size(self, q: int) -> int:
+        r"""Get augmented q batch size for one-shot optimization.
+
+        Args:
+            q: The number of candidates to consider jointly.
+
+        Returns:
+            The augmented size for one-shot optimization (including variables
+            parameterizing the fantasy solutions).
+        """
+        return q + self.num_fantasies
+
+    def extract_candidates(self, X_full: Tensor) -> Tensor:
+        r"""We only return X as the set of candidates post-optimization.
+
+        Args:
+            X_full: A `b x (q + num_fantasies) x d`-dim Tensor with `b`
+                t-batches of `q + num_fantasies` design points each.
+
+        Returns:
+            A `b x q x d`-dim Tensor with `b` t-batches of `q` design points each.
+        """
+        return X_full[..., : -self.num_fantasies, :]
+
+
 class qMultiFidelityKnowledgeGradient(qKnowledgeGradient):
     r"""Batch Knowledge Gradient for multi-fidelity optimization.
 
@@ -296,20 +670,20 @@ class qMultiFidelityKnowledgeGradient(qKnowledgeGradient):
     """
 
     def __init__(
-        self,
-        model: Model,
-        num_fantasies: Optional[int] = 64,
-        sampler: Optional[MCSampler] = None,
-        objective: Optional[AcquisitionObjective] = None,
-        inner_sampler: Optional[MCSampler] = None,
-        X_pending: Optional[Tensor] = None,
-        current_value: Optional[Tensor] = None,
-        cost_aware_utility: Optional[CostAwareUtility] = None,
-        project: Callable[[Tensor], Tensor] = lambda X: X,
-        expand: Callable[[Tensor], Tensor] = lambda X: X,
-        valfunc_cls: Optional[Type[AcquisitionFunction]] = None,
-        valfunc_argfac: Optional[Callable[[Model, Dict[str, Any]]]] = None,
-        **kwargs: Any,
+            self,
+            model: Model,
+            num_fantasies: Optional[int] = 64,
+            sampler: Optional[MCSampler] = None,
+            objective: Optional[AcquisitionObjective] = None,
+            inner_sampler: Optional[MCSampler] = None,
+            X_pending: Optional[Tensor] = None,
+            current_value: Optional[Tensor] = None,
+            cost_aware_utility: Optional[CostAwareUtility] = None,
+            project: Callable[[Tensor], Tensor] = lambda X: X,
+            expand: Callable[[Tensor], Tensor] = lambda X: X,
+            valfunc_cls: Optional[Type[AcquisitionFunction]] = None,
+            valfunc_argfac: Optional[Callable[[Model, Dict[str, Any]]]] = None,
+            **kwargs: Any,
     ) -> None:
         r"""Multi-Fidelity q-Knowledge Gradient (one-shot optimization).
 
@@ -462,9 +836,9 @@ class ProjectedAcquisitionFunction(AcquisitionFunction):
     """
 
     def __init__(
-        self,
-        base_value_function: AcquisitionFunction,
-        project: Callable[[Tensor], Tensor],
+            self,
+            base_value_function: AcquisitionFunction,
+            project: Callable[[Tensor], Tensor],
     ) -> None:
         super().__init__(base_value_function.model)
         self.base_value_function = base_value_function
@@ -477,12 +851,12 @@ class ProjectedAcquisitionFunction(AcquisitionFunction):
 
 
 def _get_value_function(
-    model: Model,
-    objective: Optional[Union[MCAcquisitionObjective, ScalarizedObjective]] = None,
-    sampler: Optional[MCSampler] = None,
-    project: Optional[Callable[[Tensor], Tensor]] = None,
-    valfunc_cls: Optional[Type[AcquisitionFunction]] = None,
-    valfunc_argfac: Optional[Callable[[Model, Dict[str, Any]]]] = None,
+        model: Model,
+        objective: Optional[Union[MCAcquisitionObjective, ScalarizedObjective]] = None,
+        sampler: Optional[MCSampler] = None,
+        project: Optional[Callable[[Tensor], Tensor]] = None,
+        valfunc_cls: Optional[Type[AcquisitionFunction]] = None,
+        valfunc_argfac: Optional[Callable[[Model, Dict[str, Any]]]] = None,
 ) -> AcquisitionFunction:
     r"""Construct value function (i.e. inner acquisition function)."""
     if valfunc_cls is not None:
@@ -496,6 +870,7 @@ def _get_value_function(
             base_value_function = qSimpleRegret(
                 model=model, sampler=sampler, objective=objective
             )
+
         else:
             base_value_function = PosteriorMean(model=model, objective=objective)
 
@@ -536,3 +911,42 @@ def _split_fantasy_points(X: Tensor, n_f: int) -> Tuple[Tensor, Tensor]:
     # num_fantasies x b x 1 x d
     X_fantasies = X_fantasies.unsqueeze(dim=-2)
     return X_actual, X_fantasies
+
+
+def _check_shape_changed(
+        base_samples: Optional[Tensor], batch_range: Tuple[int, int], shape: torch.Size
+) -> bool:
+    r"""Check if the base samples shape matches a given shape in non batch dims.
+
+    Args:
+        base_samples: The Posterior for which to generate base samples.
+        batch_range: The range t-batch dimensions to ignore for shape check.
+        shape: The base sample shape to compare.
+
+    Returns:
+        A bool indicating whether the shape changed.
+    """
+    if base_samples is None:
+        return True
+    batch_start, batch_end = batch_range
+    b_sample_shape, b_base_sample_shape = split_shapes(base_samples.shape)
+    sample_shape, base_sample_shape = split_shapes(shape)
+    return (
+            b_sample_shape != sample_shape
+            or b_base_sample_shape[batch_end:] != base_sample_shape[batch_end:]
+            or b_base_sample_shape[:batch_start] != base_sample_shape[:batch_start]
+    )
+
+
+def split_shapes(
+        base_sample_shape: torch.Size,
+) -> Tuple[torch.Size, torch.Size]:
+    r"""Split a base sample shape into sample and base sample shapes.
+
+    Args:
+        base_sample_shape: The base sample shape.
+
+    Returns:
+        A tuple containing the sample and base sample shape.
+    """
+    return base_sample_shape[:1], base_sample_shape[1:]

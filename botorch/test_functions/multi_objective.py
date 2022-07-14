@@ -955,6 +955,46 @@ class ConstrainedBraninCurrin(BraninCurrin, ConstrainedBaseTestProblem):
         X_tf = unnormalize(X, self.con_bounds)
         return 50 - (X_tf[..., 0:1] - 2.5).pow(2) - (X_tf[..., 1:2] - 7.5).pow(2)
 
+# X_plot = torch.rand((10000, 2))
+# import matplotlib.pyplot as plt
+# fun = ConstrainedBraninCurrin(negate=True)
+# fval =fun(X_plot)
+# c = -fun.evaluate_slack_true(X_plot)
+# is_feas = (c<0).squeeze()
+#
+# plt.scatter(X_plot[:,0], X_plot[:,1])
+# plt.xlabel("$X_1$")
+# plt.ylabel("$X_2$")
+# plt.show()
+#
+# ax = plt.axes(projection='3d')
+# ax.scatter3D(X_plot[:,0], X_plot[:,1], fval[:,0] , cmap='binary')
+# plt.show()
+#
+# ax = plt.axes(projection='3d')
+# ax.scatter3D(X_plot[:,0], X_plot[:,1], fval[:,1] , cmap='binary')
+# plt.show()
+#
+# plt.scatter(fval[:,0], fval[:,1])
+# plt.xlabel("$Y_1$")
+# plt.ylabel("$Y_2$")
+# plt.show()
+#
+# plt.scatter(fval[:,0], fval[:,1])
+# plt.xlabel("$Y_1$")
+# plt.ylabel("$Y_2$")
+# plt.show()
+#
+# util = torch.sum(fval, dim=1)
+# ybest = fval[torch.argmax(util), :]
+# plt.scatter(fval[:,0], fval[:,1], c=util)
+# plt.scatter(ybest[0], ybest[1], color="red", label="$y^{*}$")
+# plt.xlabel("$Y_1$")
+# plt.ylabel("$Y_2$")
+# plt.legend()
+# plt.show()
+#
+# raise
 
 class C2DTLZ2(DTLZ2, ConstrainedBaseTestProblem):
 

@@ -17,6 +17,7 @@ from botorch.acquisition.analytic import (
     PosteriorMean,
     ProbabilityOfImprovement,
     UpperConfidenceBound,
+    DiscreteKnowledgeGradient,
 )
 from botorch.acquisition.cost_aware import (
     GenericCostAwareUtility,
@@ -25,8 +26,11 @@ from botorch.acquisition.cost_aware import (
 from botorch.acquisition.fixed_feature import FixedFeatureAcquisitionFunction
 from botorch.acquisition.input_constructors import get_acqf_input_constructor
 from botorch.acquisition.knowledge_gradient import (
+    HybridKnowledgeGradient,
+    MCKnowledgeGradient,
     qKnowledgeGradient,
     qMultiFidelityKnowledgeGradient,
+    HybridOneShotKnowledgeGradient
 )
 from botorch.acquisition.max_value_entropy_search import (
     MaxValueBase,
@@ -69,7 +73,11 @@ __all__ = [
     "ProximalAcquisitionFunction",
     "UpperConfidenceBound",
     "qExpectedImprovement",
+    "HybridKnowledgeGradient",
     "qKnowledgeGradient",
+    "DiscreteKnowledgeGradient",
+    "MCKnowledgeGradient",
+    "HybridOneShotKnowledgeGradient",
     "MaxValueBase",
     "qMultiFidelityKnowledgeGradient",
     "qMaxValueEntropy",

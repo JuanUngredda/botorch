@@ -16,6 +16,9 @@ from copy import deepcopy
 from typing import Dict, Optional, Tuple, Union
 
 import torch
+from torch import Tensor
+from torch.distributions import Normal
+
 from botorch.acquisition.acquisition import AcquisitionFunction
 from botorch.acquisition.objective import ScalarizedObjective
 from botorch.exceptions import UnsupportedError
@@ -26,15 +29,13 @@ from botorch.posteriors.posterior import Posterior
 from botorch.sampling.samplers import SobolQMCNormalSampler
 from botorch.utils.sampling import draw_sobol_samples
 from botorch.utils.transforms import convert_to_target_pre_hook, t_batch_mode_transform
-from torch import Tensor
-from torch.distributions import Normal
 
 
 class AnalyticAcquisitionFunction(AcquisitionFunction, ABC):
     r"""Base class for analytic acquisition functions."""
 
     def __init__(
-        self, model: Model, objective: Optional[ScalarizedObjective] = None
+            self, model: Model, objective: Optional[ScalarizedObjective] = None
     ) -> None:
         r"""Base constructor for analytic acquisition functions.
 
@@ -85,11 +86,12 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
     r"""Knowledge Gradient using a fixed discretisation in the Design Space "X"."""
 
     def __init__(
-        self,
-        model: Model,
-        bounds: Optional[Tensor] = None,
-        num_discrete_points: Optional[int] = None,
-        X_discretisation: Optional[Tensor] = None,
+            self,
+            model: Model,
+            bounds: Optional[Tensor] = None,
+            num_discrete_points: Optional[int] = None,
+            X_discretisation: Optional[Tensor] = None,
+            current_optimiser: Optional[Tensor] = None,
     ) -> None:
         r"""
         Discrete Knowledge Gradient
@@ -115,64 +117,29 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         super(AnalyticAcquisitionFunction, self).__init__(model=model)
 
-        self.num_input_dimensions = bounds.shape[1]
         self.X_discretisation = X_discretisation
+        if current_optimiser is not None:
+            self.current_optimiser = current_optimiser.squeeze()
+        else:
+            self.current_optimiser = None
 
     @t_batch_mode_transform(expected_q=1, assert_output_shape=False)
     def forward(self, X: Tensor) -> Tensor:
         kgvals = torch.zeros(X.shape[0], dtype=torch.double)
+
         for xnew_idx, xnew in enumerate(X):
             xnew = xnew.unsqueeze(0)
+            if self.current_optimiser is not None:
+                self.current_optimiser = torch.atleast_2d(self.current_optimiser)
+                self.X_discretisation = torch.cat([self.X_discretisation, self.current_optimiser.unsqueeze(dim=0)])
+
             kgvals[xnew_idx] = self.compute_discrete_kg(
-                xnew=xnew, optimal_discretisation=self.X_discretisation
+                model=self.model, xnew=xnew, optimal_discretisation=self.X_discretisation
             )
         return kgvals
 
-    def compute_discrete_kg(
-        self, xnew: Tensor, optimal_discretisation: Tensor
-    ) -> Tensor:
-        """
-
-        Args:
-        xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
-            `d` dimensions.
-            optimal_discretisation: num_fantasies x d Tensor. Optimal X values for each z in zvalues.
-
-        """
-        # Augment the discretisation with the designs.
-        concatenated_xnew_discretisation = torch.cat(
-            [xnew, optimal_discretisation], dim=0
-        ).squeeze()  # (m + num_X_disc, d)
-
-        # Compute posterior mean, variance, and covariance.
-        full_posterior = self.model.posterior(
-            concatenated_xnew_discretisation, observation_noise=False
-        )
-        noise_variance = torch.unique(self.model.likelihood.noise_covar.noise)
-        full_posterior_mean = full_posterior.mean  # (1 + num_X_disc , 1)
-
-        # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
-        full_posterior_covariance = (
-            full_posterior.mvn.covariance_matrix
-        )  # (1 + num_X_disc , 1 + num_X_disc )
-        posterior_cov_xnew_opt_disc = full_posterior_covariance[
-            : len(xnew), :
-        ].squeeze()  # ( 1 + num_X_disc,)
-        full_posterior_variance = (
-            full_posterior.variance.squeeze()
-        )  # (1 + num_X_disc, )
-
-        full_predictive_covariance = (
-            posterior_cov_xnew_opt_disc
-            / (full_posterior_variance + noise_variance).sqrt()
-        )
-        # initialise empty kgvals torch.tensor
-        kgval = self.kgcb(a=full_posterior_mean, b=full_predictive_covariance)
-
-        return kgval
-
     @staticmethod
-    def kgcb(a: Tensor, b: Tensor) -> Tensor:
+    def kgcb(a: Tensor, b: Tensor, plot=False) -> Tensor:
         r"""
         Calculates the linear epigraph, i.e. the boundary of the set of points
         in 2D lying above a collection of straight lines y=a+bx.
@@ -190,6 +157,8 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         a = a.squeeze()
         b = b.squeeze()
+        a_old = a
+        b_old = b
         assert len(a) > 0, "must provide slopes"
         assert len(a) == len(b), f"#intercepts != #slopes, {len(a)}, {len(b)}"
 
@@ -252,8 +221,102 @@ class DiscreteKnowledgeGradient(AnalyticAcquisitionFunction):
 
         kg = torch.sum(a * (cdf[1:] - cdf[:-1]) + b * (pdf[:-1] - pdf[1:]))
         kg -= maxa
+
+        if plot:
+            steps=20
+            X = torch.linspace(start=-4.16 , end=4.16 , steps=steps, dtype=torch.double).unsqueeze(dim=-2)
+
+
+            X_dims_adapted = torch.repeat_interleave(X, len(a_old), dim=0)
+            b_old_plot = torch.repeat_interleave(b_old.unsqueeze(-1), steps, dim=1)
+            a_old_plot = torch.repeat_interleave(a_old.unsqueeze(-1),steps, dim=1 )
+            vals_old =  a_old_plot + b_old_plot * X_dims_adapted
+            #
+            import matplotlib.pyplot as plt
+            plt.plot(X_dims_adapted.detach().numpy().T, vals_old.detach().numpy().T, color="grey", alpha=0.6)
+
+
+            X_dims_adapted = torch.repeat_interleave(X, len(a), dim=0)
+            b_plot = torch.repeat_interleave(b.unsqueeze(-1), steps, dim=1)
+            a_plot = torch.repeat_interleave(a.unsqueeze(-1),steps, dim=1 )
+
+            vals =  a_plot + b_plot * X_dims_adapted
+            vals = torch.max(vals, dim=0).values
+
+
+            if len(a_old)>60:
+                plt.plot(X.detach().squeeze().numpy(), vals.detach().numpy(), label="X discrete")
+            else:
+                plt.plot(X.detach().squeeze().numpy(), vals.detach().numpy(), label="X optimised")
+
+            plt.legend()
+            # plt.show()
+
+
         return kg
 
+    @staticmethod
+    def compute_discrete_kg(
+             model: Model, xnew: Tensor, optimal_discretisation: Tensor,
+    plot=False, test=False) -> Tensor:
+        """
+
+        Args:
+        xnew: A `1 x 1 x d` Tensor with `1` acquisition function evaluations of
+            `d` dimensions.
+            optimal_discretisation: num_fantasies x d Tensor. Optimal X values for each z in zvalues.
+
+        """
+        if test:
+
+            DiscreteKnowledgeGradient.compute_discrete_kg(model=model, xnew=xnew,
+                                                          optimal_discretisation=optimal_discretisation,
+                                                          plot=True, test=False)
+
+            dim = xnew.shape[-1]
+            bounds_normalized = torch.vstack(
+                [torch.zeros((1, dim)), torch.ones((1, dim))]
+            )
+            X_random_discretisation = draw_sobol_samples(
+                bounds=bounds_normalized, n=100, q=1
+            ).squeeze()
+            xnew = torch.atleast_2d(xnew.squeeze())
+            DiscreteKnowledgeGradient.compute_discrete_kg(model=model, xnew=xnew, optimal_discretisation=X_random_discretisation,
+                                                          plot=True, test=False)
+
+            import matplotlib.pyplot as plt
+            plt.show()
+        # Augment the discretisation with the designs.
+        concatenated_xnew_discretisation = torch.cat(
+            [xnew, optimal_discretisation], dim=0
+        ).squeeze()  # (m + num_X_disc, d)
+
+        # Compute posterior mean, variance, and covariance.
+        full_posterior = model.posterior(
+            concatenated_xnew_discretisation, observation_noise=False
+        )
+        noise_variance = torch.unique(model.likelihood.noise_covar.noise)
+        full_posterior_mean = full_posterior.mean  # (1 + num_X_disc , 1)
+
+        # Compute full Covariante Cov(Xnew, X_discretised), select [Xnew X_discretised] submatrix, and subvectors.
+        full_posterior_covariance = (
+            full_posterior.mvn.covariance_matrix
+        )  # (1 + num_X_disc , 1 + num_X_disc )
+        posterior_cov_xnew_opt_disc = full_posterior_covariance[
+                                      : len(xnew), :
+                                      ].squeeze()  # ( 1 + num_X_disc,)
+        full_posterior_variance = (
+            full_posterior.variance.squeeze()[0]
+        )  # (1, )
+
+        full_predictive_covariance = (
+                posterior_cov_xnew_opt_disc
+                / (full_posterior_variance + noise_variance).sqrt()
+        )
+        # initialise empty kgvals torch.tensor
+
+        kgval = DiscreteKnowledgeGradient.kgcb(a=full_posterior_mean, b=full_predictive_covariance, plot=plot)
+        return kgval
 
 class ExpectedImprovement(AnalyticAcquisitionFunction):
     r"""Single-outcome Expected Improvement (analytic).
@@ -274,11 +337,11 @@ class ExpectedImprovement(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        best_f: Union[float, Tensor],
-        objective: Optional[ScalarizedObjective] = None,
-        maximize: bool = True,
+            self,
+            model: Model,
+            best_f: Union[float, Tensor],
+            objective: Optional[ScalarizedObjective] = None,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome Expected Improvement (analytic).
 
@@ -339,10 +402,10 @@ class PosteriorMean(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        objective: Optional[ScalarizedObjective] = None,
-        maximize: bool = True,
+            self,
+            model: Model,
+            objective: Optional[ScalarizedObjective] = None,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome Posterior Mean.
 
@@ -395,11 +458,11 @@ class ProbabilityOfImprovement(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        best_f: Union[float, Tensor],
-        objective: Optional[ScalarizedObjective] = None,
-        maximize: bool = True,
+            self,
+            model: Model,
+            best_f: Union[float, Tensor],
+            objective: Optional[ScalarizedObjective] = None,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome analytic Probability of Improvement.
 
@@ -459,11 +522,11 @@ class UpperConfidenceBound(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        beta: Union[float, Tensor],
-        objective: Optional[ScalarizedObjective] = None,
-        maximize: bool = True,
+            self,
+            model: Model,
+            beta: Union[float, Tensor],
+            objective: Optional[ScalarizedObjective] = None,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome Upper Confidence Bound.
 
@@ -529,12 +592,12 @@ class ConstrainedExpectedImprovement(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        best_f: Union[float, Tensor],
-        objective_index: int,
-        constraints: Dict[int, Tuple[Optional[float], Optional[float]]],
-        maximize: bool = True,
+            self,
+            model: Model,
+            best_f: Union[float, Tensor],
+            objective_index: int,
+            constraints: Dict[int, Tuple[Optional[float], Optional[float]]],
+            maximize: bool = True,
     ) -> None:
         r"""Analytic Constrained Expected Improvement.
 
@@ -577,8 +640,8 @@ class ConstrainedExpectedImprovement(AnalyticAcquisitionFunction):
 
         # (b) x 1
         oi = self.objective_index
-        mean_obj = means[..., oi : oi + 1]
-        sigma_obj = sigmas[..., oi : oi + 1]
+        mean_obj = means[..., oi: oi + 1]
+        sigma_obj = sigmas[..., oi: oi + 1]
         u = (mean_obj - self.best_f.expand_as(mean_obj)) / sigma_obj
         if not self.maximize:
             u = -u
@@ -594,7 +657,7 @@ class ConstrainedExpectedImprovement(AnalyticAcquisitionFunction):
         return ei.squeeze(dim=-1)
 
     def _preprocess_constraint_bounds(
-        self, constraints: Dict[int, Tuple[Optional[float], Optional[float]]]
+            self, constraints: Dict[int, Tuple[Optional[float], Optional[float]]]
     ) -> None:
         r"""Set up constraint bounds.
 
@@ -694,11 +757,11 @@ class NoisyExpectedImprovement(ExpectedImprovement):
     """
 
     def __init__(
-        self,
-        model: GPyTorchModel,
-        X_observed: Tensor,
-        num_fantasies: int = 20,
-        maximize: bool = True,
+            self,
+            model: GPyTorchModel,
+            X_observed: Tensor,
+            num_fantasies: int = 20,
+            maximize: bool = True,
     ) -> None:
         r"""Single-outcome Noisy Expected Improvement (via fantasies).
 
@@ -754,7 +817,7 @@ def _construct_dist(means: Tensor, sigmas: Tensor, inds: Tensor) -> Normal:
 
 
 def _get_noiseless_fantasy_model(
-    model: FixedNoiseGP, batch_X_observed: Tensor, Y_fantasized: Tensor
+        model: FixedNoiseGP, batch_X_observed: Tensor, Y_fantasized: Tensor
 ) -> FixedNoiseGP:
     r"""Construct a fantasy model from a fitted model and provided fantasies.
 
@@ -800,10 +863,10 @@ class ScalarizedPosteriorMean(AnalyticAcquisitionFunction):
     """
 
     def __init__(
-        self,
-        model: Model,
-        weights: Tensor,
-        objective: Optional[ScalarizedObjective] = None,
+            self,
+            model: Model,
+            weights: Tensor,
+            objective: Optional[ScalarizedObjective] = None,
     ) -> None:
         r"""Scalarized Posterior Mean.
 

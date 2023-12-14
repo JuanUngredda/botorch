@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
+from unittest import TestCase
 
 import torch
 from botorch.acquisition import qAnalyticProbabilityOfImprovement
@@ -23,7 +24,7 @@ from botorch.acquisition.analytic import (
     PosteriorMean,
     ProbabilityOfImprovement,
     ScalarizedPosteriorMean,
-    UpperConfidenceBound,
+    UpperConfidenceBound, DiscreteKnowledgeGradient,
 )
 from botorch.acquisition.objective import (
     IdentityMCObjective,
@@ -34,7 +35,6 @@ from botorch.models import FixedNoiseGP, SingleTaskGP
 from botorch.posteriors import GPyTorchPosterior
 from botorch.utils.testing import BotorchTestCase, MockModel, MockPosterior
 from gpytorch.distributions import MultitaskMultivariateNormal, MultivariateNormal
-
 
 NEI_NOISE = [
     [-0.099],
@@ -781,7 +781,7 @@ class TestNoisyExpectedImprovement(BotorchTestCase):
         train_y = torch.sin(train_x * (2 * math.pi))
         noise = torch.tensor(NEI_NOISE, device=self.device, dtype=dtype)
         train_y += noise
-        train_yvar = torch.full_like(train_y, 0.25**2)
+        train_yvar = torch.full_like(train_y, 0.25 ** 2)
         model = FixedNoiseGP(train_X=train_x, train_Y=train_y, train_Yvar=train_yvar)
         model.load_state_dict(state_dict)
         model.to(train_x)
@@ -844,8 +844,8 @@ class TestNoisyExpectedImprovement(BotorchTestCase):
             # test non-FixedNoiseGP model
             other_model = SingleTaskGP(X_observed, model.train_targets.unsqueeze(-1))
             for constructor in (
-                NoisyExpectedImprovement,
-                LogNoisyExpectedImprovement,
+                    NoisyExpectedImprovement,
+                    LogNoisyExpectedImprovement,
             ):
                 with self.assertRaises(UnsupportedError):
                     constructor(other_model, X_observed, num_fantasies=5)
@@ -893,3 +893,24 @@ class TestScalarizedPosteriorMean(BotorchTestCase):
             self.assertTrue(
                 torch.allclose(pm, (mean.squeeze(-1) * module.weights).sum(dim=-1))
             )
+
+
+class TestDiscreteKnowledgeGradient(BotorchTestCase):
+    def test_reevaluate_designs(self):
+        n = 100
+        d = 2
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = torch.rand((n, 1), dtype=torch.float64)
+        train_y_reshape = y_train.reshape((n, 1))
+        model = FixedNoiseGP(x_train,
+                             train_y_reshape,
+                             torch.full_like(train_y_reshape, 1e-4)).to(torch.float64)
+
+        module = DiscreteKnowledgeGradient(model=model,
+                                           bounds=torch.Tensor([[0, 0], [1, 1]]),
+                                           num_discrete_points=100,
+                                           X_discretisation=None,
+                                           )
+        kgval = module(x_train[:, None, :])
+        self.assertAllClose(kgval, torch.zeros(n, dtype=torch.float64), atol=1e-4)

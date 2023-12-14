@@ -7,15 +7,20 @@
 from contextlib import ExitStack
 from unittest import mock
 
+import gpytorch
 import torch
-from botorch.acquisition.analytic import PosteriorMean, ScalarizedPosteriorMean
+from gpytorch.distributions import MultitaskMultivariateNormal
+from gpytorch.kernels import RBFKernel, ScaleKernel
+from gpytorch.likelihoods import FixedNoiseGaussianLikelihood
+
+from botorch.acquisition.analytic import PosteriorMean, ScalarizedPosteriorMean, DiscreteKnowledgeGradient
 from botorch.acquisition.cost_aware import GenericCostAwareUtility
 from botorch.acquisition.knowledge_gradient import (
     _get_value_function,
     _split_fantasy_points,
     ProjectedAcquisitionFunction,
     qKnowledgeGradient,
-    qMultiFidelityKnowledgeGradient,
+    qMultiFidelityKnowledgeGradient, MCKnowledgeGradient, HybridKnowledgeGradient, HybridOneShotKnowledgeGradient,
 )
 from botorch.acquisition.monte_carlo import qExpectedImprovement, qSimpleRegret
 from botorch.acquisition.objective import (
@@ -24,15 +29,15 @@ from botorch.acquisition.objective import (
 )
 from botorch.acquisition.utils import project_to_sample_points
 from botorch.exceptions.errors import UnsupportedError
-from botorch.generation.gen import gen_candidates_scipy
-from botorch.models import SingleTaskGP
+from botorch.fit import fit_gpytorch_mll
+from botorch.generation.gen import gen_candidates_scipy, get_best_candidates
+from botorch.models import SingleTaskGP, FixedNoiseGP
+from botorch.optim.initializers import gen_value_function_initial_conditions
 from botorch.optim.optimize import optimize_acqf
 from botorch.optim.utils import _filter_kwargs
 from botorch.posteriors.gpytorch import GPyTorchPosterior
 from botorch.sampling.normal import IIDNormalSampler, SobolQMCNormalSampler
 from botorch.utils.testing import BotorchTestCase, MockModel, MockPosterior
-from gpytorch.distributions import MultitaskMultivariateNormal
-
 from .test_monte_carlo import DummyNonScalarizingPosteriorTransform
 
 NO = "botorch.utils.testing.MockModel.num_outputs"
@@ -130,9 +135,9 @@ class TestQKnowledgeGradient(BotorchTestCase):
                 )
 
             with self.assertRaisesRegex(
-                UnsupportedError,
-                "Objectives that are not an `MCAcquisitionObjective` are not "
-                "supported.",
+                    UnsupportedError,
+                    "Objectives that are not an `MCAcquisitionObjective` are not "
+                    "supported.",
             ):
                 qKnowledgeGradient(model=mm, objective="car")
 
@@ -584,18 +589,17 @@ class TestQMultiFidelityKnowledgeGradient(BotorchTestCase):
                 )
                 # Mocking this to get around grad issues.
                 with mock.patch(
-                    f"{optimize_acqf.__module__}.gen_candidates_scipy",
-                    return_value=(
-                        torch.zeros(2, n_f + 1, 2, **tkwargs),
-                        torch.zeros(2, **tkwargs),
-                    ),
+                        f"{optimize_acqf.__module__}.gen_candidates_scipy",
+                        return_value=(
+                                torch.zeros(2, n_f + 1, 2, **tkwargs),
+                                torch.zeros(2, **tkwargs),
+                        ),
                 ), mock.patch(
                     f"{optimize_acqf.__module__}._filter_kwargs",
                     wraps=lambda f, **kwargs: _filter_kwargs(
                         function=gen_candidates_scipy, **kwargs
                     ),
                 ):
-
                     candidate, value = optimize_acqf(
                         acq_function=kg,
                         bounds=bounds,
@@ -643,7 +647,7 @@ class TestKGUtils(BotorchTestCase):
             self.assertEqual(vf.project, mock_project)
             test_X = torch.rand(1, 1, 1, device=self.device)
             with mock.patch.object(
-                vf, "base_value_function", __class__=torch.nn.Module, return_value=None
+                    vf, "base_value_function", __class__=torch.nn.Module, return_value=None
             ) as patch_bvf:
                 vf(test_X)
                 mock_project.assert_called_once_with(test_X)
@@ -671,3 +675,616 @@ class TestKGUtils(BotorchTestCase):
             self.assertTrue(torch.equal(X_actual, X[..., :3, :]))
             X_fantasies_exp = X[..., 3:, :].unsqueeze(-2).permute(1, 0, 2, 3)
             self.assertTrue(torch.equal(X_fantasies, X_fantasies_exp))
+
+
+class TestMCKnowledgeGradient(BotorchTestCase):
+
+    def test_reevaluate_designs_present_MCkg_almost_zero(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 10
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = self.update_model(x_train=x_train, y_train=y_train)
+
+        value_function = PosteriorMean(model=model)
+        x_initial_conditions = gen_value_function_initial_conditions(
+            acq_function=value_function,
+            bounds=torch.Tensor([[0], [1]]),
+            current_model=model,
+            num_restarts=5,  # self.num_restarts,
+            raw_samples=80
+        )
+
+        x_pm, best_pm_value = gen_candidates_scipy(
+            initial_conditions=x_initial_conditions,
+            acquisition_function=value_function,
+            lower_bounds=torch.Tensor([0]),
+            upper_bounds=torch.Tensor([1])
+        )
+
+        best_candidate = get_best_candidates(x_pm, best_pm_value)
+
+        module = MCKnowledgeGradient(model,
+                                     bounds=torch.Tensor([[0], [1]]),
+                                     num_fantasies=5,
+                                     num_restarts=5,
+                                     raw_samples=80,
+                                     current_optimiser=best_candidate,
+                                     current_value=best_pm_value)
+        kgval = module(x_train[:, None, :])
+        self.assertAllClose(kgval, torch.zeros(n, dtype=torch.float64), atol=1e-4)
+
+    def test_discretised_MCkg_sameValue_sameInput(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 5
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = FixedNoiseGP(x_train,
+                             train_y_reshape,
+                             torch.full_like(train_y_reshape, 1e-4)).to(torch.float64)
+
+        value_function = PosteriorMean(model=model)
+
+        n_testing_locations = 10
+        x_testing_vals = torch.ones((n_testing_locations, 1)) * torch.rand(1)
+
+        x_initial_conditions = gen_value_function_initial_conditions(
+            acq_function=value_function,
+            bounds=torch.Tensor([[0], [1]]),
+            current_model=model,
+            num_restarts=5,  # self.num_restarts,
+            raw_samples=200
+        )
+        x_pm, best_pm_value = gen_candidates_scipy(
+            initial_conditions=x_initial_conditions,
+            acquisition_function=value_function,
+            lower_bounds=torch.Tensor([0]),
+            upper_bounds=torch.Tensor([1])
+        )
+        best_candidate = get_best_candidates(x_pm, best_pm_value)
+        module = MCKnowledgeGradient(model,
+                                     bounds=torch.Tensor([[0],
+                                                          [1]]),
+                                     num_fantasies=5,
+                                     num_restarts=20,
+                                     raw_samples=1024,
+                                     current_optimiser=best_candidate,
+                                     current_value=best_pm_value)
+        kgval = module(x_testing_vals[:, None, :])
+        self.assertAllClose(kgval, torch.Tensor([kgval[0]] * n_testing_locations), atol=1e-4)
+
+    def test_discretised_MCkg_does_evaluate_all_solutions(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 5
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(1)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = FixedNoiseGP(x_train,
+                             train_y_reshape,
+                             torch.full_like(train_y_reshape, 1e-4)).to(torch.float64)
+
+        n_testing_locations = 25
+        x_testing_vals = torch.linspace(0, 1, steps=n_testing_locations, dtype=torch.float64)[:, None]
+        x_testing_vals = torch.concat([x_testing_vals, torch.Tensor([[0.3]])])
+        for _ in range(10):
+            value_function = PosteriorMean(model=model)
+            x_pm, best_pm_value = gen_candidates_scipy(
+                initial_conditions=x_testing_vals[:, None, :],
+                acquisition_function=value_function,
+                lower_bounds=torch.Tensor([0]),
+                upper_bounds=torch.Tensor([1])
+            )
+            best_candidate = get_best_candidates(x_pm, best_pm_value)
+            print(best_candidate)
+            module = MCKnowledgeGradient(model,
+                                         bounds=torch.Tensor([[0],
+                                                              [1]]),
+                                         num_fantasies=10,
+                                         num_restarts=20,
+                                         raw_samples=1024,
+                                         current_optimiser=best_candidate,
+                                         current_value=best_pm_value)
+            kgval = module(x_testing_vals[:, None, :])
+            x_recommended = x_testing_vals[torch.argmax(kgval)]
+            y_recommended = func(x_recommended).unsqueeze(-1)
+            x_train = torch.concat([x_train, x_recommended[None, :]])
+            y_train = torch.concat([y_train, y_recommended])
+            model = self.update_model(x_train, y_train)
+
+        self.assertAllClose(best_candidate.squeeze(0), torch.Tensor([0.3017]), atol=1e-3)
+
+    def update_model(self, x_train, y_train):
+        from gpytorch.constraints.constraints import Interval
+        noise_constraint = Interval(0, 1.0000e-5)
+        lengthscale_constraint = Interval(0.2 - 1.0000e-4, 0.2 + 1.0000e-4)
+        base_kernel = RBFKernel(lengthscale_constraint=lengthscale_constraint)
+        base_kernel._set_lengthscale(torch.Tensor([0.2]))
+        kernel = ScaleKernel(base_kernel)
+        model = FixedNoiseGP(x_train,
+                             y_train,
+                             torch.full_like(y_train, 1e-5),
+                             covar_module=kernel).to(torch.float64)
+        likelihood = FixedNoiseGaussianLikelihood(noise=torch.full_like(y_train.squeeze(), 1e-5),
+                                                  noise_constraint=noise_constraint)
+        mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+        fit_gpytorch_mll(mll)
+        return model
+
+
+class TestHybridKnowledgeGradient(BotorchTestCase):
+
+    def test_reevaluate_designs_present_almost_zero(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 10
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = self.update_model(x_train=x_train, y_train=y_train)
+
+        value_function = PosteriorMean(model=model)
+        x_initial_conditions = gen_value_function_initial_conditions(
+            acq_function=value_function,
+            bounds=torch.Tensor([[0], [1]]),
+            current_model=model,
+            num_restarts=5,  # self.num_restarts,
+            raw_samples=80
+        )
+
+        x_pm, best_pm_value = gen_candidates_scipy(
+            initial_conditions=x_initial_conditions,
+            acquisition_function=value_function,
+            lower_bounds=torch.Tensor([0]),
+            upper_bounds=torch.Tensor([1])
+        )
+
+        best_candidate = get_best_candidates(x_pm, best_pm_value)
+
+        module = HybridKnowledgeGradient(model,
+                                         bounds=torch.Tensor([[0], [1]]),
+                                         num_fantasies=5,
+                                         num_restarts=5,
+                                         raw_samples=80,
+                                         current_optimiser=best_candidate,
+                                         current_value=best_pm_value)
+        kgval = module(x_train[:, None, :])
+        self.assertAllClose(kgval, torch.zeros(n, dtype=torch.float64), atol=1e-4)
+
+    def test_discretised_sameValue_sameInput(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 5
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = FixedNoiseGP(x_train,
+                             train_y_reshape,
+                             torch.full_like(train_y_reshape, 1e-4)).to(torch.float64)
+
+        value_function = PosteriorMean(model=model)
+
+        n_testing_locations = 10
+        x_testing_vals = torch.ones((n_testing_locations, 1)) * torch.rand(1)
+
+        x_initial_conditions = gen_value_function_initial_conditions(
+            acq_function=value_function,
+            bounds=torch.Tensor([[0], [1]]),
+            current_model=model,
+            num_restarts=5,  # self.num_restarts,
+            raw_samples=200
+        )
+        x_pm, best_pm_value = gen_candidates_scipy(
+            initial_conditions=x_initial_conditions,
+            acquisition_function=value_function,
+            lower_bounds=torch.Tensor([0]),
+            upper_bounds=torch.Tensor([1])
+        )
+        best_candidate = get_best_candidates(x_pm, best_pm_value)
+        module = HybridKnowledgeGradient(model,
+                                         bounds=torch.Tensor([[0],
+                                                              [1]]),
+                                         num_fantasies=5,
+                                         num_restarts=20,
+                                         raw_samples=1024,
+                                         current_optimiser=best_candidate,
+                                         current_value=best_pm_value)
+        kgval = module(x_testing_vals[:, None, :])
+        self.assertAllClose(kgval, torch.Tensor([kgval[0]] * n_testing_locations), atol=1e-4)
+
+    def test_discretised_does_evaluate_all_solutions(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 5
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = FixedNoiseGP(x_train,
+                             train_y_reshape,
+                             torch.full_like(train_y_reshape, 1e-4)).to(torch.float64)
+
+        n_testing_locations = 25
+        x_testing_vals = torch.linspace(0, 1, steps=n_testing_locations, dtype=torch.float64)[:, None]
+        x_testing_vals = torch.concat([x_testing_vals, torch.Tensor([[0.3]])])
+        for _ in range(50):
+            value_function = PosteriorMean(model=model)
+            x_pm, best_pm_value = gen_candidates_scipy(
+                initial_conditions=x_testing_vals[:, None, :],
+                acquisition_function=value_function,
+                lower_bounds=torch.Tensor([0]),
+                upper_bounds=torch.Tensor([1])
+            )
+            best_candidate = get_best_candidates(x_pm, best_pm_value)
+            print(best_candidate)
+            module = HybridKnowledgeGradient(model,
+                                             bounds=torch.Tensor([[0],
+                                                                  [1]]),
+                                             num_fantasies=5,
+                                             num_restarts=20,
+                                             raw_samples=1024,
+                                             current_optimiser=best_candidate,
+                                             current_value=best_pm_value)
+            kgval = module(x_testing_vals[:, None, :])
+            x_recommended = x_testing_vals[torch.argmax(kgval)]
+            y_recommended = func(x_recommended).unsqueeze(-1)
+            x_train = torch.concat([x_train, x_recommended[None, :]])
+            y_train = torch.concat([y_train, y_recommended])
+            model = self.update_model(x_train, y_train)
+
+        self.assertAllClose(best_candidate.squeeze(0), torch.Tensor([0.3001]), atol=1e-4)
+
+    def update_model(self, x_train, y_train):
+        from gpytorch.constraints.constraints import Interval
+        noise_constraint = Interval(0, 1.0000e-5)
+        lengthscale_constraint = Interval(0.2 - 1.0000e-4, 0.2 + 1.0000e-4)
+        base_kernel = RBFKernel(lengthscale_constraint=lengthscale_constraint)
+        base_kernel._set_lengthscale(torch.Tensor([0.2]))
+        kernel = ScaleKernel(base_kernel)
+        model = FixedNoiseGP(x_train,
+                             y_train,
+                             torch.full_like(y_train, 1e-5),
+                             covar_module=kernel).to(torch.float64)
+        likelihood = FixedNoiseGaussianLikelihood(noise=torch.full_like(y_train.squeeze(), 1e-5),
+                                                  noise_constraint=noise_constraint)
+        mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+        fit_gpytorch_mll(mll)
+        return model
+
+
+class TestOneSHotHybridKnowledgeGradient(BotorchTestCase):
+
+    def test_reevaluate_designs_present_almost_zero(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 10
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+
+        model = self.update_model(x_train=x_train, y_train=y_train)
+
+        value_function = PosteriorMean(model=model)
+        x_initial_conditions = gen_value_function_initial_conditions(
+            acq_function=value_function,
+            bounds=torch.Tensor([[0], [1]]),
+            current_model=model,
+            num_restarts=5,  # self.num_restarts,
+            raw_samples=80
+        )
+
+        x_pm, best_pm_value = gen_candidates_scipy(
+            initial_conditions=x_initial_conditions,
+            acquisition_function=value_function,
+            lower_bounds=torch.Tensor([0]),
+            upper_bounds=torch.Tensor([1])
+        )
+
+        best_candidate = get_best_candidates(x_pm, best_pm_value)
+        n_fantasies = 5
+        module = HybridOneShotKnowledgeGradient(model,
+                                                num_fantasies=n_fantasies,
+                                                x_optimiser=best_candidate)
+        x_evaluate = torch.zeros((n, 1 + n_fantasies, 1))
+        x_fantasies = torch.zeros((n_fantasies, 1))
+        for i in range(n):
+            x_evaluate[i, 0, :] = x_train[i]
+            x_evaluate[i, 1:, :] = x_fantasies
+        kgval = module(x_evaluate)
+        self.assertAllClose(kgval, torch.zeros(n, dtype=torch.float64), atol=1e-4)
+
+    def test_discretised_sameValue_sameInput(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 5
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = FixedNoiseGP(x_train,
+                             train_y_reshape,
+                             torch.full_like(train_y_reshape, 1e-4)).to(torch.float64)
+
+        value_function = PosteriorMean(model=model)
+
+        n_testing_locations = 10
+        n_fantasies = 5
+        x_testing_val = torch.Tensor([0.3])
+        x_evaluate = torch.zeros((n_testing_locations, 1 + n_fantasies, 1))
+        x_fantasies = torch.zeros((n_fantasies, 1))
+        for i in range(n_testing_locations):
+            x_evaluate[i, 0, :] = x_testing_val
+            x_evaluate[i, 1:, :] = x_fantasies
+
+        x_initial_conditions = gen_value_function_initial_conditions(
+            acq_function=value_function,
+            bounds=torch.Tensor([[0], [1]]),
+            current_model=model,
+            num_restarts=5,  # self.num_restarts,
+            raw_samples=200
+        )
+        x_pm, best_pm_value = gen_candidates_scipy(
+            initial_conditions=x_initial_conditions,
+            acquisition_function=value_function,
+            lower_bounds=torch.Tensor([0]),
+            upper_bounds=torch.Tensor([1])
+        )
+        best_candidate = get_best_candidates(x_pm, best_pm_value)
+        module = HybridOneShotKnowledgeGradient(model,
+                                                num_fantasies=n_fantasies,
+                                                x_optimiser=best_candidate)
+        kgval = module(x_evaluate)
+        self.assertAllClose(kgval, torch.Tensor([kgval[0]] * n_testing_locations), atol=1e-4)
+
+    def test_discretised_does_evaluate_all_solutions(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 5
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = FixedNoiseGP(x_train,
+                             train_y_reshape,
+                             torch.full_like(train_y_reshape, 1e-4)).to(torch.float64)
+
+        n_testing_locations = 25
+        x_testing_vals = torch.linspace(0, 1, steps=n_testing_locations, dtype=torch.float64)[:, None]
+        x_testing_vals = torch.concat([x_testing_vals, torch.Tensor([[0.3]])])
+
+        n_fantasies = 100
+        x_evaluate = torch.zeros((n_testing_locations, 1 + n_fantasies, 1))
+        x_fantasies = torch.rand((n_fantasies, 1))
+        for i in range(n_testing_locations):
+            x_evaluate[i, 0, :] = x_testing_vals[i]
+            x_evaluate[i, 1:, :] = x_fantasies
+
+        for _ in range(50):
+            value_function = PosteriorMean(model=model)
+            x_pm, best_pm_value = gen_candidates_scipy(
+                initial_conditions=x_testing_vals[:, None, :],
+                acquisition_function=value_function,
+                lower_bounds=torch.Tensor([0]),
+                upper_bounds=torch.Tensor([1])
+            )
+            best_candidate = get_best_candidates(x_pm, best_pm_value)
+            print(best_candidate)
+            module = HybridOneShotKnowledgeGradient(model,
+                                                    num_fantasies=n_fantasies,
+                                                    x_optimiser=best_candidate)
+            kgval = module(x_evaluate)
+            x_recommended = x_testing_vals[torch.argmax(kgval)]
+            y_recommended = func(x_recommended).unsqueeze(-1)
+            x_train = torch.concat([x_train, x_recommended[None, :]])
+            y_train = torch.concat([y_train, y_recommended])
+            model = self.update_model(x_train, y_train)
+
+        self.assertAllClose(best_candidate.squeeze(0), torch.Tensor([0.30]), atol=1e-4)
+
+    def update_model(self, x_train, y_train):
+        from gpytorch.constraints.constraints import Interval
+        noise_constraint = Interval(0, 1.0000e-5)
+        lengthscale_constraint = Interval(0.2 - 1.0000e-4, 0.2 + 1.0000e-4)
+        base_kernel = RBFKernel(lengthscale_constraint=lengthscale_constraint)
+        base_kernel._set_lengthscale(torch.Tensor([0.2]))
+        kernel = ScaleKernel(base_kernel)
+        model = FixedNoiseGP(x_train,
+                             y_train,
+                             torch.full_like(y_train, 1e-5),
+                             covar_module=kernel).to(torch.float64)
+        likelihood = FixedNoiseGaussianLikelihood(noise=torch.full_like(y_train.squeeze(), 1e-5),
+                                                  noise_constraint=noise_constraint)
+        mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+        fit_gpytorch_mll(mll)
+        return model
+
+
+class TestDiscreteKnowledgeGradient(BotorchTestCase):
+
+    def test_reevaluate_designs_present_almost_zero(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 100
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+
+        model = self.update_model(x_train=x_train, y_train=y_train)
+
+        value_function = PosteriorMean(model=model)
+        x_initial_conditions = gen_value_function_initial_conditions(
+            acq_function=value_function,
+            bounds=torch.Tensor([[0], [1]]),
+            current_model=model,
+            num_restarts=5,  # self.num_restarts,
+            raw_samples=80
+        )
+
+        x_pm, best_pm_value = gen_candidates_scipy(
+            initial_conditions=x_initial_conditions,
+            acquisition_function=value_function,
+            lower_bounds=torch.Tensor([0]),
+            upper_bounds=torch.Tensor([1])
+        )
+
+        best_candidate = get_best_candidates(x_pm, best_pm_value)
+        module = DiscreteKnowledgeGradient(model,
+                                           bounds=torch.Tensor([[0],
+                                                                [1]]),
+                                           num_discrete_points=1000,
+                                           current_optimiser=best_candidate)
+
+        kgval = module(x_train[:, None, :])
+        self.assertAllClose(kgval, torch.zeros(n, dtype=torch.float64), atol=1e-4)
+
+    def test_discretised_sameValue_sameInput(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 5
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = FixedNoiseGP(x_train,
+                             train_y_reshape,
+                             torch.full_like(train_y_reshape, 1e-4)).to(torch.float64)
+
+        value_function = PosteriorMean(model=model)
+
+        n_testing_locations = 100
+        x_testing_vals = torch.ones((n_testing_locations, 1)) * torch.rand(1)
+
+        x_initial_conditions = gen_value_function_initial_conditions(
+            acq_function=value_function,
+            bounds=torch.Tensor([[0], [1]]),
+            current_model=model,
+            num_restarts=5,  # self.num_restarts,
+            raw_samples=200
+        )
+        x_pm, best_pm_value = gen_candidates_scipy(
+            initial_conditions=x_initial_conditions,
+            acquisition_function=value_function,
+            lower_bounds=torch.Tensor([0]),
+            upper_bounds=torch.Tensor([1])
+        )
+        best_candidate = get_best_candidates(x_pm, best_pm_value)
+        module = DiscreteKnowledgeGradient(model,
+                                           bounds=torch.Tensor([[0],
+                                                                [1]]),
+                                           num_discrete_points=1000,
+                                           current_optimiser=best_candidate)
+
+        kgval = module(x_testing_vals[:, None, :])
+        self.assertAllClose(kgval, torch.Tensor([kgval[0]] * n_testing_locations), atol=1e-4)
+
+    def test_discretised_does_evaluate_all_solutions(self):
+        def func(x):
+            return -(x - 0.3) ** 2
+
+        n = 5
+        d = 1
+        torch.set_default_dtype(torch.float64)
+        torch.manual_seed(0)
+        x_train = torch.rand((n, d), dtype=torch.float64)
+        y_train = func(x_train)
+        train_y_reshape = y_train.reshape((n, 1))
+
+        model = FixedNoiseGP(x_train,
+                             train_y_reshape,
+                             torch.full_like(train_y_reshape, 1e-4)).to(torch.float64)
+
+        n_testing_locations = 25
+        x_testing_vals = torch.linspace(0, 1, steps=n_testing_locations, dtype=torch.float64)[:, None]
+        x_testing_vals = torch.concat([x_testing_vals, torch.Tensor([[0.3]])])
+
+        for _ in range(50):
+            value_function = PosteriorMean(model=model)
+            x_pm, best_pm_value = gen_candidates_scipy(
+                initial_conditions=x_testing_vals[:, None, :],
+                acquisition_function=value_function,
+                lower_bounds=torch.Tensor([0]),
+                upper_bounds=torch.Tensor([1])
+            )
+            best_candidate = get_best_candidates(x_pm, best_pm_value)
+            print(best_candidate)
+            module = DiscreteKnowledgeGradient(model,
+                                               bounds=torch.Tensor([[0],
+                                                                    [1]]),
+                                               num_discrete_points=1000,
+                                               current_optimiser=best_candidate)
+            kgval = module(x_testing_vals[:, None, :])
+            x_recommended = x_testing_vals[torch.argmax(kgval)]
+            y_recommended = func(x_recommended).unsqueeze(-1)
+            x_train = torch.concat([x_train, x_recommended[None, :]])
+            y_train = torch.concat([y_train, y_recommended])
+            model = self.update_model(x_train, y_train)
+
+        self.assertAllClose(best_candidate.squeeze(0), torch.Tensor([0.2997]), atol=1e-4)
+
+    def update_model(self, x_train, y_train):
+        from gpytorch.constraints.constraints import Interval
+        noise_constraint = Interval(0, 1.0000e-6)
+        lengthscale_constraint = Interval(0.2 - 1.0000e-4, 0.2 + 1.0000e-4)
+        base_kernel = RBFKernel(lengthscale_constraint=lengthscale_constraint)
+        base_kernel._set_lengthscale(torch.Tensor([0.2]))
+        kernel = ScaleKernel(base_kernel)
+        model = FixedNoiseGP(x_train,
+                             y_train,
+                             torch.full_like(y_train, 1e-5),
+                             covar_module=kernel).to(torch.float64)
+        likelihood = FixedNoiseGaussianLikelihood(noise=torch.full_like(y_train.squeeze(), 1e-6),
+                                                  noise_constraint=noise_constraint)
+        mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+        fit_gpytorch_mll(mll)
+        return model

@@ -23,6 +23,7 @@ from botorch.acquisition.analytic import (
     ProbabilityOfImprovement,
     qAnalyticProbabilityOfImprovement,
     UpperConfidenceBound,
+    DiscreteKnowledgeGradient,
 )
 from botorch.acquisition.cost_aware import (
     GenericCostAwareUtility,
@@ -33,8 +34,11 @@ from botorch.acquisition.factory import get_acquisition_function
 from botorch.acquisition.fixed_feature import FixedFeatureAcquisitionFunction
 from botorch.acquisition.input_constructors import get_acqf_input_constructor
 from botorch.acquisition.knowledge_gradient import (
+    HybridKnowledgeGradient,
+    MCKnowledgeGradient,
     qKnowledgeGradient,
     qMultiFidelityKnowledgeGradient,
+    HybridOneShotKnowledgeGradient
 )
 from botorch.acquisition.logei import (
     LogImprovementMCAcquisitionFunction,
@@ -100,7 +104,11 @@ __all__ = [
     "LogImprovementMCAcquisitionFunction",
     "qLogExpectedImprovement",
     "qLogNoisyExpectedImprovement",
+    "HybridKnowledgeGradient",
     "qKnowledgeGradient",
+    "DiscreteKnowledgeGradient",
+    "MCKnowledgeGradient",
+    "HybridOneShotKnowledgeGradient",
     "MaxValueBase",
     "qMultiFidelityKnowledgeGradient",
     "qMaxValueEntropy",

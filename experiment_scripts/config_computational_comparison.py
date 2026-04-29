@@ -19,9 +19,10 @@ from torch import dtype, DoubleTensor
 
 # 2, 5, 10, 20, 50,  100, 200
 input_dimensions = 2
-Tmax = 2
+Tmax = 10
 lengthscale = 0.2
 
+# todo: seems to work fine with 1000 evaluations of MCKG and less than 20 evaluations
 CONFIG_DICT = {
     "DISCKG": {
         "problems": ["GP_synthetic"],
@@ -29,11 +30,11 @@ CONFIG_DICT = {
         "Tmax": Tmax,
         "num_input_dim": input_dimensions,
         "lengthscale": lengthscale,
-        "num_samples_initial_design": 6,
+        "num_samples_initial_design": 4,
         "acquisition_optimizer": [
             "L-BFGS-B"
         ],
-        "optimization_parameters": {"num_discrete_points": ([1, 1000], torch.int)
+        "optimization_parameters": {"num_discrete_points": ([1, 800], torch.int)
                                     }
     },
 

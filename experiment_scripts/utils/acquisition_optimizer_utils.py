@@ -40,8 +40,6 @@ class OptimizeAcqfAndGetDesign():
             )
             self.nit += 1
             elapsed_time = time.time() - self.start_time
-            # print("it-", self.nit, " Elapsed: %.3f sec" % elapsed_time)
-            # print("candidate...", candidates)
             if value_final_candidate < candidates[1]:
                 x_final_candidate = candidates[0].type(torch.DoubleTensor)
                 value_final_candidate = candidates[1]

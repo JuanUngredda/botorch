@@ -99,59 +99,64 @@ def knowledge_gradient_bo_loop(experiment_name: str,
     CONFIG_INPUT_DIM = CONFIG_DICT[experiment_name]["num_input_dim"]
     CONFIG_LENGTHSCALE = CONFIG_DICT[experiment_name]["lengthscale"]
 
-    testfn = GP_synthetic(dim=CONFIG_INPUT_DIM,
-                          seed=seed,
-                          kernel_str="RBF",
-                          hypers_ls=CONFIG_LENGTHSCALE,
-                          negate=True).to(dtype=dtype)
+    true_kg = []
+    max_iters = 5
+    for i in range(max_iters):
+        iters_seed = i % max_iters + max_iters * seed
+        testfn = GP_synthetic(dim=CONFIG_INPUT_DIM,
+                              seed=iters_seed,
+                              kernel_str="RBF",
+                              hypers_ls=CONFIG_LENGTHSCALE,
+                              negate=True).to(dtype=dtype)
 
-    dim = testfn.dim
-    bounds = torch.vstack([torch.zeros(dim), torch.ones(dim)])
+        dim = testfn.dim
+        bounds = torch.vstack([torch.zeros(dim), torch.ones(dim)])
 
-    # -------------------------------------------------------------------------
-    # PULL CONFIG VARIABLE VALUES
-    optimization_parameters = {}
-    for idx, label in enumerate(configuration_labels):
-        optimization_parameters[label] = configuration_design[idx]
-    labels = optimization_parameters.keys()
+        # -------------------------------------------------------------------------
+        # PULL CONFIG VARIABLE VALUES
+        optimization_parameters = {}
+        for idx, label in enumerate(configuration_labels):
+            optimization_parameters[label] = configuration_design[idx]
+        labels = optimization_parameters.keys()
 
-    setter = parameter_setter(experiment_name=experiment_name)
-    setter.build(optimization_parameters, labels)
-    # ---------------------------------------------------------------------------------
+        setter = parameter_setter(experiment_name=experiment_name)
+        setter.build(optimization_parameters, labels)
+        # ---------------------------------------------------------------------------------
 
-    # Generate Initial Data
-    config_number_initial_design = CONFIG_DICT[experiment_name]["num_samples_initial_design"]
-    config_number_dimensions = CONFIG_DICT[experiment_name]["num_input_dim"]
-    covar_module = testfn.covar_module
-    x_train = lhc(config_number_initial_design, dim=config_number_dimensions)
-    y_train = torch.Tensor([testfn(x_i) for x_i in x_train]).reshape((x_train.shape[0], 1)).to(torch.float64)
+        # Generate Initial Data
+        config_number_initial_design = CONFIG_DICT[experiment_name]["num_samples_initial_design"]
+        config_number_dimensions = CONFIG_DICT[experiment_name]["num_input_dim"]
+        covar_module = testfn.covar_module
+        x_train = lhc(config_number_initial_design, dim=config_number_dimensions)
+        y_train = torch.Tensor([testfn(x_i) for x_i in x_train]).reshape((x_train.shape[0], 1)).to(torch.float64)
 
-    # Fit model
-    model = update_model(x_train=x_train, y_train=y_train, covar_module=covar_module)
+        # Fit model
+        model = update_model(x_train=x_train, y_train=y_train, covar_module=covar_module)
 
-    # This wrapper includes the parameters to each acquisition function.
-    acquisition_function = KG_wrapper(
-        method=experiment_name,
-        bounds=bounds,
-        num_fantasies=setter.get_number_fantasies(),
-        num_discrete_points=setter.get_number_discrete_points(),
-        num_restarts=setter.get_number_restarts_inner_opt(),
-        raw_samples=setter.get_number_raw_samples_inner_opt(),
-    )
+        # This wrapper includes the parameters to each acquisition function.
+        acquisition_function = KG_wrapper(
+            method=experiment_name,
+            bounds=bounds,
+            num_fantasies=setter.get_number_fantasies(),
+            num_discrete_points=setter.get_number_discrete_points(),
+            num_restarts=setter.get_number_restarts_inner_opt(),
+            raw_samples=setter.get_number_raw_samples_inner_opt(),
+        )
 
-    x_best, y_best = get_best_pm_location(dim, model)
+        x_best, y_best = get_best_pm_location(dim, model)
 
-    kg_approximation = acquisition_function(model=model,
-                                            x_best=x_best,
-                                            fn_best=y_best)
+        kg_approximation = acquisition_function(model=model,
+                                                x_best=x_best,
+                                                fn_best=y_best)
 
-    Tmax = CONFIG_DICT[experiment_name]["Tmax"]
-    optimizer = OptimizeAcqfAndGetDesign(maxtime_sec=Tmax, bounds=bounds, acq_func=kg_approximation)
-    x_new, _ = optimizer.optimize()
+        Tmax = CONFIG_DICT[experiment_name]["Tmax"]
+        optimizer = OptimizeAcqfAndGetDesign(maxtime_sec=Tmax, bounds=bounds, acq_func=kg_approximation)
+        x_new, _ = optimizer.optimize()
 
-    y_new = evaluate_true_kg(x_new=x_new, model=model, bounds=bounds, x_best=x_best)
-
-    return y_new
+        y_new = evaluate_true_kg(x_new=x_new, model=model, bounds=bounds, x_best=x_best)
+        true_kg.append(y_new)
+    print("discretisation", setter.get_number_discrete_points(), "value", torch.mean(torch.Tensor(true_kg)))
+    return torch.mean(torch.Tensor(true_kg))
 
 
 def get_best_pm_location(dim, model):

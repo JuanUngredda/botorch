@@ -259,13 +259,9 @@ class MCKnowledgeGradient(DiscreteKnowledgeGradient):
                 # make sure to propagate kg gradients.
                 with settings.propagate_grads(True):
                     x_top_val = value_function(X=x_top)
-                    if self.current_value is not None:
+                    if self.current_optimiser is not None:
                         x_current_optimiser_val = value_function(X=self.current_optimiser)
-                        if x_current_optimiser_val > x_top_val:
-                            x_top_val = x_current_optimiser_val
-
-                if self.current_value is not None:
-                    x_top_val = x_top_val - x_current_optimiser_val
+                        x_top_val = torch.max(x_top_val - x_current_optimiser_val, 0).values
 
                 fantasy_opt_val[:, fantasy_idx] = x_top_val
                 xstar_inner_optimisation[fantasy_idx, :] = x_top.squeeze()

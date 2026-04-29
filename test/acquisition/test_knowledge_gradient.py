@@ -5,12 +5,15 @@
 # LICENSE file in the root directory of this source tree.
 
 from contextlib import ExitStack
+from datetime import time
 from unittest import mock
 
 import gpytorch
+import matplotlib.pyplot as plt
 import torch
+from gpytorch.constraints import Interval
 from gpytorch.distributions import MultitaskMultivariateNormal
-from gpytorch.kernels import RBFKernel, ScaleKernel
+from gpytorch.kernels import RBFKernel, ScaleKernel, MaternKernel
 from gpytorch.likelihoods import FixedNoiseGaussianLikelihood
 
 from botorch.acquisition.analytic import PosteriorMean, ScalarizedPosteriorMean, DiscreteKnowledgeGradient
@@ -38,6 +41,7 @@ from botorch.optim.utils import _filter_kwargs
 from botorch.posteriors.gpytorch import GPyTorchPosterior
 from botorch.sampling.normal import IIDNormalSampler, SobolQMCNormalSampler
 from botorch.utils.testing import BotorchTestCase, MockModel, MockPosterior
+from experiment_scripts.optimizers.utils import lhc
 from .test_monte_carlo import DummyNonScalarizingPosteriorTransform
 
 NO = "botorch.utils.testing.MockModel.num_outputs"
@@ -679,6 +683,121 @@ class TestKGUtils(BotorchTestCase):
 
 class TestMCKnowledgeGradient(BotorchTestCase):
 
+    def test_range_MCkg(self):
+        from experiment_scripts.optimizers.test_functions.gp_synthetic_test_function import GP_synthetic
+        def update_model(x_train, y_train, covar_module):
+            noise_constraint = Interval(0, 1.0000e-4)
+
+            lengtscale_raw = covar_module.base_kernel.lengthscale.squeeze().detach()
+            dim = covar_module.base_kernel.ard_num_dims
+            e_ = 1.0000e-4
+            lengthscale_constraints = Interval(lengtscale_raw - e_, lengtscale_raw + e_)
+
+            base_kernel = MaternKernel(lengthscale_constraint=lengthscale_constraints, ard_num_dims=dim)
+            base_kernel._set_lengthscale(lengtscale_raw)
+            covar_module = ScaleKernel(
+                base_kernel,
+            )
+            model = FixedNoiseGP(x_train,
+                                 y_train,
+                                 torch.full_like(y_train, 1e-5),
+                                 covar_module=covar_module).to(torch.float64)
+            likelihood = FixedNoiseGaussianLikelihood(noise=torch.full_like(y_train.squeeze(), 1e-5),
+                                                      noise_constraint=noise_constraint)
+            mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+            fit_gpytorch_mll(mll)
+            return model
+
+        def get_best_pm_location(dim, model):
+            value_function = PosteriorMean(model=model)
+            x_initial_conditions = gen_value_function_initial_conditions(
+                acq_function=value_function,
+                bounds=torch.Tensor([[0] * dim, [1] * dim]),
+                current_model=model,
+                num_restarts=80,  # self.num_restarts,
+                raw_samples=1024
+            )
+            x_pm, best_pm_value = gen_candidates_scipy(
+                initial_conditions=x_initial_conditions,
+                acquisition_function=value_function,
+                lower_bounds=torch.Tensor([0] * dim),
+                upper_bounds=torch.Tensor([1] * dim)
+            )
+            best_candidate = get_best_candidates(x_pm, best_pm_value)
+            return best_candidate, value_function(best_candidate)
+
+        def evaluate_true_kg(x_new, model, bounds, x_best):
+            import time
+            start = time.time()
+            kg_mc_acquisition_function = MCKnowledgeGradient(
+                model,
+                bounds=bounds,
+                num_fantasies=1000,
+                num_restarts=10,
+                raw_samples=1025,
+                current_optimiser=x_best
+            )
+
+            kg_value = kg_mc_acquisition_function(x_new[:, None, :])
+            stop = time.time()
+            print("evaluation time MC: ", stop-start)
+            return kg_value
+
+        def evaluate_discretekg(x_new, model, bounds, x_best):
+            import time
+            start = time.time()
+            kg_mc_acquisition_function = DiscreteKnowledgeGradient(
+                model,
+                bounds=bounds,
+                num_discrete_points=1000,
+                current_optimiser=x_best
+            )
+
+            kg_value = kg_mc_acquisition_function(x_new[:, None, :])
+            stop = time.time()
+            print("evaluation time discrete: ", stop-start)
+            return kg_value
+
+        CONFIG_INPUT_DIM = 2
+        CONFIG_LENGTHSCALE = 0.2
+
+        true_kg = []
+        max_iters = 20
+        seed = 0
+        dtype = torch.double
+        for i in range(max_iters):
+            iters_seed = i % max_iters + max_iters * seed
+            testfn = GP_synthetic(dim=CONFIG_INPUT_DIM,
+                                  seed=iters_seed,
+                                  kernel_str="RBF",
+                                  hypers_ls=CONFIG_LENGTHSCALE,
+                                  negate=True).to(dtype=dtype)
+
+            dim = testfn.dim
+            bounds = torch.vstack([torch.zeros(dim), torch.ones(dim)])
+
+            covar_module = testfn.covar_module
+            x_train = lhc(6, dim=CONFIG_INPUT_DIM)
+            y_train = torch.Tensor([testfn(x_i) for x_i in x_train]).reshape((x_train.shape[0], 1)).to(torch.float64)
+
+            # Fit model
+            model = update_model(x_train=x_train, y_train=y_train, covar_module=covar_module)
+
+            x_best, y_best = get_best_pm_location(dim, model)
+            x_best = x_best.to(dtype)
+            y_new_points = []
+            print("iter seed: ", iters_seed)
+            for _ in range(20):
+                xnew_rand = torch.rand((1, 2), dtype=dtype)
+                y_new = evaluate_true_kg(x_new=xnew_rand, model=model, bounds=bounds, x_best=x_best)
+                y_new_discretekg = evaluate_discretekg(x_new=xnew_rand, model=model, bounds=bounds, x_best=x_best)
+                print("MC_kg", y_new , "DiscreteKG", y_new_discretekg)
+            y_new_points.append(y_new)
+            true_kg.append(y_new)
+
+
+
+
     def test_reevaluate_designs_present_MCkg_almost_zero(self):
         def func(x):
             return -(x - 0.3) ** 2
@@ -767,6 +886,7 @@ class TestMCKnowledgeGradient(BotorchTestCase):
         kgval = module(x_testing_vals[:, None, :])
         self.assertAllClose(kgval, torch.Tensor([kgval[0]] * n_testing_locations), atol=1e-4)
 
+
     def test_discretised_MCkg_does_evaluate_all_solutions(self):
         def func(x):
             return -(x - 0.3) ** 2
@@ -812,6 +932,7 @@ class TestMCKnowledgeGradient(BotorchTestCase):
             model = self.update_model(x_train, y_train)
 
         self.assertAllClose(best_candidate.squeeze(0), torch.Tensor([0.3017]), atol=1e-3)
+
 
     def update_model(self, x_train, y_train):
         from gpytorch.constraints.constraints import Interval
@@ -1144,6 +1265,101 @@ class TestOneSHotHybridKnowledgeGradient(BotorchTestCase):
 
 
 class TestDiscreteKnowledgeGradient(BotorchTestCase):
+
+
+    def test_range_Discretekg(self):
+        from experiment_scripts.optimizers.test_functions.gp_synthetic_test_function import GP_synthetic
+        def update_model(x_train, y_train, covar_module):
+            noise_constraint = Interval(0, 1.0000e-4)
+
+            lengtscale_raw = covar_module.base_kernel.lengthscale.squeeze().detach()
+            dim = covar_module.base_kernel.ard_num_dims
+            e_ = 1.0000e-4
+            lengthscale_constraints = Interval(lengtscale_raw - e_, lengtscale_raw + e_)
+
+            base_kernel = MaternKernel(lengthscale_constraint=lengthscale_constraints, ard_num_dims=dim)
+            base_kernel._set_lengthscale(lengtscale_raw)
+            covar_module = ScaleKernel(
+                base_kernel,
+            )
+            model = FixedNoiseGP(x_train,
+                                 y_train,
+                                 torch.full_like(y_train, 1e-5),
+                                 covar_module=covar_module).to(torch.float64)
+            likelihood = FixedNoiseGaussianLikelihood(noise=torch.full_like(y_train.squeeze(), 1e-5),
+                                                      noise_constraint=noise_constraint)
+            mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+            fit_gpytorch_mll(mll)
+            return model
+
+        def get_best_pm_location(dim, model):
+            value_function = PosteriorMean(model=model)
+            x_initial_conditions = gen_value_function_initial_conditions(
+                acq_function=value_function,
+                bounds=torch.Tensor([[0] * dim, [1] * dim]),
+                current_model=model,
+                num_restarts=80,  # self.num_restarts,
+                raw_samples=1024
+            )
+            x_pm, best_pm_value = gen_candidates_scipy(
+                initial_conditions=x_initial_conditions,
+                acquisition_function=value_function,
+                lower_bounds=torch.Tensor([0] * dim),
+                upper_bounds=torch.Tensor([1] * dim)
+            )
+            best_candidate = get_best_candidates(x_pm, best_pm_value)
+            return best_candidate, value_function(best_candidate)
+
+        def evaluate_true_kg(x_new, model, bounds, x_best):
+            import time
+            start = time.time()
+            kg_mc_acquisition_function = DiscreteKnowledgeGradient(
+                model,
+                bounds=bounds,
+                num_discrete_points=5000,
+                current_optimiser=x_best
+            )
+
+            kg_value = kg_mc_acquisition_function(x_new[:, None, :])
+            stop = time.time()
+            return kg_value
+
+        CONFIG_INPUT_DIM = 2
+        CONFIG_LENGTHSCALE = 0.2
+
+        true_kg = []
+        max_iters = 10
+        seed = 0
+        dtype = torch.double
+        for i in range(max_iters):
+            iters_seed = i % max_iters + max_iters * seed
+            testfn = GP_synthetic(dim=CONFIG_INPUT_DIM,
+                                  seed=iters_seed,
+                                  kernel_str="RBF",
+                                  hypers_ls=CONFIG_LENGTHSCALE,
+                                  negate=True).to(dtype=dtype)
+
+            dim = testfn.dim
+            bounds = torch.vstack([torch.zeros(dim), torch.ones(dim)])
+
+            covar_module = testfn.covar_module
+            x_train = lhc(6, dim=CONFIG_INPUT_DIM)
+            y_train = torch.Tensor([testfn(x_i) for x_i in x_train]).reshape((x_train.shape[0], 1)).to(torch.float64)
+
+            # Fit model
+            model = update_model(x_train=x_train, y_train=y_train, covar_module=covar_module)
+
+            x_best, y_best = get_best_pm_location(dim, model)
+
+            y_new_points = []
+            y_new = evaluate_true_kg(x_new=torch.atleast_2d(x_best), model=model, bounds=bounds, x_best=x_best)
+            y_new_points.append(y_new)
+            print(y_new_points)
+            raise
+            true_kg.append(y_new)
+
+
+
 
     def test_reevaluate_designs_present_almost_zero(self):
         def func(x):
